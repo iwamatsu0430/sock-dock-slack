@@ -1,0 +1,30 @@
+# Slack app manifest for SockDock for Slack.
+# Create the app at https://api.slack.com/apps?new_app=1 ("From a manifest") and paste this.
+# Then: Basic Information > App-Level Tokens > Generate (scope: connections:write) -> SLACK_APP_TOKEN (xapp-...)
+#       Install App > Install to Workspace -> Bot User OAuth Token -> SLACK_BOT_TOKEN (xoxb-...)
+# Invite the bot to every channel you route from: /invite @SockDock
+display_information:
+  name: SockDock
+  description: Runs local handlers for messages in your channels (SockDock for Slack)
+  background_color: "#2c2d30"
+features:
+  bot_user:
+    display_name: SockDock
+    always_online: true
+oauth_config:
+  scopes:
+    bot:
+      - chat:write
+      - channels:history
+      - groups:history
+      - reactions:write
+settings:
+  event_subscriptions:
+    bot_events:
+      - message.channels
+      - message.groups
+  interactivity:
+    is_enabled: false
+  org_deploy_enabled: false
+  socket_mode_enabled: true
+  token_rotation_enabled: false
