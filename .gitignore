@@ -1,0 +1,7 @@
+/dist/
+/bin/
+*.db
+*.db-*
+.env
+/config.yaml
+.DS_Store
