@@ -251,8 +251,9 @@ Unix ドメインソケット（データディレクトリの `control.sock`、
 
 - **ルートの編集**: フォームから YAML を書き換えると設定ファイルのコメントが消えるため、フォームは「YAML の断片を作り、設定エディタの `routes:` の末尾に差し込む」だけにした。保存は設定エディタ（YAML をそのまま編集し、入力のたびに検証する）で行う
 - **通知**: `osascript` の `display notification` を使う（署名していないアプリでも出せるため）。ゲートウェイが 2 分以上止まっている・つながらないとき、ハンドラが失敗・タイムアウトしたときに出す。設定でオフにできる
-- **GUI のログイン時の起動**: Wails の Autostart（macOS は `SMAppService` か LaunchAgent）を使う。ゲートウェイの常駐（`service install`）とは別に切り替えられる
-- **サービスの PATH**: Finder から起動したアプリの PATH は最小限なので、GUI から `service install` するときはログインシェルの PATH（`$SHELL -l -i -c 'echo $PATH'`）を使う
+- **GUI のログイン時の起動**: Wails の Autostart（macOS は `SMAppService` か LaunchAgent）を使う。アプリがゲートウェイを動かすので、これがゲートウェイの常駐も兼ねる（7.2）
+- **ハンドラの PATH**: Finder から起動したアプリの PATH は最小限なので、アプリはゲートウェイを動かす前に、ログインシェルの PATH（`$SHELL -l -i -c 'echo $PATH'`）に差し替える
+- **トークンの確認**: トークンごとに確かめる。Bot Token は `auth.test`、App-Level Token は Socket Mode の接続 URL の取得（Socket Mode が無効なアプリでも失敗する）。片方だけでも確かめられ、足りないほうは何に必要かを示す
 - **トークンの保存**: GUI からは `/usr/bin/security` に値を引数で渡してキーチェーンに保存する（同じユーザーの `ps` から一瞬見える。CLI の `auth set` は対話入力で、引数に出さない）
 - **画面**: メニューバーのポップオーバー（接続状態、実行中、最近のターン、再読み込み）と、メインウィンドウ（Overview / Routes / Config / Setup / Logs / Preferences）。UI は英語
 - **ビルド**: `scripts/build-app.sh`（`mise run app`）が、バインディングの生成 → フロントエンドのビルド → CLI と GUI のビルド → アイコン → `Info.plist`（`LSUIElement`）→ ad-hoc 署名まで行い、`dist/SockDock.app` を作る。CLI は `.app` の中にも同梱し、GUI はそれをサービスとして登録する
@@ -269,9 +270,14 @@ Unix ドメインソケット（データディレクトリの `control.sock`、
 
 ### 7.2 コアとの関係
 
-- GUI は別のプロセス（Wails のアプリ）で、制御 API にだけ話しかける。コアの内部パッケージには依存しない（共有するのは制御 API のクライアントと型だけ）
-- コアは launchd が動かす（ログイン時に起動、落ちたら起動し直す）。GUI の「ログイン時に起動」をオンにすると、CLI の `service install` と同じ処理で、コアの LaunchAgent と GUI 自身の LaunchAgent を `~/Library/LaunchAgents` に書く。GUI を閉じてもコアは動き続ける
-- コアが動いていなければ、GUI はその旨と「起動する」ボタンを出す
+**変更（2026-11-12、ユーザー確認済み）**: 「サービスをインストール」という見せ方は警戒されやすいため、一般的なメニューバーアプリと同じく、アプリ自身がゲートウェイを動かす形に変えた（案 A）。
+
+- GUI のアプリは、起動するとゲートウェイ（`internal/daemon`。`sockdock run` と同じもの）を自分のプロセスの中で動かす。設定は「ログイン時に SockDock を開く」のチェックボックス 1 つだけ（Wails の Autostart。macOS は `SMAppService` のログイン項目）
+- メニューバーからアプリを終了するとゲートウェイも止まる（終了メニューに「ゲートウェイも止まります」と出す）。ゲートウェイが自分で止まったとき（Slack に長くつながらないなど）は、15 秒後にアプリが起動し直す
+- Finder から開いたアプリの PATH は最小限なので、ゲートウェイを動かす前にログインシェルの PATH に差し替える
+- トークンや設定ファイルを保存すると、セットアップ待ちならゲートウェイを起動し、動いていれば起動し直す
+- 画面の表示は、これまでどおり制御 API を通す。ロックが取れない（`sockdock service install` のサービスなど、別の sockdock が動いている）ときは、アプリはゲートウェイを動かさずに状態の表示だけをする。そのサービスが止まれば引き継ぐ。「セットアップ」からサービスを削除してアプリに切り替えられる
+- `sockdock service install` は、アプリを使わない人（CLI だけ、Linux）向けに残す。アプリの画面からは入れない
 - メニューバーのアイコンをクリックすると、アイコンの下に小さなウィンドウを出す（Wails v3 の `SystemTray` ＋ `AttachWindow`、フォーカスが外れたら隠す）。ルートの編集やログは通常のウィンドウで開く
 - GUI で問題が起きても、コアと CLI だけで運用できる状態を常に保つ
 

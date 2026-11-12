@@ -87,7 +87,7 @@ sockdock match C0123456789 "echo hello"
 
 ```bash
 sockdock run                # フォアグラウンドで動かす（Ctrl-C で止める）
-sockdock service install    # または: ログイン時に起動し、落ちたら起動し直す（launchd / systemd）
+sockdock service install    # または（メニューバーのアプリを使わない場合）: ログイン時に起動し、落ちたら起動し直す（launchd / systemd）
 sockdock status
 ```
 
@@ -95,7 +95,9 @@ sockdock status
 
 ### メニューバーのアプリを使う場合
 
-`open dist/SockDock.app`（または `mise run gui`）で開きます。「セットアップ」タブで手順 2〜5（マニフェストのコピー、トークンのキーチェーンへの保存、Claude Code の場所の確認、サービスのインストール）を進められます。アプリを閉じてもゲートウェイは動き続けます。
+`open dist/SockDock.app`（または `mise run gui`）で開きます。アプリは開いている間、ゲートウェイを自分で動かすので、別にサービスを入れる必要はありません。「セットアップ」タブで上の手順（マニフェストのコピー、トークンの保存と確認（トークンごとに確認します）、Claude Code の場所の確認、「ログイン時に SockDock を開く」）を進められます。メニューバーからアプリを終了すると、ゲートウェイも止まります。
+
+`sockdock service install` のサービスがすでに動いている場合、アプリは状態を表示するだけです（「セットアップ」から、サービスを削除してアプリで動かすように切り替えられます）。
 
 ## ハンドラ
 
@@ -146,7 +148,7 @@ handler:
 - スレッドごとにセッションを保存し、次の返信で再開します。再開できなければ新しい会話として始め、その旨をスレッドに伝えます。
 - Claude が処理している間に届いた投稿は、次のターンでまとめて渡します。
 - Claude Code はあなた自身のログインで動きます。`--bare` を使わないので、プロジェクトの `.claude/settings.json`・`CLAUDE.md`・フックも効きます。ルートに何を許すかは、それも含めて考えてください。
-- launchd から動かすときは、`settings.claude_command` に絶対パスを書いてください（バージョン管理ツールのシムはシェルの外では動かないことが多いため）。`sockdock service install` は、実行したときの `PATH` をサービスに記録します。
+- `settings.claude_command` には絶対パスを書いてください。SockDock から Claude Code を起動するとき、バージョン管理ツール（mise、asdf など）のシムは動かないことが多いためです。メニューバーのアプリはログインシェルの `PATH` をハンドラに渡し、`sockdock service install` は実行したときの `PATH` をサービスに記録します。
 
 ## 設定のリファレンス
 
@@ -178,7 +180,7 @@ settings:
 | `sockdock threads` / `turns` / `logs` | 最近のスレッド、処理、ログ |
 | `sockdock pause <route>` / `resume <route>` | ルートの一時停止・再開 |
 | `sockdock auth set` / `status` / `delete` | キーチェーンのトークンの管理 |
-| `sockdock service install` / `uninstall` / `status` | バックグラウンドのサービス（launchd / systemd） |
+| `sockdock service install` / `uninstall` / `status` | メニューバーのアプリを使わない場合のバックグラウンドのサービス（launchd / systemd） |
 | `sockdock manifest` | Slack アプリのマニフェストを出力する |
 
 データと制御用のソケットは `~/Library/Application Support/sockdock/`、ログは `~/Library/Logs/sockdock/` にあります。

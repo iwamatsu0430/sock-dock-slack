@@ -87,7 +87,7 @@ sockdock match C0123456789 "echo hello"
 
 ```bash
 sockdock run                # in the foreground (Ctrl-C to stop)
-sockdock service install    # or: start at login and restart on failure (launchd / systemd)
+sockdock service install    # or, without the menu bar app: start at login, restart on failure (launchd / systemd)
 sockdock status
 ```
 
@@ -95,7 +95,9 @@ Post `echo hello` in the channel: SockDock reacts with 👀, runs the handler an
 
 ### Or use the menu bar app
 
-`open dist/SockDock.app` (or `mise run gui`). The **Setup** tab walks through steps 2–5: copy the manifest, save tokens to the Keychain, find Claude Code, and install the background service. The gateway keeps running when the app is closed.
+`open dist/SockDock.app` (or `mise run gui`). The app runs the gateway itself while it is open — no separate service to install. The **Setup** tab walks through the steps above: copy the manifest, save and test the tokens (each one is checked separately), find Claude Code, and turn on **Open SockDock at login**. Quitting the app from the menu bar stops the gateway.
+
+If a `sockdock service install` service is already running, the app only shows its status (Setup offers to remove the service so the app can take over).
 
 ## Handlers
 
@@ -146,7 +148,7 @@ handler:
 - Each thread keeps its session and resumes it on the next reply. If it cannot be resumed, a new conversation starts and the thread is told so.
 - Messages that arrive while Claude is working are handed over together in the next turn.
 - Claude Code uses your own login. Because `--bare` is not used, the project's `.claude/settings.json`, `CLAUDE.md` and hooks apply too — take them into account when deciding what a route may do.
-- Under launchd, set `settings.claude_command` to an absolute path (version-manager shims often fail outside a shell). `sockdock service install` records your current `PATH` for the service.
+- Set `settings.claude_command` to an absolute path: version-manager shims (mise, asdf, …) often fail when SockDock starts Claude Code. The menu bar app gives handlers your login shell's `PATH`; `sockdock service install` records the `PATH` it was run with.
 
 ## Configuration reference
 
@@ -178,7 +180,7 @@ settings:
 | `sockdock threads` / `turns` / `logs` | Recent threads, handler runs and log lines |
 | `sockdock pause <route>` / `resume <route>` | Pause or resume a route |
 | `sockdock auth set` / `status` / `delete` | Manage tokens in the Keychain |
-| `sockdock service install` / `uninstall` / `status` | Background service (launchd / systemd) |
+| `sockdock service install` / `uninstall` / `status` | Background service for use without the menu bar app (launchd / systemd) |
 | `sockdock manifest` | Print the Slack app manifest |
 
 Files: data and the control socket are in `~/Library/Application Support/sockdock/`, logs in `~/Library/Logs/sockdock/`.
