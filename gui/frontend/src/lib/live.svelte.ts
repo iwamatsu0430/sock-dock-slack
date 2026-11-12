@@ -1,5 +1,6 @@
 import { Events } from "@wailsio/runtime";
 import { App, SockdockActivity, SockdockSnapshot, type Snapshot, type Turn } from "./api";
+import { t } from "./i18n/index.svelte";
 
 /** Live gateway state shared by all components. */
 export const live = $state({
@@ -41,10 +42,10 @@ export function startLive() {
 
 /** Connection summary used by headers and the tray. */
 export function connection(snap: Snapshot | null): { level: "ok" | "warn" | "bad" | "idle"; text: string } {
-  if (!snap) return { level: "idle", text: "Checking…" };
-  if (!snap.running) return { level: "bad", text: "Gateway not running" };
+  if (!snap) return { level: "idle", text: t("conn.checking") };
+  if (!snap.running) return { level: "bad", text: t("conn.notRunning") };
   const s = snap.status!;
-  if (!s.connected) return { level: "warn", text: s.last_error ? `Not connected: ${s.last_error}` : "Connecting to Slack…" };
-  if ((s.running ?? []).length > 0) return { level: "ok", text: `Connected · ${s.running!.length} running` };
-  return { level: "ok", text: "Connected" };
+  if (!s.connected) return { level: "warn", text: s.last_error ? t("conn.notConnected", { error: s.last_error }) : t("conn.connecting") };
+  if ((s.running ?? []).length > 0) return { level: "ok", text: t("conn.connectedRunning", { n: s.running!.length }) };
+  return { level: "ok", text: t("conn.connected") };
 }

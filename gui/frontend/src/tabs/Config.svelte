@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { App, errorText, type ValidateResult } from "../lib/api";
   import { insertRoute } from "../lib/yaml";
+  import { t } from "../lib/i18n/index.svelte";
 
   let { snippet = $bindable("") }: { snippet: string } = $props();
 
@@ -27,7 +28,7 @@
       if (snippet) {
         content = insertRoute(content, snippet);
         snippet = "";
-        message = "Route added below. Review it, then save.";
+        message = t("config.routeAdded");
       }
       validate();
     } catch (e) {
@@ -52,7 +53,7 @@
       if (res.ok) {
         saved = content;
         exists = true;
-        message = "Saved. The gateway reloaded the config.";
+        message = t("config.saved");
       }
     } catch (e) {
       error = errorText(e);
@@ -78,14 +79,14 @@
 
 <div class="wrap">
   <div class="row head">
-    <h1>Config</h1>
+    <h1>{t("tab.config")}</h1>
     <span class="spacer"></span>
-    {#if dirty}<span class="badge warn">unsaved</span>{/if}
-    <button onclick={() => { content = saved; validate(); }} disabled={!dirty}>Revert</button>
-    <button class="primary" onclick={save} disabled={saving || !dirty || (validation !== null && !validation.ok)}>Save &amp; reload</button>
+    {#if dirty}<span class="badge warn">{t("config.unsaved")}</span>{/if}
+    <button onclick={() => { content = saved; validate(); }} disabled={!dirty}>{t("config.revert")}</button>
+    <button class="primary" onclick={save} disabled={saving || !dirty || (validation !== null && !validation.ok)}>{t("config.save")}</button>
   </div>
   <p class="small muted path">
-    {path}{#if !exists} — <strong>does not exist yet</strong>; this is the example config{/if}
+    {path}{#if !exists} — <strong>{t("config.missing")}</strong>{/if}
   </p>
 
   <textarea class="code editor" spellcheck="false" bind:value={content} oninput={validate} {onkeydown}></textarea>
@@ -95,7 +96,7 @@
       {#each validation.problems ?? [] as p}<div>• {p}</div>{/each}
     </div>
   {:else if validation?.ok}
-    <p class="small" style="color: var(--ok)">✓ Valid</p>
+    <p class="small" style="color: var(--ok)">{t("config.valid")}</p>
   {/if}
   {#if message}<div class="ok-box">{message}</div>{/if}
   {#if error}<div class="error-box">{error}</div>{/if}

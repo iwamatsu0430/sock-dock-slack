@@ -8,14 +8,15 @@
   import Setup from "./tabs/Setup.svelte";
   import Logs from "./tabs/Logs.svelte";
   import Prefs from "./tabs/Prefs.svelte";
+  import { t } from "./lib/i18n/index.svelte";
 
   const tabs = [
-    { id: "overview", label: "Overview" },
-    { id: "routes", label: "Routes" },
-    { id: "config", label: "Config" },
-    { id: "setup", label: "Setup" },
-    { id: "logs", label: "Logs" },
-    { id: "prefs", label: "Preferences" },
+    { id: "overview", label: "tab.overview" },
+    { id: "routes", label: "tab.routes" },
+    { id: "config", label: "tab.config" },
+    { id: "setup", label: "tab.setup" },
+    { id: "logs", label: "tab.logs" },
+    { id: "prefs", label: "tab.prefs" },
   ] as const;
   type TabID = (typeof tabs)[number]["id"];
 
@@ -24,8 +25,8 @@
   let pendingSnippet = $state("");
 
   Events.On(SockdockNavigate, (ev) => {
-    const t = ev.data as string;
-    if (tabs.some((x) => x.id === t)) tab = t as TabID;
+    const id = ev.data as string;
+    if (tabs.some((x) => x.id === id)) tab = id as TabID;
   });
 
   const conn = $derived(connection(live.snap));
@@ -41,10 +42,10 @@
     <div class="drag"></div>
     <div class="brand">
       <strong>SockDock</strong>
-      <span class="small muted">for Slack</span>
+      <span class="small muted">{t("app.forSlack")}</span>
     </div>
-    {#each tabs as t}
-      <button class="nav" class:active={tab === t.id} onclick={() => (tab = t.id)}>{t.label}</button>
+    {#each tabs as x}
+      <button class="nav" class:active={tab === x.id} onclick={() => (tab = x.id)}>{t(x.label)}</button>
     {/each}
     <span class="spacer"></span>
     <div class="conn row small">

@@ -47,6 +47,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key><string>sockdock-gui</string>
   <key>CFBundleIconFile</key><string>icon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleDevelopmentRegion</key><string>en</string>
+  <key>CFBundleLocalizations</key><array><string>en</string><string>ja</string></array>
   <key>CFBundleShortVersionString</key><string>${VERSION#v}</string>
   <key>CFBundleVersion</key><string>${VERSION#v}</string>
   <key>LSMinimumSystemVersion</key><string>$MACOSX_DEPLOYMENT_TARGET</string>

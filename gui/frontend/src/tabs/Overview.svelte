@@ -1,7 +1,8 @@
 <script lang="ts">
   import { App, errorText } from "../lib/api";
   import { live, connection } from "../lib/live.svelte";
-  import { ago, clock, duration, elapsed, statusLevel } from "../lib/format";
+  import { ago, clock, duration, elapsed, statusLabel, statusLevel } from "../lib/format";
+  import { t } from "../lib/i18n/index.svelte";
 
   let { onnavigate }: { onnavigate: (tab: string) => void } = $props();
 
@@ -21,36 +22,33 @@
 
 <div class="stack">
   <div class="row head">
-    <h1>Overview</h1>
+    <h1>{t("tab.overview")}</h1>
   </div>
 
   {#if live.snap && !live.snap.running}
     <div class="card stack">
-      <div class="row"><span class="dot bad"></span><h2>The gateway is not running</h2></div>
-      <p class="muted">
-        sockdock runs as a background service (a launchd agent) so it keeps working when this window is closed. Set up your Slack tokens and config,
-        then start the service.
-      </p>
+      <div class="row"><span class="dot bad"></span><h2>{t("overview.notRunningTitle")}</h2></div>
+      <p class="muted">{t("overview.notRunningHelp")}</p>
       <div class="row">
-        <button class="primary" onclick={() => onnavigate("setup")}>Go to Setup</button>
+        <button class="primary" onclick={() => onnavigate("setup")}>{t("overview.goSetup")}</button>
       </div>
     </div>
   {:else if status}
     <div class="grid3">
       <div class="card">
-        <p class="small muted">Slack</p>
-        <div class="row"><span class="dot {conn.level}"></span><strong>{status.connected ? "Connected" : "Disconnected"}</strong></div>
+        <p class="small muted">{t("overview.slack")}</p>
+        <div class="row"><span class="dot {conn.level}"></span><strong>{status.connected ? t("overview.connected") : t("overview.disconnected")}</strong></div>
         <p class="small muted">{status.identity?.team ?? ""}</p>
       </div>
       <div class="card">
-        <p class="small muted">Gateway</p>
+        <p class="small muted">{t("overview.gateway")}</p>
         <strong>v{status.version}</strong>
-        <p class="small muted">up {elapsed(status.started_at, live.now)} · pid {status.pid}</p>
+        <p class="small muted">{t("overview.uptime", { elapsed: elapsed(status.started_at, live.now), pid: status.pid })}</p>
       </div>
       <div class="card">
-        <p class="small muted">Last event</p>
+        <p class="small muted">{t("overview.lastEvent")}</p>
         <strong>{ago(status.last_event_at, live.now)}</strong>
-        <p class="small muted">{(status.running ?? []).length} running · {status.pending} queued</p>
+        <p class="small muted">{t("overview.load", { running: (status.running ?? []).length, queued: status.pending })}</p>
       </div>
     </div>
     {#if status.last_error && !status.connected}
@@ -58,12 +56,12 @@
     {/if}
 
     <div class="card">
-      <div class="row"><h2>Routes</h2><span class="spacer"></span><button class="small" onclick={() => onnavigate("routes")}>Manage…</button></div>
+      <div class="row"><h2>{t("overview.routes")}</h2><span class="spacer"></span><button class="small" onclick={() => onnavigate("routes")}>{t("overview.manage")}</button></div>
       {#if (status.routes ?? []).length === 0}
-        <p class="muted small">No routes yet. Add one in Routes.</p>
+        <p class="muted small">{t("overview.noRoutes")}</p>
       {:else}
         <table>
-          <thead><tr><th>Name</th><th>Type</th><th>Channel</th><th>Match</th><th></th></tr></thead>
+          <thead><tr><th>{t("col.name")}</th><th>{t("col.type")}</th><th>{t("col.channel")}</th><th>{t("col.match")}</th><th></th></tr></thead>
           <tbody>
             {#each status.routes as r (r.name)}
               <tr>
@@ -72,7 +70,7 @@
                 <td class="mono">{r.channel}</td>
                 <td class="mono match">{r.match}</td>
                 <td class="right">
-                  <button class="small" onclick={() => togglePause(r.name, r.paused)}>{r.paused ? "Resume" : "Pause"}</button>
+                  <button class="small" onclick={() => togglePause(r.name, r.paused)}>{r.paused ? t("action.resume") : t("action.pause")}</button>
                 </td>
               </tr>
             {/each}
@@ -83,20 +81,20 @@
     </div>
 
     <div class="card">
-      <h2>Recent runs</h2>
+      <h2>{t("overview.recentRuns")}</h2>
       {#if live.turns.length === 0}
-        <p class="muted small">No handler runs yet.</p>
+        <p class="muted small">{t("overview.noRuns")}</p>
       {:else}
         <table>
-          <thead><tr><th>Started</th><th>Route</th><th>Status</th><th>Duration</th><th>Detail</th></tr></thead>
+          <thead><tr><th>{t("col.started")}</th><th>{t("col.route")}</th><th>{t("col.status")}</th><th>{t("col.duration")}</th><th>{t("col.detail")}</th></tr></thead>
           <tbody>
-            {#each live.turns as t (t.id)}
+            {#each live.turns as x (x.id)}
               <tr>
-                <td class="nowrap">{clock(t.started_at)}</td>
-                <td>{t.route}</td>
-                <td><span class="badge {statusLevel(t.status)}">{t.status}</span></td>
-                <td>{t.status === "running" ? elapsed(t.started_at, live.now) : duration(t.started_at, t.finished_at)}</td>
-                <td class="small muted detail">{t.error ?? ""}</td>
+                <td class="nowrap">{clock(x.started_at)}</td>
+                <td>{x.route}</td>
+                <td><span class="badge {statusLevel(x.status)}">{statusLabel(x.status)}</span></td>
+                <td>{x.status === "running" ? elapsed(x.started_at, live.now) : duration(x.started_at, x.finished_at)}</td>
+                <td class="small muted detail">{x.error ?? ""}</td>
               </tr>
             {/each}
           </tbody>

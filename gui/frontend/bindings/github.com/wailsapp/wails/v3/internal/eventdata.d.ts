@@ -16,6 +16,7 @@ declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
             "sockdock:activity": gateway$0.Event;
+            "sockdock:locale": string;
             "sockdock:navigate": string;
             "sockdock:snapshot": main$0.Snapshot;
         }

@@ -85,10 +85,26 @@ export function InstallService(): $CancellablePromise<void> {
 }
 
 /**
+ * Languages lists the supported UI languages.
+ */
+export function Languages(): $CancellablePromise<string[]> {
+    return $Call.ByID(3617621873).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
  * LaunchAtLogin reports whether the GUI starts at login.
  */
 export function LaunchAtLogin(): $CancellablePromise<boolean> {
     return $Call.ByID(1929415261);
+}
+
+/**
+ * Locale returns the language the UI should use ("en" or "ja").
+ */
+export function Locale(): $CancellablePromise<string> {
+    return $Call.ByID(1895595820);
 }
 
 /**
@@ -200,7 +216,7 @@ export function SetPaused(route: string, paused: boolean): $CancellablePromise<v
 }
 
 /**
- * SetPrefs writes GUI preferences.
+ * SetPrefs writes GUI preferences. A language change is applied right away.
  */
 export function SetPrefs(p: $models.Prefs): $CancellablePromise<void> {
     return $Call.ByID(4147788612, p);

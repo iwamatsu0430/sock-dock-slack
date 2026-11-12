@@ -14,6 +14,11 @@ import "../github.com/wailsapp/wails/v3/internal/eventcreate.js";
 export const SockdockActivity = "sockdock:activity";
 
 /**
+ * Name of the custom event "sockdock:locale".
+ */
+export const SockdockLocale = "sockdock:locale";
+
+/**
  * Name of the custom event "sockdock:navigate".
  */
 export const SockdockNavigate = "sockdock:navigate";

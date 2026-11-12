@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -31,6 +30,7 @@ const (
 	evSnapshot = "sockdock:snapshot"
 	evActivity = "sockdock:activity"
 	evNavigate = "sockdock:navigate"
+	evLocale   = "sockdock:locale"
 )
 
 func (m *monitor) run() {
@@ -56,14 +56,14 @@ func (m *monitor) refresh() {
 	snap := m.svc.GetSnapshot()
 	m.svc.app.Event.Emit(evSnapshot, snap)
 
-	state, tip := brand.TrayDisconnected, "SockDock: gateway not running"
+	state, tip := brand.TrayDisconnected, m.svc.tr("tip.notRunning")
 	switch {
 	case snap.Running && snap.Status.Connected && len(snap.Status.Running) > 0:
-		state, tip = brand.TrayBusy, fmt.Sprintf("SockDock: %d running", len(snap.Status.Running))
+		state, tip = brand.TrayBusy, m.svc.tr("tip.running", len(snap.Status.Running))
 	case snap.Running && snap.Status.Connected:
-		state, tip = brand.TrayConnected, "SockDock: connected"
+		state, tip = brand.TrayConnected, m.svc.tr("tip.connected")
 	case snap.Running:
-		tip = "SockDock: not connected to Slack"
+		tip = m.svc.tr("tip.disconnected")
 	}
 	if state != m.lastState {
 		m.tray.SetTemplateIcon(brand.TrayIcon(state))
@@ -95,5 +95,5 @@ func (m *monitor) maybeNotifyTurn(e gateway.Event) {
 		return
 	}
 	route, _ := data["route"].(string)
-	notify("SockDock", fmt.Sprintf("Handler for %q ended with status: %s", route, status))
+	notify("SockDock", m.svc.tr("notify.failed", route, status))
 }

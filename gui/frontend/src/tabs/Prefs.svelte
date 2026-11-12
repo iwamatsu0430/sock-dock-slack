@@ -1,24 +1,37 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { App, errorText, type AppInfo, type Prefs } from "../lib/api";
+  import { t, setLocale, languageNames } from "../lib/i18n/index.svelte";
+  import Rich from "../lib/Rich.svelte";
 
-  let prefs = $state<Prefs>({ notifications: true });
+  let prefs = $state<Prefs>({ notifications: true, language: "auto" });
+  let languages = $state<string[]>([]);
+  let systemLang = $state("");
   let launchAtLogin = $state(false);
   let info = $state<AppInfo | null>(null);
   let error = $state("");
 
   onMount(async () => {
     prefs = await App.GetPrefs();
+    languages = (await App.Languages()) ?? [];
     launchAtLogin = await App.LaunchAtLogin();
     info = await App.Info();
+    // What "auto" currently resolves to.
+    if (prefs.language === "auto") systemLang = await App.Locale();
   });
 
-  async function setNotifications(on: boolean) {
-    prefs = { ...prefs, notifications: on };
+  async function save(next: Prefs) {
+    error = "";
+    const before = prefs;
+    prefs = next;
     try {
-      await App.SetPrefs(prefs);
+      await App.SetPrefs(next);
+      const resolved = await App.Locale();
+      if (next.language === "auto") systemLang = resolved;
+      setLocale(resolved);
     } catch (e) {
       error = errorText(e);
+      prefs = before;
     }
   }
 
@@ -35,30 +48,40 @@
 </script>
 
 <div class="stack">
-  <h1>Preferences</h1>
+  <h1>{t("tab.prefs")}</h1>
   <div class="card stack">
+    <div class="lang">
+      <label for="p-lang">{t("prefs.language")}</label>
+      <select id="p-lang" value={prefs.language} onchange={(e) => save({ ...prefs, language: e.currentTarget.value })}>
+        <option value="auto">{t("prefs.languageAuto", { lang: languageNames[systemLang] ?? systemLang })}</option>
+        {#each languages as l}
+          <option value={l}>{languageNames[l] ?? l}</option>
+        {/each}
+      </select>
+      <p class="small muted"><Rich key="prefs.languageHelp" /></p>
+    </div>
     <label class="row toggle">
       <input type="checkbox" checked={launchAtLogin} onchange={(e) => setLaunch(e.currentTarget.checked)} />
-      <span>Open the menu bar app at login</span>
+      <span>{t("prefs.launchAtLogin")}</span>
     </label>
-    <p class="small muted">The gateway itself starts at login when the background service is installed (Setup), with or without this app.</p>
+    <p class="small muted">{t("prefs.launchHelp")}</p>
     <label class="row toggle">
-      <input type="checkbox" checked={prefs.notifications} onchange={(e) => setNotifications(e.currentTarget.checked)} />
-      <span>Notify me when the gateway is down or a handler fails</span>
+      <input type="checkbox" checked={prefs.notifications} onchange={(e) => save({ ...prefs, notifications: e.currentTarget.checked })} />
+      <span>{t("prefs.notifications")}</span>
     </label>
     {#if error}<div class="error-box">{error}</div>{/if}
   </div>
 
   {#if info}
     <div class="card stack">
-      <h2>About</h2>
+      <h2>{t("prefs.about")}</h2>
       <p>SockDock for Slack <span class="muted">v{info.version}</span></p>
-      <p class="small muted">Not affiliated with, created by, or supported by Slack Technologies, LLC.</p>
+      <p class="small muted">{t("prefs.notAffiliated")}</p>
       <table class="small">
         <tbody>
-          <tr><td class="muted">Config</td><td class="mono">{info.config_path}</td></tr>
-          <tr><td class="muted">Data</td><td class="mono">{info.data_dir}</td></tr>
-          <tr><td class="muted">Logs</td><td class="mono">{info.log_dir}</td></tr>
+          <tr><td class="muted">{t("prefs.config")}</td><td class="mono">{info.config_path}</td></tr>
+          <tr><td class="muted">{t("prefs.data")}</td><td class="mono">{info.data_dir}</td></tr>
+          <tr><td class="muted">{t("prefs.logs")}</td><td class="mono">{info.log_dir}</td></tr>
         </tbody>
       </table>
       <div class="row">
@@ -69,6 +92,7 @@
 </div>
 
 <style>
+  .lang { max-width: 320px; }
   .toggle { font-weight: normal; margin: 0; gap: 8px; }
   td.mono { user-select: text; word-break: break-all; }
 </style>

@@ -17,6 +17,7 @@ import (
 	"github.com/iwamatsu0430/sock-dock-slack/internal/config"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/control"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/gateway"
+	"github.com/iwamatsu0430/sock-dock-slack/internal/locale"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/paths"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/secret"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/service"
@@ -34,6 +35,9 @@ type AppService struct {
 	app     *application.App
 	popover *application.WebviewWindow
 	main    *application.WebviewWindow
+
+	// onLocale is called after the UI language changes (to relabel native menus).
+	onLocale func()
 }
 
 func newAppService(dirs paths.Dirs, version string) *AppService {
@@ -301,27 +305,51 @@ func (a *AppService) DetectClaude() []string { return detectClaude() }
 // Prefs are GUI-only preferences.
 type Prefs struct {
 	Notifications bool `json:"notifications"`
+	// Language is "auto" (follow the system), "en" or "ja".
+	Language string `json:"language"`
 }
 
 func (a *AppService) prefsPath() string { return filepath.Join(a.dirs.DataDir, "gui.json") }
 
 // GetPrefs reads GUI preferences.
 func (a *AppService) GetPrefs() Prefs {
-	p := Prefs{Notifications: true}
+	p := Prefs{Notifications: true, Language: locale.Auto}
 	if b, err := os.ReadFile(a.prefsPath()); err == nil {
 		_ = json.Unmarshal(b, &p)
+	}
+	if !locale.Valid(p.Language) || p.Language == "" {
+		p.Language = locale.Auto
 	}
 	return p
 }
 
-// SetPrefs writes GUI preferences.
+// SetPrefs writes GUI preferences. A language change is applied right away.
 func (a *AppService) SetPrefs(p Prefs) error {
+	if !locale.Valid(p.Language) {
+		return fmt.Errorf("unsupported language %q", p.Language)
+	}
+	before := a.Locale()
 	b, _ := json.MarshalIndent(p, "", "  ")
 	if err := os.MkdirAll(a.dirs.DataDir, 0o700); err != nil {
 		return err
 	}
-	return os.WriteFile(a.prefsPath(), b, 0o600)
+	if err := os.WriteFile(a.prefsPath(), b, 0o600); err != nil {
+		return err
+	}
+	if after := a.Locale(); after != before {
+		a.app.Event.Emit(evLocale, after)
+		if a.onLocale != nil {
+			a.onLocale()
+		}
+	}
+	return nil
 }
+
+// Locale returns the language the UI should use ("en" or "ja").
+func (a *AppService) Locale() string { return locale.Resolve(a.GetPrefs().Language) }
+
+// Languages lists the supported UI languages.
+func (a *AppService) Languages() []string { return locale.Supported }
 
 // LaunchAtLogin reports whether the GUI starts at login.
 func (a *AppService) LaunchAtLogin() bool {

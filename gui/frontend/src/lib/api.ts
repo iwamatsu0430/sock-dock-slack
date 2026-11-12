@@ -4,7 +4,7 @@ export type { Snapshot, ConfigFile, TokenInfo, ServiceInfo, Prefs, AppInfo } fro
 export type { Status, RouteStatus, RunningTurn, Event as GatewayEvent } from "../../bindings/github.com/iwamatsu0430/sock-dock-slack/internal/gateway/models";
 export type { Turn, Thread } from "../../bindings/github.com/iwamatsu0430/sock-dock-slack/internal/store/models";
 export type { ValidateResult, MatchResult } from "../../bindings/github.com/iwamatsu0430/sock-dock-slack/internal/control/models";
-export { SockdockSnapshot, SockdockActivity, SockdockNavigate } from "../../bindings/events";
+export { SockdockSnapshot, SockdockActivity, SockdockNavigate, SockdockLocale } from "../../bindings/events";
 
 /** Turns an error from a bound call into a readable message. */
 export function errorText(e: unknown): string {

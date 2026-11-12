@@ -83,10 +83,18 @@ export class ConfigFile {
 export class Prefs {
     "notifications": boolean;
 
+    /**
+     * Language is "auto" (follow the system), "en" or "ja".
+     */
+    "language": string;
+
     /** Creates a new Prefs instance. */
     constructor($$source: Partial<Prefs> = {}) {
         if (!("notifications" in $$source)) {
             this["notifications"] = false;
+        }
+        if (!("language" in $$source)) {
+            this["language"] = "";
         }
 
         Object.assign(this, $$source);

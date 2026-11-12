@@ -28,6 +28,7 @@ func init() {
 	application.RegisterEvent[Snapshot](evSnapshot)
 	application.RegisterEvent[gateway.Event](evActivity)
 	application.RegisterEvent[string](evNavigate)
+	application.RegisterEvent[string](evLocale)
 }
 
 func main() {
@@ -99,10 +100,16 @@ func main() {
 	svc.popover, svc.main = popover, main
 
 	menu := app.NewMenu()
-	menu.Add("Open SockDock…").OnClick(func(*application.Context) { svc.OpenWindow("overview") })
-	menu.Add("Reload config").OnClick(func(*application.Context) { _ = svc.Reload() })
+	openItem := menu.Add(svc.tr("menu.open")).OnClick(func(*application.Context) { svc.OpenWindow("overview") })
+	reloadItem := menu.Add(svc.tr("menu.reload")).OnClick(func(*application.Context) { _ = svc.Reload() })
 	menu.AddSeparator()
-	menu.Add("Quit SockDock").OnClick(func(*application.Context) { app.Quit() })
+	quitItem := menu.Add(svc.tr("menu.quit")).OnClick(func(*application.Context) { app.Quit() })
+	svc.onLocale = func() {
+		openItem.SetLabel(svc.tr("menu.open"))
+		reloadItem.SetLabel(svc.tr("menu.reload"))
+		quitItem.SetLabel(svc.tr("menu.quit"))
+		menu.Update()
+	}
 	// Left click toggles the popover; right click opens this menu.
 	tray.SetMenu(menu)
 

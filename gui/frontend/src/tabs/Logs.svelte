@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
   import { App, errorText } from "../lib/api";
+  import { t } from "../lib/i18n/index.svelte";
 
   let lines = $state<string[]>([]);
   let filter = $state("");
@@ -36,12 +37,12 @@
 
 <div class="wrap">
   <div class="row head">
-    <h1>Logs</h1>
+    <h1>{t("tab.logs")}</h1>
     <span class="spacer"></span>
-    <input type="text" placeholder="Filter" bind:value={filter} style="max-width: 220px" />
-    <label class="row follow"><input type="checkbox" bind:checked={follow} /> Follow</label>
-    <button onclick={load}>Refresh</button>
-    <button onclick={() => App.RevealLogs()}>Show in Finder</button>
+    <input type="text" placeholder={t("logs.filter")} bind:value={filter} style="max-width: 220px" />
+    <label class="row follow"><input type="checkbox" bind:checked={follow} /> {t("logs.follow")}</label>
+    <button onclick={load}>{t("action.refresh")}</button>
+    <button onclick={() => App.RevealLogs()}>{t("logs.reveal")}</button>
   </div>
   {#if error}<div class="error-box">{error}</div>{/if}
   <pre class="log" bind:this={box}>{#each shown as l}<span class={level(l)}>{l}</span>
