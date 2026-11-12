@@ -1,0 +1,202 @@
+# SockDock for Slack
+
+**Run Slack apps locally: one Socket Mode connection, many handlers.**
+
+[日本語](README.ja.md)
+
+SockDock (`sockdock`) is a small gateway that runs on your Mac. It receives messages from your Slack workspace over [Socket Mode](https://docs.slack.dev/apis/events-api/using-socket-mode/) — nothing needs to be reachable from the internet — and hands them to handlers you configure:
+
+- **command** handlers: any program. It gets the message as JSON on stdin; its stdout is posted back to the thread.
+- **claude** handlers: [Claude Code](https://code.claude.com/) in headless mode. Each Slack thread is one conversation that continues on every reply, limited to the tools you allow.
+
+Think of it as a power strip: Slack apps allow one socket, and SockDock lets you plug many things into it. A top-level message that matches a route (channel + regular expression) starts a thread; every reply in that thread goes to the same handler.
+
+It comes with a CLI and an optional menu bar app.
+
+> SockDock is not affiliated with, created by, or supported by Slack Technologies, LLC.
+
+**Status:** early development. macOS 13+ is the main target (the CLI also builds on Linux). No release yet; build from source.
+
+## Quick start
+
+### 1. Build
+
+Tools are managed with [mise](https://mise.jdx.dev/).
+
+```bash
+git clone https://github.com/iwamatsu0430/sock-dock-slack.git
+cd sock-dock-slack
+mise install          # Go, Node, wails3
+mise run build        # -> bin/sockdock
+mise run app          # optional: -> dist/SockDock.app (menu bar app, CLI bundled)
+```
+
+Put `bin/sockdock` somewhere on your `PATH` (the examples below assume `sockdock` is on it).
+
+### 2. Create the Slack app
+
+```bash
+sockdock manifest
+```
+
+1. Open <https://api.slack.com/apps?new_app=1>, choose **From a manifest**, and paste the manifest.
+2. **Basic Information → App-Level Tokens**: generate a token with the `connections:write` scope (`xapp-…`).
+3. **Install App**: install it to your workspace and copy the **Bot User OAuth Token** (`xoxb-…`).
+4. Invite the bot to every channel you want to route from: `/invite @SockDock`.
+
+### 3. Store the tokens
+
+```bash
+sockdock auth set     # prompts for both tokens and stores them in the macOS Keychain
+sockdock auth status
+```
+
+Alternatively, export `SLACK_APP_TOKEN` and `SLACK_BOT_TOKEN`, or point `settings.secrets_file` at a `chmod 600` `.env` file.
+
+### 4. Configure routes
+
+```bash
+sockdock init         # writes a starter config with an "echo" route
+mkdir -p ~/sockdock-handlers
+cp examples/echo.sh ~/sockdock-handlers/   # the handler that route runs
+```
+
+Edit the config and replace `C0123456789` with your channel's ID.
+
+The config lives at `~/Library/Application Support/sockdock/config.yaml` (Linux: `$XDG_CONFIG_HOME/sockdock/config.yaml`). A minimal route:
+
+```yaml
+routes:
+  - name: echo
+    channel: C0123456789            # channel ID (channel details → bottom of the About tab)
+    match: '^echo\s+(?P<body>.+)$'  # regular expression on the top-level message
+    handler:
+      type: command
+      cwd: ~/sockdock-handlers
+      command: ["./echo.sh"]
+```
+
+Check it:
+
+```bash
+sockdock check
+sockdock match C0123456789 "echo hello"
+```
+
+### 5. Run
+
+```bash
+sockdock run                # in the foreground (Ctrl-C to stop)
+sockdock service install    # or: start at login and restart on failure (launchd / systemd)
+sockdock status
+```
+
+Post `echo hello` in the channel: SockDock reacts with 👀, runs the handler and replies in the thread.
+
+### Or use the menu bar app
+
+`open dist/SockDock.app` (or `mise run gui`). The **Setup** tab walks through steps 2–5: copy the manifest, save tokens to the Keychain, find Claude Code, and install the background service. The gateway keeps running when the app is closed.
+
+## Handlers
+
+Every handler receives this JSON (on stdin for command handlers):
+
+```json
+{
+  "route": "echo",
+  "turn": 1,
+  "channel": "C0123456789",
+  "thread_ts": "1762920000.000100",
+  "permalink": "https://example.slack.com/archives/C0123456789/p1762920000000100",
+  "groups": { "body": "hello" },
+  "messages": [{ "ts": "1762920000.000100", "user": "U0123", "text": "echo hello", "files": [] }]
+}
+```
+
+`groups` holds the named groups of the first message's match and is passed on every turn of the thread.
+
+### command
+
+```yaml
+handler:
+  type: command
+  cwd: ~/my-handlers
+  command: ["uv", "run", "python", "bot.py"]   # no shell is involved
+  env_file: .env                                # optional, relative to cwd
+  timeout_sec: 300
+```
+
+- stdout is posted to the thread (nothing is posted if it is empty), so a handler can also post on its own.
+- Environment: `SLACK_BOT_TOKEN`, `SLACK_CHANNEL`, `SLACK_THREAD_TS`, `SOCKDOCK_ROUTE`, `SOCKDOCK_TURN`, plus `env_file`/`env`. The app-level token is never passed.
+- A non-zero exit or a timeout posts a short error; stderr goes to the log only.
+
+### claude
+
+```yaml
+handler:
+  type: claude
+  cwd: ~/projects/my-project
+  prompt: prompts/slack.md                   # appended to the system prompt every turn
+  allowed_tools: ["Bash(make test *)", "WebSearch", "WebFetch"]
+  model: opus
+  timeout_sec: 600
+```
+
+- Runs `claude -p --output-format json --permission-mode dontAsk` with your `allowed_tools`; anything else that needs approval is denied. Read, Glob and Grep are available; MCP tools are off unless `allow_mcp: true`.
+- Each thread keeps its session and resumes it on the next reply. If it cannot be resumed, a new conversation starts and the thread is told so.
+- Messages that arrive while Claude is working are handed over together in the next turn.
+- Claude Code uses your own login. Because `--bare` is not used, the project's `.claude/settings.json`, `CLAUDE.md` and hooks apply too — take them into account when deciding what a route may do.
+- Under launchd, set `settings.claude_command` to an absolute path (version-manager shims often fail outside a shell). `sockdock service install` records your current `PATH` for the service.
+
+## Configuration reference
+
+```yaml
+settings:
+  max_concurrency: 3        # handlers running at the same time (restart to change)
+  thread_ttl_days: 30       # how long a thread stays bound to its route
+  ack_reaction: eyes
+  claude_command: claude    # string or list; per-route `command` overrides it
+  language: auto            # canned replies posted to Slack: auto, en, ja
+  path: ["/opt/homebrew/bin"]
+  secrets_file: secrets.env
+  messages:                 # override canned replies; placeholders {route} {timeout_sec}
+    timeout: "Timed out after {timeout_sec}s."
+```
+
+- `${VAR}` in a route is read from its `env_file`, then from the environment.
+- Unknown keys are rejected, so typos show up in `sockdock check`.
+- Reload a changed config with `sockdock reload` (or `SIGHUP`, or saving in the app).
+
+## CLI
+
+| Command | |
+|---|---|
+| `sockdock run` | Run the gateway in the foreground |
+| `sockdock init` / `check` / `match` | Create, validate and test the config |
+| `sockdock status` | Gateway status (exit code 1 if not running or not connected) |
+| `sockdock reload` | Re-read the config |
+| `sockdock threads` / `turns` / `logs` | Recent threads, handler runs and log lines |
+| `sockdock pause <route>` / `resume <route>` | Pause or resume a route |
+| `sockdock auth set` / `status` / `delete` | Manage tokens in the Keychain |
+| `sockdock service install` / `uninstall` / `status` | Background service (launchd / systemd) |
+| `sockdock manifest` | Print the Slack app manifest |
+
+Files: data and the control socket are in `~/Library/Application Support/sockdock/`, logs in `~/Library/Logs/sockdock/`.
+
+## Development
+
+```bash
+mise tasks            # list tasks
+mise run ci           # vet, tests, frontend type check
+mise run gateway      # build and run the gateway
+mise run gui          # build and open SockDock.app
+mise run gui-preview  # the GUI in a browser at http://localhost:8080 (no tray)
+```
+
+To keep development away from your real config, set `SOCKDOCK_DATA_DIR` and `SOCKDOCK_CONFIG` (see the `[env]` section of `mise.toml`).
+
+Layout: `cmd/sockdock` (CLI), `internal/` (gateway, handlers, control API, …), `gui/` (Wails v3 + Svelte), `examples/` (sample handlers), `scripts/` (app bundling, also usable without mise), `docs/` (design notes, in Japanese).
+
+## License
+
+[MIT](LICENSE)
