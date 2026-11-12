@@ -20,7 +20,6 @@
   let launchAtLogin = $state(false);
   let gwErr = $state("");
   let busy = $state(false);
-  let claude = $state<string[] | null>(null);
   let copied = $state(false);
 
   const gw = $derived(live.snap?.gateway);
@@ -155,24 +154,7 @@
   </section>
 
   <section class="card stack">
-    <div class="row"><span class="step">3</span><h2>{t("setup.step3")}</h2></div>
-    <p class="muted small"><Rich key="setup.step3Help" /></p>
-    <div class="row">
-      <button onclick={async () => (claude = await App.DetectClaude())}>{t("setup.findClaude")}</button>
-    </div>
-    {#if claude}
-      {#if claude.length === 0}
-        <p class="small muted">{t("setup.claudeNotFound")}</p>
-      {:else}
-        <ul class="small paths">
-          {#each claude as p}<li><code>{p}</code></li>{/each}
-        </ul>
-      {/if}
-    {/if}
-  </section>
-
-  <section class="card stack">
-    <div class="row"><span class="step">4</span><h2>{t("setup.step4")}</h2></div>
+    <div class="row"><span class="step">3</span><h2>{t("setup.step4")}</h2></div>
     <p class="muted small">{t("setup.step4Help")}</p>
     <label class="row toggle">
       <input type="checkbox" checked={launchAtLogin} onchange={(e) => setLaunch(e.currentTarget.checked)} />

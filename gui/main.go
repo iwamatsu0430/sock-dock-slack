@@ -133,6 +133,7 @@ func main() {
 	// PATH, so use the login shell's PATH for handlers (claude, uv, ...).
 	go func() {
 		_ = os.Setenv("PATH", loginShellPath())
+		_ = svc.ensureConfig()
 		svc.emb.Start()
 	}()
 

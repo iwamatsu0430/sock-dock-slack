@@ -18,6 +18,8 @@ oauth_config:
       - channels:history
       - groups:history
       - reactions:write
+      - channels:read   # lets the app list the channels the bot is in
+      - groups:read
 settings:
   event_subscriptions:
     bot_events:

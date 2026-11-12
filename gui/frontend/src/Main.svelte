@@ -12,15 +12,15 @@
   const tabs = [
     { id: "overview", label: "tab.overview" },
     { id: "routes", label: "tab.routes" },
-    { id: "config", label: "tab.config" },
     { id: "logs", label: "tab.logs" },
+    { id: "config", label: "tab.config" },
     { id: "prefs", label: "tab.prefs" },
   ] as const;
   type TabID = (typeof tabs)[number]["id"];
 
   let tab = $state<TabID>("overview");
-  // A route snippet handed from Routes to Config.
-  let pendingSnippet = $state("");
+  // Open the Routes tab with the "add a route" form showing.
+  let routesAdd = $state(false);
 
   Events.On(SockdockNavigate, (ev) => {
     // "setup" now lives in the overview.
@@ -30,9 +30,9 @@
 
   const conn = $derived(connection(live.snap));
 
-  function addRoute(snippet: string) {
-    pendingSnippet = snippet;
-    tab = "config";
+  function navigate(id: string) {
+    routesAdd = id === "routes-add";
+    tab = (routesAdd ? "routes" : id) as TabID;
   }
 </script>
 
@@ -44,7 +44,7 @@
       <span class="small muted">{t("app.forSlack")}</span>
     </div>
     {#each tabs as x}
-      <button class="nav" class:active={tab === x.id} onclick={() => (tab = x.id)}>{t(x.label)}</button>
+      <button class="nav" class:active={tab === x.id} onclick={() => navigate(x.id)}>{t(x.label)}</button>
     {/each}
     <span class="spacer"></span>
     <div class="conn row small">
@@ -56,11 +56,11 @@
     <div class="drag"></div>
     <div class="content">
       {#if tab === "overview"}
-        <Overview onnavigate={(t: string) => (tab = t as TabID)} />
+        <Overview onnavigate={navigate} />
       {:else if tab === "routes"}
-        <Routes onaddroute={addRoute} />
+        {#key routesAdd}<Routes startAdding={routesAdd} />{/key}
       {:else if tab === "config"}
-        <Config bind:snippet={pendingSnippet} />
+        <Config />
       {:else if tab === "logs"}
         <Logs />
       {:else}

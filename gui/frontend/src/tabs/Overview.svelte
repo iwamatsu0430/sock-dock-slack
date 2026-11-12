@@ -60,6 +60,13 @@
       <div class="error-box">{status.last_error}</div>
     {/if}
 
+    {#if (status.routes ?? []).length === 0}
+      <div class="card stack cta">
+        <h2>{t("overview.noRoutesTitle")}</h2>
+        <p class="muted">{t("overview.noRoutesHelp")}</p>
+        <div><button class="primary" onclick={() => onnavigate("routes-add")}>{t("routes.add")}</button></div>
+      </div>
+    {/if}
     <div class="card">
       <div class="row"><h2>{t("overview.routes")}</h2><span class="spacer"></span><button class="small" onclick={() => onnavigate("routes")}>{t("overview.manage")}</button></div>
       {#if (status.routes ?? []).length === 0}
@@ -118,6 +125,7 @@
 <style>
   .head { min-height: 32px; }
   .setup-title { margin-top: 4px; }
+  .cta { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
   .setup-details summary { cursor: pointer; font-weight: 600; }
   .setup-body { margin-top: 12px; }
   .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }

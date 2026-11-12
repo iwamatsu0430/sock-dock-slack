@@ -30,20 +30,30 @@ export function CopyManifest(): $CancellablePromise<boolean> {
 }
 
 /**
- * DetectClaude finds Claude Code executables worth suggesting for settings.claude_command.
+ * DeleteRoute removes a route and saves the config.
  */
-export function DetectClaude(): $CancellablePromise<string[]> {
-    return $Call.ByID(2511651983).then(($result: any) => {
+export function DeleteRoute(name: string): $CancellablePromise<$models.RouteSaveResult> {
+    return $Call.ByID(2895378542, name).then(($result: any) => {
         return $$createType0($result);
     });
 }
 
 /**
- * GetConfig reads the config file (directly, so it works while the gateway is stopped).
+ * DetectClaude finds Claude Code executables worth suggesting for settings.claude_command.
+ */
+export function DetectClaude(): $CancellablePromise<string[]> {
+    return $Call.ByID(2511651983).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
+ * GetConfig reads the config file (directly, so it works while the gateway
+ * is stopped). A minimal config is created first if there is none.
  */
 export function GetConfig(): $CancellablePromise<$models.ConfigFile> {
     return $Call.ByID(3902498144).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
@@ -52,7 +62,7 @@ export function GetConfig(): $CancellablePromise<$models.ConfigFile> {
  */
 export function GetPrefs(): $CancellablePromise<$models.Prefs> {
     return $Call.ByID(762006728).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
@@ -61,7 +71,7 @@ export function GetPrefs(): $CancellablePromise<$models.Prefs> {
  */
 export function GetSnapshot(): $CancellablePromise<$models.Snapshot> {
     return $Call.ByID(3563637978).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType4($result);
     });
 }
 
@@ -70,7 +80,7 @@ export function GetSnapshot(): $CancellablePromise<$models.Snapshot> {
  */
 export function Info(): $CancellablePromise<$models.AppInfo> {
     return $Call.ByID(3943185810).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType5($result);
     });
 }
 
@@ -79,7 +89,7 @@ export function Info(): $CancellablePromise<$models.AppInfo> {
  */
 export function Languages(): $CancellablePromise<string[]> {
     return $Call.ByID(3617621873).then(($result: any) => {
-        return $$createType0($result);
+        return $$createType1($result);
     });
 }
 
@@ -88,6 +98,25 @@ export function Languages(): $CancellablePromise<string[]> {
  */
 export function LaunchAtLogin(): $CancellablePromise<boolean> {
     return $Call.ByID(1929415261);
+}
+
+/**
+ * ListChannels returns the channels the bot is a member of (needs the
+ * channels:read and groups:read scopes).
+ */
+export function ListChannels(): $CancellablePromise<$models.ChannelList> {
+    return $Call.ByID(2742147414).then(($result: any) => {
+        return $$createType6($result);
+    });
+}
+
+/**
+ * ListRoutes returns the configured routes as forms.
+ */
+export function ListRoutes(): $CancellablePromise<$models.RouteForm[]> {
+    return $Call.ByID(123234820).then(($result: any) => {
+        return $$createType8($result);
+    });
 }
 
 /**
@@ -103,7 +132,7 @@ export function Locale(): $CancellablePromise<string> {
  */
 export function Logs(limit: number): $CancellablePromise<string[]> {
     return $Call.ByID(391321321, limit).then(($result: any) => {
-        return $$createType0($result);
+        return $$createType1($result);
     });
 }
 
@@ -119,7 +148,7 @@ export function Manifest(): $CancellablePromise<string> {
  */
 export function MatchInContent(content: string, channel: string, text: string): $CancellablePromise<control$0.MatchResult> {
     return $Call.ByID(940609677, content, channel, text).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType9($result);
     });
 }
 
@@ -135,6 +164,20 @@ export function OpenURL(url: string): $CancellablePromise<void> {
  */
 export function OpenWindow(tab: string): $CancellablePromise<void> {
     return $Call.ByID(2604253950, tab);
+}
+
+/**
+ * PickFile shows a file picker and returns the chosen path ("" if cancelled).
+ */
+export function PickFile(title: string): $CancellablePromise<string> {
+    return $Call.ByID(870419925, title);
+}
+
+/**
+ * PickFolder shows a folder picker and returns the chosen path ("" if cancelled).
+ */
+export function PickFolder(title: string): $CancellablePromise<string> {
+    return $Call.ByID(2883222367, title);
 }
 
 /**
@@ -156,7 +199,7 @@ export function Reload(): $CancellablePromise<void> {
  */
 export function RestartGateway(): $CancellablePromise<$models.GatewayState> {
     return $Call.ByID(677431921).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType10($result);
     });
 }
 
@@ -173,7 +216,16 @@ export function RevealLogs(): $CancellablePromise<void> {
  */
 export function SaveConfig(content: string): $CancellablePromise<control$0.ValidateResult> {
     return $Call.ByID(2775748437, content).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType11($result);
+    });
+}
+
+/**
+ * SaveRoute adds or updates a route and saves the config (the gateway reloads).
+ */
+export function SaveRoute(f: $models.RouteForm): $CancellablePromise<$models.RouteSaveResult> {
+    return $Call.ByID(1716929756, f).then(($result: any) => {
+        return $$createType0($result);
     });
 }
 
@@ -189,7 +241,7 @@ export function SaveToken(name: string, value: string): $CancellablePromise<void
  */
 export function ServiceStatus(): $CancellablePromise<$models.ServiceInfo> {
     return $Call.ByID(644575443).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType12($result);
     });
 }
 
@@ -219,7 +271,7 @@ export function SetPrefs(p: $models.Prefs): $CancellablePromise<void> {
  */
 export function StartGateway(): $CancellablePromise<$models.GatewayState> {
     return $Call.ByID(1973440364).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType10($result);
     });
 }
 
@@ -236,7 +288,7 @@ export function StopGateway(): $CancellablePromise<void> {
  */
 export function TestTokens(): $CancellablePromise<$models.TokenTest[]> {
     return $Call.ByID(3607164548).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType14($result);
     });
 }
 
@@ -245,7 +297,7 @@ export function TestTokens(): $CancellablePromise<$models.TokenTest[]> {
  */
 export function Threads(limit: number): $CancellablePromise<store$0.Thread[]> {
     return $Call.ByID(3464577351, limit).then(($result: any) => {
-        return $$createType12($result);
+        return $$createType16($result);
     });
 }
 
@@ -254,7 +306,7 @@ export function Threads(limit: number): $CancellablePromise<store$0.Thread[]> {
  */
 export function TokenStatus(): $CancellablePromise<$models.TokenInfo[]> {
     return $Call.ByID(1399165129).then(($result: any) => {
-        return $$createType14($result);
+        return $$createType18($result);
     });
 }
 
@@ -263,7 +315,7 @@ export function TokenStatus(): $CancellablePromise<$models.TokenInfo[]> {
  */
 export function Turns(limit: number): $CancellablePromise<store$0.Turn[]> {
     return $Call.ByID(2032648206, limit).then(($result: any) => {
-        return $$createType16($result);
+        return $$createType20($result);
     });
 }
 
@@ -280,25 +332,40 @@ export function UninstallService(): $CancellablePromise<void> {
  */
 export function ValidateConfig(content: string): $CancellablePromise<control$0.ValidateResult> {
     return $Call.ByID(2985580066, content).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType11($result);
+    });
+}
+
+/**
+ * ValidateRoute checks a form without saving it.
+ */
+export function ValidateRoute(f: $models.RouteForm): $CancellablePromise<$models.FieldProblem[]> {
+    return $Call.ByID(2577932297, f).then(($result: any) => {
+        return $$createType22($result);
     });
 }
 
 // Private type creation functions
-const $$createType0 = $Create.Array($Create.Any);
-const $$createType1 = $models.ConfigFile.createFrom;
-const $$createType2 = $models.Prefs.createFrom;
-const $$createType3 = $models.Snapshot.createFrom;
-const $$createType4 = $models.AppInfo.createFrom;
-const $$createType5 = control$0.MatchResult.createFrom;
-const $$createType6 = $models.GatewayState.createFrom;
-const $$createType7 = control$0.ValidateResult.createFrom;
-const $$createType8 = $models.ServiceInfo.createFrom;
-const $$createType9 = $models.TokenTest.createFrom;
-const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = store$0.Thread.createFrom;
-const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = $models.TokenInfo.createFrom;
+const $$createType0 = $models.RouteSaveResult.createFrom;
+const $$createType1 = $Create.Array($Create.Any);
+const $$createType2 = $models.ConfigFile.createFrom;
+const $$createType3 = $models.Prefs.createFrom;
+const $$createType4 = $models.Snapshot.createFrom;
+const $$createType5 = $models.AppInfo.createFrom;
+const $$createType6 = $models.ChannelList.createFrom;
+const $$createType7 = $models.RouteForm.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = control$0.MatchResult.createFrom;
+const $$createType10 = $models.GatewayState.createFrom;
+const $$createType11 = control$0.ValidateResult.createFrom;
+const $$createType12 = $models.ServiceInfo.createFrom;
+const $$createType13 = $models.TokenTest.createFrom;
 const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = store$0.Turn.createFrom;
+const $$createType15 = store$0.Thread.createFrom;
 const $$createType16 = $Create.Array($$createType15);
+const $$createType17 = $models.TokenInfo.createFrom;
+const $$createType18 = $Create.Array($$createType17);
+const $$createType19 = store$0.Turn.createFrom;
+const $$createType20 = $Create.Array($$createType19);
+const $$createType21 = $models.FieldProblem.createFrom;
+const $$createType22 = $Create.Array($$createType21);

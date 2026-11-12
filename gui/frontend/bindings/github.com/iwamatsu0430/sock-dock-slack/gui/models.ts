@@ -46,6 +46,72 @@ export class AppInfo {
 }
 
 /**
+ * Channel is a Slack channel the bot is in.
+ */
+export class Channel {
+    "id": string;
+    "name": string;
+    "private": boolean;
+
+    /** Creates a new Channel instance. */
+    constructor($$source: Partial<Channel> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("private" in $$source)) {
+            this["private"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Channel instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Channel {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Channel($$parsedSource as Partial<Channel>);
+    }
+}
+
+/**
+ * ChannelList is the channels the bot can see, or why it could not list them.
+ */
+export class ChannelList {
+    "channels": Channel[];
+
+    /**
+     * Problem is "no_token", "missing_scope" or "error" (see Error).
+     */
+    "problem"?: string;
+    "error"?: string;
+
+    /** Creates a new ChannelList instance. */
+    constructor($$source: Partial<ChannelList> = {}) {
+        if (!("channels" in $$source)) {
+            this["channels"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ChannelList instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ChannelList {
+        const $$createField0_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("channels" in $$parsedSource) {
+            $$parsedSource["channels"] = $$createField0_0($$parsedSource["channels"]);
+        }
+        return new ChannelList($$parsedSource as Partial<ChannelList>);
+    }
+}
+
+/**
  * ConfigFile is the config file and its content.
  */
 export class ConfigFile {
@@ -74,6 +140,36 @@ export class ConfigFile {
     static createFrom($$source: any = {}): ConfigFile {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new ConfigFile($$parsedSource as Partial<ConfigFile>);
+    }
+}
+
+/**
+ * FieldProblem is a validation problem tied to a form field. Code is
+ * translated by the UI; Detail carries extra text (e.g. a path).
+ */
+export class FieldProblem {
+    "field": string;
+    "code": string;
+    "detail"?: string;
+
+    /** Creates a new FieldProblem instance. */
+    constructor($$source: Partial<FieldProblem> = {}) {
+        if (!("field" in $$source)) {
+            this["field"] = "";
+        }
+        if (!("code" in $$source)) {
+            this["code"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FieldProblem instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FieldProblem {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new FieldProblem($$parsedSource as Partial<FieldProblem>);
     }
 }
 
@@ -140,6 +236,186 @@ export class Prefs {
 }
 
 /**
+ * RouteForm is a route as the app's form edits it: plain choices instead of
+ * raw YAML. It maps to and from config.Route.
+ */
+export class RouteForm {
+    /**
+     * OriginalName is the name before editing ("" for a new route).
+     */
+    "original_name": string;
+    "name": string;
+
+    /**
+     * Channel is a channel ID or a pasted channel link.
+     */
+    "channel": string;
+
+    /**
+     * Trigger is "keyword" (message starts with Keyword) or "regex".
+     */
+    "trigger": string;
+    "keyword": string;
+    "regex": string;
+
+    /**
+     * Type is "claude" or "command".
+     */
+    "type": string;
+
+    /**
+     * Folder is the working directory (claude: the project folder).
+     */
+    "folder": string;
+
+    /**
+     * claude
+     */
+    "instructions": string;
+    "allow_web": boolean;
+    "allow_edit": boolean;
+
+    /**
+     * each allows "Bash(<command> *)"
+     */
+    "commands": string[];
+
+    /**
+     * other allowed_tools rules, kept as is
+     */
+    "other_tools": string[];
+    "model": string;
+    "prompt_file": string;
+
+    /**
+     * command
+     */
+    "program": string;
+    "args": string;
+    "timeout_sec": number;
+
+    /** Creates a new RouteForm instance. */
+    constructor($$source: Partial<RouteForm> = {}) {
+        if (!("original_name" in $$source)) {
+            this["original_name"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("channel" in $$source)) {
+            this["channel"] = "";
+        }
+        if (!("trigger" in $$source)) {
+            this["trigger"] = "";
+        }
+        if (!("keyword" in $$source)) {
+            this["keyword"] = "";
+        }
+        if (!("regex" in $$source)) {
+            this["regex"] = "";
+        }
+        if (!("type" in $$source)) {
+            this["type"] = "";
+        }
+        if (!("folder" in $$source)) {
+            this["folder"] = "";
+        }
+        if (!("instructions" in $$source)) {
+            this["instructions"] = "";
+        }
+        if (!("allow_web" in $$source)) {
+            this["allow_web"] = false;
+        }
+        if (!("allow_edit" in $$source)) {
+            this["allow_edit"] = false;
+        }
+        if (!("commands" in $$source)) {
+            this["commands"] = [];
+        }
+        if (!("other_tools" in $$source)) {
+            this["other_tools"] = [];
+        }
+        if (!("model" in $$source)) {
+            this["model"] = "";
+        }
+        if (!("prompt_file" in $$source)) {
+            this["prompt_file"] = "";
+        }
+        if (!("program" in $$source)) {
+            this["program"] = "";
+        }
+        if (!("args" in $$source)) {
+            this["args"] = "";
+        }
+        if (!("timeout_sec" in $$source)) {
+            this["timeout_sec"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RouteForm instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RouteForm {
+        const $$createField11_0 = $$createType2;
+        const $$createField12_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("commands" in $$parsedSource) {
+            $$parsedSource["commands"] = $$createField11_0($$parsedSource["commands"]);
+        }
+        if ("other_tools" in $$parsedSource) {
+            $$parsedSource["other_tools"] = $$createField12_0($$parsedSource["other_tools"]);
+        }
+        return new RouteForm($$parsedSource as Partial<RouteForm>);
+    }
+}
+
+/**
+ * RouteSaveResult is the outcome of saving a route.
+ */
+export class RouteSaveResult {
+    "ok": boolean;
+    "problems"?: FieldProblem[];
+
+    /**
+     * ConfigProblems are problems found in the whole config (rare: e.g. an
+     * unrelated route that no longer validates).
+     */
+    "config_problems"?: string[];
+
+    /**
+     * ClaudeCommand is set when the app filled in settings.claude_command.
+     */
+    "claude_command"?: string;
+
+    /** Creates a new RouteSaveResult instance. */
+    constructor($$source: Partial<RouteSaveResult> = {}) {
+        if (!("ok" in $$source)) {
+            this["ok"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RouteSaveResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RouteSaveResult {
+        const $$createField1_0 = $$createType4;
+        const $$createField2_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("problems" in $$parsedSource) {
+            $$parsedSource["problems"] = $$createField1_0($$parsedSource["problems"]);
+        }
+        if ("config_problems" in $$parsedSource) {
+            $$parsedSource["config_problems"] = $$createField2_0($$parsedSource["config_problems"]);
+        }
+        return new RouteSaveResult($$parsedSource as Partial<RouteSaveResult>);
+    }
+}
+
+/**
  * ServiceInfo describes a `sockdock service install` background service
  * (used without the app). When one runs, the app shows it instead of
  * starting its own gateway.
@@ -198,8 +474,8 @@ export class Snapshot {
      * Creates a new Snapshot instance from a string or object.
      */
     static createFrom($$source: any = {}): Snapshot {
-        const $$createField2_0 = $$createType1;
-        const $$createField3_0 = $$createType2;
+        const $$createField2_0 = $$createType6;
+        const $$createField3_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("status" in $$parsedSource) {
             $$parsedSource["status"] = $$createField2_0($$parsedSource["status"]);
@@ -283,6 +559,11 @@ export class TokenTest {
 }
 
 // Private type creation functions
-const $$createType0 = gateway$0.Status.createFrom;
-const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = GatewayState.createFrom;
+const $$createType0 = Channel.createFrom;
+const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = $Create.Array($Create.Any);
+const $$createType3 = FieldProblem.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = gateway$0.Status.createFrom;
+const $$createType6 = $Create.Nullable($$createType5);
+const $$createType7 = GatewayState.createFrom;

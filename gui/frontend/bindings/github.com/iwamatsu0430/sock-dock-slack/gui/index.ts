@@ -8,9 +8,14 @@ export {
 
 export {
     AppInfo,
+    Channel,
+    ChannelList,
     ConfigFile,
+    FieldProblem,
     GatewayState,
     Prefs,
+    RouteForm,
+    RouteSaveResult,
     ServiceInfo,
     Snapshot,
     TokenInfo,

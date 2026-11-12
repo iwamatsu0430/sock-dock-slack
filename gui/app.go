@@ -155,13 +155,14 @@ type ConfigFile struct {
 	Exists  bool   `json:"exists"`
 }
 
-// GetConfig reads the config file (directly, so it works while the gateway is stopped).
+// GetConfig reads the config file (directly, so it works while the gateway
+// is stopped). A minimal config is created first if there is none.
 func (a *AppService) GetConfig() (ConfigFile, error) {
 	p := a.dirs.ConfigFile
-	b, err := os.ReadFile(p)
-	if errors.Is(err, os.ErrNotExist) {
-		return ConfigFile{Path: p, Content: assets.ConfigExample, Exists: false}, nil
+	if err := a.ensureConfig(); err != nil {
+		return ConfigFile{}, err
 	}
+	b, err := os.ReadFile(p)
 	if err != nil {
 		return ConfigFile{}, err
 	}

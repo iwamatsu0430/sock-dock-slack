@@ -1,10 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { App, errorText, type ValidateResult } from "../lib/api";
-  import { insertRoute } from "../lib/yaml";
   import { t } from "../lib/i18n/index.svelte";
-
-  let { snippet = $bindable("") }: { snippet: string } = $props();
 
   let path = $state("");
   let exists = $state(true);
@@ -25,11 +22,6 @@
       exists = cfg.exists;
       saved = cfg.exists ? cfg.content : "";
       content = cfg.content;
-      if (snippet) {
-        content = insertRoute(content, snippet);
-        snippet = "";
-        message = t("config.routeAdded");
-      }
       validate();
     } catch (e) {
       error = errorText(e);
@@ -85,8 +77,9 @@
     <button onclick={() => { content = saved; validate(); }} disabled={!dirty}>{t("config.revert")}</button>
     <button class="primary" onclick={save} disabled={saving || !dirty || (validation !== null && !validation.ok)}>{t("config.save")}</button>
   </div>
+  <p class="small muted">{t("config.advancedNote")}</p>
   <p class="small muted path">
-    {path}{#if !exists} — <strong>{t("config.missing")}</strong>{/if}
+    {path}
   </p>
 
   <textarea class="code editor" spellcheck="false" bind:value={content} oninput={validate} {onkeydown}></textarea>
