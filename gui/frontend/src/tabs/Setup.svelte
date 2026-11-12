@@ -107,8 +107,6 @@
 </script>
 
 <div class="stack">
-  <h1>{t("tab.setup")}</h1>
-
   <section class="card stack">
     <div class="row"><span class="step">1</span><h2>{t("setup.step1")}</h2></div>
     <p class="muted">{t("setup.step1Help")}</p>

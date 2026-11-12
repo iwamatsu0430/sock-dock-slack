@@ -5,7 +5,6 @@
   import Overview from "./tabs/Overview.svelte";
   import Routes from "./tabs/Routes.svelte";
   import Config from "./tabs/Config.svelte";
-  import Setup from "./tabs/Setup.svelte";
   import Logs from "./tabs/Logs.svelte";
   import Prefs from "./tabs/Prefs.svelte";
   import { t } from "./lib/i18n/index.svelte";
@@ -14,7 +13,6 @@
     { id: "overview", label: "tab.overview" },
     { id: "routes", label: "tab.routes" },
     { id: "config", label: "tab.config" },
-    { id: "setup", label: "tab.setup" },
     { id: "logs", label: "tab.logs" },
     { id: "prefs", label: "tab.prefs" },
   ] as const;
@@ -25,7 +23,8 @@
   let pendingSnippet = $state("");
 
   Events.On(SockdockNavigate, (ev) => {
-    const id = ev.data as string;
+    // "setup" now lives in the overview.
+    const id = ev.data === "setup" ? "overview" : (ev.data as string);
     if (tabs.some((x) => x.id === id)) tab = id as TabID;
   });
 
@@ -62,8 +61,6 @@
         <Routes onaddroute={addRoute} />
       {:else if tab === "config"}
         <Config bind:snippet={pendingSnippet} />
-      {:else if tab === "setup"}
-        <Setup onnavigate={(id: string) => (tab = id as TabID)} />
       {:else if tab === "logs"}
         <Logs />
       {:else}

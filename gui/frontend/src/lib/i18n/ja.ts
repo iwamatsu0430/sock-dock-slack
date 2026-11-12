@@ -27,7 +27,6 @@ export const ja: Record<MessageKey, string> = {
   "tab.overview": "概要",
   "tab.routes": "ルート",
   "tab.config": "設定ファイル",
-  "tab.setup": "セットアップ",
   "tab.logs": "ログ",
   "tab.prefs": "環境設定",
 
@@ -63,9 +62,6 @@ export const ja: Record<MessageKey, string> = {
   "tray.openMain": "SockDock を開く…",
   "tray.quitTitle": "メニューバーのアプリを終了します（ゲートウェイは動き続けます）",
 
-  "overview.notRunningTitle": "ゲートウェイが動いていません",
-  "overview.notRunningHelp": "SockDock は開いている間、ゲートウェイを動かします。Slack のトークンと設定を用意してから起動してください。",
-  "overview.goSetup": "セットアップへ",
   "overview.slack": "Slack",
   "overview.connected": "接続中",
   "overview.disconnected": "未接続",
@@ -73,6 +69,7 @@ export const ja: Record<MessageKey, string> = {
   "overview.uptime": "稼働 {elapsed} · pid {pid}",
   "overview.lastEvent": "最後のイベント",
   "overview.load": "処理中 {running} 件 · 待ち {queued} 件",
+  "overview.setupTitle": "セットアップ",
   "overview.routes": "ルート",
   "overview.manage": "管理…",
   "overview.noRoutes": "ルートがまだありません。「ルート」で追加できます。",

@@ -50,7 +50,7 @@
           {#if live.snap.gateway?.state !== "setup"}
             <button class="primary" disabled={busy} onclick={() => act(() => App.StartGateway(), "")}>{t("tray.start")}</button>
           {/if}
-          <button onclick={() => App.OpenWindow("setup")}>{t("tray.setup")}</button>
+          <button onclick={() => App.OpenWindow("overview")}>{t("tray.setup")}</button>
         </div>
       </div>
     {:else}

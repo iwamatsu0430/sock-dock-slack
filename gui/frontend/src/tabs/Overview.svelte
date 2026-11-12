@@ -3,6 +3,7 @@
   import { live, connection, gatewayText } from "../lib/live.svelte";
   import { ago, clock, duration, elapsed, statusLabel, statusLevel } from "../lib/format";
   import { t } from "../lib/i18n/index.svelte";
+  import Setup from "./Setup.svelte";
 
   let { onnavigate }: { onnavigate: (tab: string) => void } = $props();
 
@@ -26,17 +27,17 @@
   </div>
 
   {#if live.snap && !live.snap.running}
-    <div class="card stack">
-      <div class="row"><span class="dot bad"></span><h2>{t("overview.notRunningTitle")}</h2></div>
-      <p>{gatewayText(live.snap.gateway)}</p>
-      <p class="muted">{t("overview.notRunningHelp")}</p>
-      <div class="row">
-        {#if live.snap.gateway?.state === "stopped" || live.snap.gateway?.state === "error"}
-          <button class="primary" onclick={() => App.StartGateway()}>{t("gw.start")}</button>
-        {/if}
-        <button class={live.snap.gateway?.state === "setup" ? "primary" : ""} onclick={() => onnavigate("setup")}>{t("overview.goSetup")}</button>
-      </div>
+    <!-- Not running yet: setup comes first. -->
+    <div class="card row">
+      <span class="dot {live.snap.gateway?.state === 'setup' ? 'warn' : 'bad'}"></span>
+      <span>{gatewayText(live.snap.gateway)}</span>
+      <span class="spacer"></span>
+      {#if live.snap.gateway?.state === "stopped" || live.snap.gateway?.state === "error"}
+        <button class="primary small" onclick={() => App.StartGateway()}>{t("gw.start")}</button>
+      {/if}
     </div>
+    <h2 class="setup-title">{t("overview.setupTitle")}</h2>
+    <Setup {onnavigate} />
   {:else if status}
     <div class="grid3">
       <div class="card">
@@ -105,11 +106,20 @@
         </table>
       {/if}
     </div>
+
+    <!-- Running: keep setup at hand for changing tokens or the login item. -->
+    <details class="card setup-details">
+      <summary>{t("overview.setupTitle")}</summary>
+      <div class="setup-body"><Setup {onnavigate} /></div>
+    </details>
   {/if}
 </div>
 
 <style>
   .head { min-height: 32px; }
+  .setup-title { margin-top: 4px; }
+  .setup-details summary { cursor: pointer; font-weight: 600; }
+  .setup-body { margin-top: 12px; }
   .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
   .card h2 { margin-bottom: 8px; }
   .match { max-width: 260px; word-break: break-all; }

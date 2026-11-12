@@ -95,9 +95,9 @@ Post `echo hello` in the channel: SockDock reacts with 👀, runs the handler an
 
 ### Or use the menu bar app
 
-`open dist/SockDock.app` (or `mise run gui`). The app runs the gateway itself while it is open — no separate service to install. The **Setup** tab walks through the steps above: copy the manifest, save and test the tokens (each one is checked separately), find Claude Code, and turn on **Open SockDock at login**. Quitting the app from the menu bar stops the gateway.
+`open dist/SockDock.app` (or `mise run gui`). The app runs the gateway itself while it is open — no separate service to install. Until the gateway is running, the **Overview** tab shows the setup steps (afterwards they stay folded at the bottom): copy the manifest, save and test the tokens (each one is checked separately), find Claude Code, and turn on **Open SockDock at login**. Quitting the app from the menu bar stops the gateway.
 
-If a `sockdock service install` service is already running, the app only shows its status (Setup offers to remove the service so the app can take over).
+If a `sockdock service install` service is already running, the app only shows its status (the setup section offers to remove the service so the app can take over).
 
 ## Handlers
 

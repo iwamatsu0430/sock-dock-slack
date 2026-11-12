@@ -25,7 +25,6 @@ export const en = {
   "tab.overview": "Overview",
   "tab.routes": "Routes",
   "tab.config": "Config",
-  "tab.setup": "Setup",
   "tab.logs": "Logs",
   "tab.prefs": "Preferences",
 
@@ -61,9 +60,6 @@ export const en = {
   "tray.openMain": "Open SockDock…",
   "tray.quitTitle": "Quit the menu bar app (the gateway keeps running)",
 
-  "overview.notRunningTitle": "The gateway is not running",
-  "overview.notRunningHelp": "SockDock runs the gateway while it is open. Set up your Slack tokens and config, then start it.",
-  "overview.goSetup": "Go to Setup",
   "overview.slack": "Slack",
   "overview.connected": "Connected",
   "overview.disconnected": "Disconnected",
@@ -71,6 +67,7 @@ export const en = {
   "overview.uptime": "up {elapsed} · pid {pid}",
   "overview.lastEvent": "Last event",
   "overview.load": "{running} running · {queued} queued",
+  "overview.setupTitle": "Setup",
   "overview.routes": "Routes",
   "overview.manage": "Manage…",
   "overview.noRoutes": "No routes yet. Add one in Routes.",
