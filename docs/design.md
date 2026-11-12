@@ -255,7 +255,7 @@ Unix ドメインソケット（データディレクトリの `control.sock`、
 - **サービスの PATH**: Finder から起動したアプリの PATH は最小限なので、GUI から `service install` するときはログインシェルの PATH（`$SHELL -l -i -c 'echo $PATH'`）を使う
 - **トークンの保存**: GUI からは `/usr/bin/security` に値を引数で渡してキーチェーンに保存する（同じユーザーの `ps` から一瞬見える。CLI の `auth set` は対話入力で、引数に出さない）
 - **画面**: メニューバーのポップオーバー（接続状態、実行中、最近のターン、再読み込み）と、メインウィンドウ（Overview / Routes / Config / Setup / Logs / Preferences）。UI は英語
-- **ビルド**: `scripts/build-app.sh`（`make app`）が、バインディングの生成 → フロントエンドのビルド → CLI と GUI のビルド → アイコン → `Info.plist`（`LSUIElement`）→ ad-hoc 署名まで行い、`dist/SockDock.app` を作る。CLI は `.app` の中にも同梱し、GUI はそれをサービスとして登録する
+- **ビルド**: `scripts/build-app.sh`（`mise run app`）が、バインディングの生成 → フロントエンドのビルド → CLI と GUI のビルド → アイコン → `Info.plist`（`LSUIElement`）→ ad-hoc 署名まで行い、`dist/SockDock.app` を作る。CLI は `.app` の中にも同梱し、GUI はそれをサービスとして登録する
 - **確認のしかた**: Wails のサーバーモード（`go build -tags server ./gui`）で同じ画面を HTTP で配信すると、ブラウザで実際のバインディングごと確認できる
 
 ### 7.1.2 多言語対応（2026-11-12）
@@ -339,7 +339,7 @@ sock-dock-slack/
   gui/                         # Wails v3 のアプリ（cmd と同じ Go モジュールだが、internal/control のクライアントだけを使う）
     frontend/                  # TypeScript ＋ Vite ＋ Svelte
   .goreleaser.yaml
-  mise.toml                    # go、node（GUI のビルド用）
+  mise.toml                    # ツール（go、node、wails3）とタスク
   docs/
 ```
 

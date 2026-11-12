@@ -1,3 +1,75 @@
+# Toolchain and tasks for SockDock for Slack. Run `mise install`, then `mise tasks` to list tasks.
+
 [tools]
-go = "latest"
-node = "lts"
+go = "1.27"
+node = "24"
+# CLI that generates the GUI's TypeScript bindings.
+"go:github.com/wailsapp/wails/v3/cmd/wails3" = "3.1.0"
+
+[env]
+# Point sockdock at a throwaway directory during development, e.g.:
+#   SOCKDOCK_DATA_DIR = "{{config_root}}/.dev"
+#   SOCKDOCK_CONFIG = "{{config_root}}/.dev/config.yaml"
+
+[tasks.build]
+description = "Build the sockdock CLI (gateway + CLI) into bin/"
+run = 'go build -trimpath -ldflags "-s -w -X main.version=$(git describe --tags --always --dirty 2>/dev/null || echo dev)" -o bin/sockdock ./cmd/sockdock'
+
+[tasks.test]
+description = "Run the Go tests with the race detector"
+run = "go test -race ./..."
+
+[tasks.vet]
+description = "go vet + gofmt check"
+run = [
+  "go vet ./...",
+  'test -z "$(gofmt -l cmd internal gui/*.go assets)" || { gofmt -l cmd internal gui/*.go assets; echo "run: mise run fmt"; exit 1; }',
+]
+
+[tasks.fmt]
+description = "Format Go sources"
+run = "gofmt -w cmd internal gui/*.go assets"
+
+[tasks.bindings]
+description = "Regenerate the GUI's TypeScript bindings from the Go service"
+run = "wails3 generate bindings -silent -ts -d gui/frontend/bindings ./gui"
+
+[tasks.frontend]
+description = "Install frontend dependencies and build gui/frontend/dist"
+dir = "gui/frontend"
+run = ["npm ci --no-audit --no-fund", "npm run build", "touch dist/.gitkeep"]
+
+[tasks.check-frontend]
+description = "Type-check the Svelte frontend"
+dir = "gui/frontend"
+run = "npx svelte-check --tsconfig ./tsconfig.json"
+
+[tasks.app]
+description = "Build dist/SockDock.app (menu bar GUI with the CLI bundled)"
+run = "./scripts/build-app.sh"
+
+[tasks.gateway]
+description = "Run the gateway in the foreground (uses the config from `sockdock init`)"
+depends = ["build"]
+run = "./bin/sockdock run"
+
+[tasks.gui]
+description = "Build and open SockDock.app"
+depends = ["app"]
+run = "open dist/SockDock.app"
+
+[tasks.gui-preview]
+description = "Serve the GUI over HTTP at http://localhost:8080 (Wails server mode; no tray)"
+depends = ["frontend"]
+run = "go run -tags server ./gui"
+
+[tasks.ci]
+description = "What CI runs: vet, tests and the frontend type check"
+depends = ["vet", "test", "check-frontend"]
+
+[tasks.clean]
+description = "Remove build outputs"
+run = [
+  "rm -rf bin dist",
+  "find gui/frontend/dist -mindepth 1 ! -name .gitkeep -delete",
+]
