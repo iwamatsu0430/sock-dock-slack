@@ -149,3 +149,25 @@ func TestRender(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+func TestLanguageSelectsMessages(t *testing.T) {
+	dir := t.TempDir()
+	base := "routes:\n  - name: a\n    channel: C1\n    match: x\n    handler: {type: command, cwd: " + dir + ", command: /bin/echo}\n"
+	ja, err := Parse([]byte("settings:\n  language: ja\n  messages:\n    error: custom\n"+base), "c.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ja.Settings.ResolvedLanguage != "ja" || !strings.Contains(ja.Settings.Messages.Timeout, "制限時間") {
+		t.Fatalf("ja messages not applied: %+v", ja.Settings.Messages)
+	}
+	if ja.Settings.Messages.Error != "custom" {
+		t.Fatal("explicit message must win over the language default")
+	}
+	en, _ := Parse([]byte("settings:\n  language: en\n"+base), "c.yaml")
+	if en.Settings.Messages.Timeout != DefaultMessages.Timeout {
+		t.Fatal("en messages not applied")
+	}
+	if _, err := Parse([]byte("settings:\n  language: de\n"+base), "c.yaml"); err == nil || !strings.Contains(err.Error(), "settings.language") {
+		t.Fatalf("unsupported language should be rejected, got %v", err)
+	}
+}

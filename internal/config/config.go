@@ -12,6 +12,7 @@ import (
 
 	"github.com/goccy/go-yaml"
 
+	"github.com/iwamatsu0430/sock-dock-slack/internal/locale"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/paths"
 )
 
@@ -38,7 +39,13 @@ type Settings struct {
 	ClaudeCommand  StringList `yaml:"claude_command"`
 	Path           []string   `yaml:"path"`
 	SecretsFile    string     `yaml:"secrets_file"`
-	Messages       Messages   `yaml:"messages"`
+	// Language of the messages posted to Slack: "auto" (default, follows
+	// the system), "en" or "ja".
+	Language string   `yaml:"language"`
+	Messages Messages `yaml:"messages"`
+
+	// ResolvedLanguage is Language after resolving "auto".
+	ResolvedLanguage string `yaml:"-"`
 }
 
 // Messages are the canned replies posted by the gateway. Placeholders:
@@ -109,14 +116,36 @@ const (
 	DefaultClaudeTimeoutSec  = 600
 )
 
-// DefaultMessages are used when a message is not set in the config.
-var DefaultMessages = Messages{
-	Timeout:      "⏱ The handler did not finish within {timeout_sec} seconds. Try again, or split the request.",
-	Error:        "⚠️ Something went wrong while handling this (route: {route}). See the sockdock log for details.",
-	Interrupted:  "⚠️ sockdock restarted while this was being handled. Please send your message again.",
-	RouteMissing: "⚠️ The route for this thread ({route}) is no longer in the config.",
-	RoutePaused:  "⏸ The route for this thread ({route}) is paused.",
-	ResumeFailed: "ℹ️ Could not resume the previous conversation, so a new one was started.",
+// DefaultMessages are the English canned replies.
+var DefaultMessages = defaultMessages["en"]
+
+// defaultMessages are used when a message is not set in the config, per language.
+var defaultMessages = map[string]Messages{
+	"en": {
+		Timeout:      "⏱ The handler did not finish within {timeout_sec} seconds. Try again, or split the request.",
+		Error:        "⚠️ Something went wrong while handling this (route: {route}). See the sockdock log for details.",
+		Interrupted:  "⚠️ sockdock restarted while this was being handled. Please send your message again.",
+		RouteMissing: "⚠️ The route for this thread ({route}) is no longer in the config.",
+		RoutePaused:  "⏸ The route for this thread ({route}) is paused.",
+		ResumeFailed: "ℹ️ Could not resume the previous conversation, so a new one was started.",
+	},
+	"ja": {
+		Timeout:      "⏱ 制限時間（{timeout_sec} 秒）内に処理が終わりませんでした。もう一度送るか、内容を分けて送ってください。",
+		Error:        "⚠️ 処理中にエラーが起きました（ルート: {route}）。詳しくは sockdock のログを見てください。",
+		Interrupted:  "⚠️ 処理中に sockdock が再起動したため、中断しました。もう一度送ってください。",
+		RouteMissing: "⚠️ このスレッドのルート（{route}）が設定にありません。",
+		RoutePaused:  "⏸ このスレッドのルート（{route}）は一時停止中です。",
+		ResumeFailed: "ℹ️ 前の会話を再開できなかったため、新しい会話として始めました。",
+	},
+}
+
+// DefaultMessagesFor returns the canned replies for a supported language
+// (English for anything else).
+func DefaultMessagesFor(lang string) Messages {
+	if m, ok := defaultMessages[lang]; ok {
+		return m
+	}
+	return DefaultMessages
 }
 
 var (
@@ -171,8 +200,12 @@ func (c *Config) applyDefaults() {
 	if len(s.ClaudeCommand) == 0 {
 		s.ClaudeCommand = StringList{"claude"}
 	}
-	m, d := &s.Messages, DefaultMessages
-	for _, p := range []struct{ v *string; def string }{
+	s.ResolvedLanguage = locale.Resolve(s.Language)
+	m, d := &s.Messages, DefaultMessagesFor(s.ResolvedLanguage)
+	for _, p := range []struct {
+		v   *string
+		def string
+	}{
 		{&m.Timeout, d.Timeout}, {&m.Error, d.Error}, {&m.Interrupted, d.Interrupted},
 		{&m.RouteMissing, d.RouteMissing}, {&m.RoutePaused, d.RoutePaused}, {&m.ResumeFailed, d.ResumeFailed},
 	} {
@@ -195,6 +228,10 @@ func (c *Config) applyDefaults() {
 func (c *Config) prepare(lookupEnv func(string) (string, bool)) error {
 	var probs []string
 	add := func(format string, a ...any) { probs = append(probs, fmt.Sprintf(format, a...)) }
+
+	if !locale.Valid(c.Settings.Language) {
+		add("settings.language: %q is not supported (use auto, %s)", c.Settings.Language, strings.Join(locale.Supported, ", "))
+	}
 
 	// Settings may only reference the process environment.
 	envOnly := func(s string) string {

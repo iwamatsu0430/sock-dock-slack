@@ -8,6 +8,7 @@ settings:
   thread_ttl_days: 30       # how long a thread stays bound to its route
   ack_reaction: eyes        # reaction added while a message is being handled
   claude_command: claude    # used by claude handlers; prefer an absolute path under launchd
+  language: auto            # messages posted to Slack: auto (system language), en, ja
   # path: ["/opt/homebrew/bin"]   # extra PATH entries for handlers
   # secrets_file: secrets.env     # SLACK_APP_TOKEN / SLACK_BOT_TOKEN (chmod 600), if not in env or Keychain
   # messages:

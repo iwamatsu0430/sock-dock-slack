@@ -88,6 +88,7 @@ func newHarness(t *testing.T, claude func(handler.Input) (handler.Result, error)
 	cfg, err := config.Parse([]byte(fmt.Sprintf(`
 settings:
   claude_command: /bin/echo
+  language: en
 routes:
   - name: entry
     channel: C1
