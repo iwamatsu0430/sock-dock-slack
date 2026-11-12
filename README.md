@@ -95,7 +95,13 @@ Post `echo hello` in the channel: SockDock reacts with 👀, runs the handler an
 
 ### Or use the menu bar app
 
-`open dist/SockDock.app` (or `mise run gui`). The app runs the gateway itself while it is open — no separate service to install. Until the gateway is running, the **Overview** tab shows the setup steps (afterwards they stay folded at the bottom): copy the manifest, save and test the tokens (each one is checked separately), find Claude Code, and turn on **Open SockDock at login**. Quitting the app from the menu bar stops the gateway.
+With the app you do not need steps 3–5 above or any YAML. `open dist/SockDock.app` (or `mise run gui`):
+
+1. **Overview** shows the setup until the gateway runs: copy the manifest, save and test the two tokens (each is checked separately), and turn on **Open SockDock at login**. The app creates the config file itself and runs the gateway while it is open — there is no separate service to install. Quitting the app from the menu bar stops the gateway.
+2. **Routes → Add a route**: pick the channel (channels the bot is in are listed; this needs the `channels:read`/`groups:read` scopes from the bundled manifest, otherwise paste the channel link), type the keyword that starts a message, and choose what to run — Claude Code in a project folder (with instructions and checkboxes for what it may do) or a program. Problems are shown next to each field. Claude Code's location is detected and saved automatically.
+3. Post `<keyword> …` in the channel.
+
+The config file stays editable in the **Config** tab for advanced use.
 
 If a `sockdock service install` service is already running, the app only shows its status (the setup section offers to remove the service so the app can take over).
 
