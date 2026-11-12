@@ -49,3 +49,21 @@ export function connection(snap: Snapshot | null): { level: "ok" | "warn" | "bad
   if ((s.running ?? []).length > 0) return { level: "ok", text: t("conn.connectedRunning", { n: s.running!.length }) };
   return { level: "ok", text: t("conn.connected") };
 }
+
+/** Describes where the gateway runs, or why it does not. */
+export function gatewayText(g: { state: string; error?: string; missing?: string } | undefined): string {
+  switch (g?.state) {
+    case "running":
+      return t("gw.running");
+    case "external":
+      return t("gw.external");
+    case "setup":
+      return g.missing === "config" ? t("gw.setupConfig") : t("gw.setupTokens");
+    case "stopped":
+      return t("gw.stopped");
+    case "error":
+      return t("gw.error", { error: g.error ?? "" });
+    default:
+      return t("conn.checking");
+  }
+}

@@ -1,79 +1,109 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { App, errorText, type ServiceInfo, type TokenInfo } from "../lib/api";
-  import { live } from "../lib/live.svelte";
+  import { App, errorText, type ServiceInfo, type TokenInfo, type TokenTest } from "../lib/api";
+  import { live, gatewayText } from "../lib/live.svelte";
   import { t } from "../lib/i18n/index.svelte";
   import Rich from "../lib/Rich.svelte";
 
+  let { onnavigate }: { onnavigate: (tab: string) => void } = $props();
+
   const slackApps = "https://api.slack.com/apps?new_app=1";
+  const APP = "SLACK_APP_TOKEN";
+  const BOT = "SLACK_BOT_TOKEN";
 
   let tokens = $state<TokenInfo[]>([]);
-  let appToken = $state("");
-  let botToken = $state("");
+  let input = $state<Record<string, string>>({ [APP]: "", [BOT]: "" });
+  let tests = $state<Record<string, TokenTest>>({});
   let tokenMsg = $state("");
   let tokenErr = $state("");
   let svc = $state<ServiceInfo | null>(null);
-  let svcMsg = $state("");
-  let svcErr = $state("");
+  let launchAtLogin = $state(false);
+  let gwErr = $state("");
   let busy = $state(false);
   let claude = $state<string[] | null>(null);
   let copied = $state(false);
 
+  const gw = $derived(live.snap?.gateway);
+  const info = (name: string) => tokens.find((x) => x.name === name);
+  const anyTokenSet = $derived(tokens.some((x) => x.set));
+  const tokensReady = $derived(tokens.length > 0 && tokens.every((x) => x.set));
+
   async function refresh() {
     tokens = (await App.TokenStatus()) ?? [];
     svc = await App.ServiceStatus();
+    launchAtLogin = await App.LaunchAtLogin();
   }
   onMount(refresh);
 
-  async function saveTokens() {
-    tokenErr = tokenMsg = "";
-    busy = true;
-    try {
-      if (appToken.trim()) await App.SaveToken("SLACK_APP_TOKEN", appToken);
-      if (botToken.trim()) await App.SaveToken("SLACK_BOT_TOKEN", botToken);
-      appToken = botToken = "";
-      tokenMsg = t("setup.saved");
-      await refresh();
-    } catch (e) {
-      tokenErr = errorText(e);
-    } finally {
-      busy = false;
-    }
-  }
-
-  async function testConnection() {
-    tokenErr = tokenMsg = "";
-    busy = true;
-    try {
-      const id = await App.TestConnection();
-      tokenMsg = t("setup.connectedAs", { user: id.user_id, team: id.team });
-    } catch (e) {
-      tokenErr = errorText(e);
-    } finally {
-      busy = false;
-    }
-  }
-
-  async function service(fn: () => Promise<unknown>, done: string) {
-    svcErr = svcMsg = "";
+  async function run(fn: () => Promise<unknown>) {
     busy = true;
     try {
       await fn();
-      svcMsg = done;
-    } catch (e) {
-      svcErr = errorText(e);
     } finally {
       busy = false;
-      svc = await App.ServiceStatus();
     }
+  }
+
+  function saveTokens() {
+    tokenErr = tokenMsg = "";
+    return run(async () => {
+      try {
+        for (const name of [APP, BOT]) {
+          if (input[name].trim()) await App.SaveToken(name, input[name]);
+        }
+        input = { [APP]: "", [BOT]: "" };
+        tokenMsg = t("setup.saved");
+        tests = {};
+        await refresh();
+      } catch (e) {
+        tokenErr = errorText(e);
+      }
+    });
+  }
+
+  function testTokens() {
+    tokenErr = tokenMsg = "";
+    return run(async () => {
+      const results = (await App.TestTokens()) ?? [];
+      tests = Object.fromEntries(results.map((r) => [r.name, r]));
+    });
+  }
+
+  function testText(name: string): { level: string; text: string } | null {
+    const r = tests[name];
+    if (!r) return null;
+    if (!r.set) return { level: "warn", text: name === APP ? t("setup.testMissingApp") : t("setup.testMissingBot") };
+    if (!r.ok) return { level: "bad", text: t("setup.testFailed", { error: r.error ?? "" }) };
+    return { level: "ok", text: name === APP ? t("setup.testOkApp") : t("setup.testOkBot", { detail: r.detail ?? "" }) };
+  }
+
+  async function setLaunch(on: boolean) {
+    gwErr = "";
+    try {
+      await App.SetLaunchAtLogin(on);
+      launchAtLogin = on;
+    } catch (e) {
+      gwErr = errorText(e);
+      launchAtLogin = await App.LaunchAtLogin();
+    }
+  }
+
+  function gateway(fn: () => Promise<unknown>) {
+    gwErr = "";
+    return run(async () => {
+      try {
+        await fn();
+      } catch (e) {
+        gwErr = errorText(e);
+      }
+      svc = await App.ServiceStatus();
+    });
   }
 
   async function copyManifest() {
     copied = await App.CopyManifest();
     setTimeout(() => (copied = false), 2000);
   }
-
-  const tokensReady = $derived(tokens.length > 0 && tokens.every((x) => x.set));
 </script>
 
 <div class="stack">
@@ -100,27 +130,26 @@
 
   <section class="card stack">
     <div class="row"><span class="step">2</span><h2>{t("setup.step2")}</h2>{#if tokensReady}<span class="badge ok">{t("setup.ready")}</span>{/if}</div>
-    <table>
-      <tbody>
-        {#each tokens as x (x.name)}
-          <tr>
-            <td class="mono">{x.name}</td>
-            <td>
-              {#if x.error}<span class="badge bad">{t("setup.tokenError")}</span> <span class="small">{x.error}</span>
-              {:else if x.set}<span class="badge ok">{t("setup.tokenSet")}</span> <span class="small muted">{t("setup.tokenFrom", { preview: x.preview, source: x.source })}</span>
-              {:else}<span class="badge">{t("setup.tokenNotSet")}</span>{/if}
-            </td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
-    <div class="grid2">
-      <div><label for="t-app">{t("setup.appToken")}</label><input id="t-app" type="password" bind:value={appToken} placeholder="xapp-…" autocomplete="off" /></div>
-      <div><label for="t-bot">{t("setup.botToken")}</label><input id="t-bot" type="password" bind:value={botToken} placeholder="xoxb-…" autocomplete="off" /></div>
-    </div>
+    <p class="small muted">{t("setup.bothNeeded")}</p>
+    {#each [{ name: APP, label: t("setup.appToken"), role: t("setup.appTokenRole"), ph: "xapp-…" }, { name: BOT, label: t("setup.botToken"), role: t("setup.botTokenRole"), ph: "xoxb-…" }] as row (row.name)}
+      {@const ti = info(row.name)}
+      {@const tr = testText(row.name)}
+      <div class="token">
+        <div class="row">
+          <label for={"t-" + row.name}>{row.label}</label>
+          {#if ti?.error}<span class="badge bad">{t("setup.tokenError")}</span>
+          {:else if ti?.set}<span class="badge ok">{t("setup.tokenSet")}</span> <span class="small muted">{t("setup.tokenFrom", { preview: ti.preview, source: ti.source })}</span>
+          {:else}<span class="badge warn">{t("setup.tokenNotSet")}</span>{/if}
+        </div>
+        <p class="small muted">{row.role}</p>
+        <input id={"t-" + row.name} type="password" bind:value={input[row.name]} placeholder={row.ph} autocomplete="off" />
+        {#if ti?.error}<p class="small bad-text">{ti.error}</p>{/if}
+        {#if tr}<p class="small {tr.level}-text">{tr.text}</p>{/if}
+      </div>
+    {/each}
     <div class="row">
-      <button class="primary" disabled={busy || (!appToken.trim() && !botToken.trim())} onclick={saveTokens}>{t("setup.saveKeychain")}</button>
-      <button disabled={busy || !tokensReady} onclick={testConnection}>{t("setup.testConnection")}</button>
+      <button class="primary" disabled={busy || (!input[APP].trim() && !input[BOT].trim())} onclick={saveTokens}>{t("setup.saveKeychain")}</button>
+      <button disabled={busy || !anyTokenSet} onclick={testTokens}>{t("setup.testTokens")}</button>
     </div>
     <p class="small muted">{t("setup.envPrecedence")}</p>
     {#if tokenMsg}<div class="ok-box">{tokenMsg}</div>{/if}
@@ -145,21 +174,35 @@
   </section>
 
   <section class="card stack">
-    <div class="row"><span class="step">4</span><h2>{t("setup.step4")}</h2>{#if live.snap?.running}<span class="badge ok">{t("setup.running")}</span>{/if}</div>
+    <div class="row"><span class="step">4</span><h2>{t("setup.step4")}</h2></div>
     <p class="muted small">{t("setup.step4Help")}</p>
-    {#if svc}
-      <p class="small">{t("setup.serviceStatus")} <strong>{svc.detail}</strong></p>
-      <p class="small muted">{t("setup.binary")} <code>{svc.binary || t("setup.binaryMissing")}</code></p>
-    {/if}
-    <div class="row">
-      <button class="primary" disabled={busy} onclick={() => service(() => App.InstallService(), t("setup.installed"))}>
-        {svc?.installed ? t("setup.reinstall") : t("setup.install")}
-      </button>
-      <button disabled={busy || !svc?.installed} onclick={() => service(() => App.RestartService(), t("setup.restarted"))}>{t("setup.restart")}</button>
-      <button class="danger" disabled={busy || !svc?.installed} onclick={() => service(() => App.UninstallService(), t("setup.removed"))}>{t("setup.uninstall")}</button>
+    <label class="row toggle">
+      <input type="checkbox" checked={launchAtLogin} onchange={(e) => setLaunch(e.currentTarget.checked)} />
+      <span>{t("setup.launchAtLogin")}</span>
+    </label>
+    <p class="small muted">{t("setup.quitNote")}</p>
+
+    <div class="row gw">
+      <span class="small">{t("setup.gatewayStatus")}</span>
+      <span class="dot {gw?.state === 'running' || gw?.state === 'external' ? 'ok' : gw?.state === 'error' ? 'bad' : 'idle'}"></span>
+      <span class="small">{gatewayText(gw)}</span>
+      <span class="spacer"></span>
+      {#if gw?.state === "running"}
+        <button class="small" disabled={busy} onclick={() => gateway(() => App.RestartGateway())}>{t("gw.restart")}</button>
+        <button class="small" disabled={busy} onclick={() => gateway(() => App.StopGateway())}>{t("gw.stop")}</button>
+      {:else if gw?.state === "setup" && gw.missing === "config"}
+        <button class="small" onclick={() => onnavigate("config")}>{t("gw.openConfig")}</button>
+      {:else if gw?.state === "stopped" || gw?.state === "error"}
+        <button class="small primary" disabled={busy} onclick={() => gateway(() => App.StartGateway())}>{t("gw.start")}</button>
+      {/if}
     </div>
-    {#if svcMsg}<div class="ok-box">{svcMsg}</div>{/if}
-    {#if svcErr}<div class="error-box">{svcErr}</div>{/if}
+    {#if gw?.state === "external" && svc?.installed}
+      <p class="small muted"><Rich key="setup.serviceInstalled" /></p>
+      <div class="row">
+        <button class="small" disabled={busy} onclick={() => gateway(() => App.UninstallService())}>{t("setup.removeService")}</button>
+      </div>
+    {/if}
+    {#if gwErr}<div class="error-box">{gwErr}</div>{/if}
   </section>
 </div>
 
@@ -179,4 +222,21 @@
   }
   ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
   .paths { margin: 0; padding-left: 18px; user-select: text; }
+  .token {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 0;
+    border-top: 1px solid var(--border);
+  }
+  .token label { margin: 0; }
+  .toggle { font-weight: normal; margin: 0; gap: 8px; }
+  .gw {
+    padding: 8px 10px;
+    background: var(--panel-2);
+    border-radius: 6px;
+  }
+  .ok-text { color: var(--ok); }
+  .warn-text { color: var(--warn); }
+  .bad-text { color: var(--bad); }
 </style>

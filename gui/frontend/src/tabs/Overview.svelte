@@ -1,6 +1,6 @@
 <script lang="ts">
   import { App, errorText } from "../lib/api";
-  import { live, connection } from "../lib/live.svelte";
+  import { live, connection, gatewayText } from "../lib/live.svelte";
   import { ago, clock, duration, elapsed, statusLabel, statusLevel } from "../lib/format";
   import { t } from "../lib/i18n/index.svelte";
 
@@ -28,9 +28,13 @@
   {#if live.snap && !live.snap.running}
     <div class="card stack">
       <div class="row"><span class="dot bad"></span><h2>{t("overview.notRunningTitle")}</h2></div>
+      <p>{gatewayText(live.snap.gateway)}</p>
       <p class="muted">{t("overview.notRunningHelp")}</p>
       <div class="row">
-        <button class="primary" onclick={() => onnavigate("setup")}>{t("overview.goSetup")}</button>
+        {#if live.snap.gateway?.state === "stopped" || live.snap.gateway?.state === "error"}
+          <button class="primary" onclick={() => App.StartGateway()}>{t("gw.start")}</button>
+        {/if}
+        <button class={live.snap.gateway?.state === "setup" ? "primary" : ""} onclick={() => onnavigate("setup")}>{t("overview.goSetup")}</button>
       </div>
     </div>
   {:else if status}

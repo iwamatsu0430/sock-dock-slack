@@ -71,8 +71,15 @@ func (m *monitor) refresh() {
 	}
 	m.tray.SetTooltip(tip)
 
-	// Notify once when the gateway has been down or disconnected for 2 minutes.
-	if state == brand.TrayDisconnected {
+	// If another sockdock (the CLI service) was running and has gone away, take over.
+	if !snap.Running && snap.Gateway.State == GatewayExternal {
+		go m.svc.emb.Start()
+	}
+
+	// Notify once when the gateway has been down or disconnected for 2 minutes,
+	// unless the user stopped it or setup is not finished.
+	quiet := snap.Gateway.State == GatewayStopped || snap.Gateway.State == GatewaySetup
+	if state == brand.TrayDisconnected && !quiet {
 		if m.disconnectedAt.IsZero() {
 			m.disconnectedAt = time.Now()
 		}

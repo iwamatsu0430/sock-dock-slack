@@ -38,10 +38,18 @@ type AppService struct {
 
 	// onLocale is called after the UI language changes (to relabel native menus).
 	onLocale func()
+
+	// emb runs the gateway inside this app.
+	emb *embedded
 }
 
 func newAppService(dirs paths.Dirs, version string) *AppService {
-	return &AppService{dirs: dirs, version: version, client: control.NewClient(dirs.SocketPath())}
+	return &AppService{
+		dirs:    dirs,
+		version: version,
+		client:  control.NewClient(dirs.SocketPath()),
+		emb:     newEmbedded(dirs, version),
+	}
 }
 
 func ctx() (context.Context, context.CancelFunc) {
@@ -55,6 +63,8 @@ type Snapshot struct {
 	Running bool            `json:"running"`
 	Error   string          `json:"error,omitempty"`
 	Status  *gateway.Status `json:"status,omitempty"`
+	// Gateway says whether the gateway runs inside this app, elsewhere, or why not.
+	Gateway GatewayState `json:"gateway"`
 }
 
 // GetSnapshot returns the current gateway status.
@@ -63,9 +73,29 @@ func (a *AppService) GetSnapshot() Snapshot {
 	defer cancel()
 	st, err := a.client.Status(c)
 	if err != nil {
-		return Snapshot{Running: false, Error: err.Error()}
+		return Snapshot{Running: false, Error: err.Error(), Gateway: a.emb.State()}
 	}
-	return Snapshot{Running: true, Status: &st}
+	return Snapshot{Running: true, Status: &st, Gateway: a.emb.State()}
+}
+
+// StartGateway starts the gateway inside this app.
+func (a *AppService) StartGateway() GatewayState { return a.emb.Start() }
+
+// StopGateway stops the gateway running inside this app.
+func (a *AppService) StopGateway() { a.emb.Stop(30 * time.Second) }
+
+// RestartGateway restarts the gateway running inside this app.
+func (a *AppService) RestartGateway() GatewayState { return a.emb.Restart() }
+
+// startAfterSetup (re)starts the embedded gateway after the user changed
+// something it depends on, unless they stopped it or another sockdock runs.
+func (a *AppService) startAfterSetup() {
+	switch a.emb.State().State {
+	case GatewayRunning:
+		go a.emb.Restart()
+	case GatewaySetup, GatewayError:
+		go a.emb.Start()
+	}
 }
 
 // Turns returns recent handler runs.
@@ -172,6 +202,9 @@ func (a *AppService) SaveConfig(content string) (control.ValidateResult, error) 
 		}
 		return control.ValidateResult{}, err
 	}
+	if st := a.emb.State().State; st == GatewaySetup || st == GatewayError {
+		go a.emb.Start()
+	}
 	return control.ValidateResult{OK: true}, nil
 }
 
@@ -220,7 +253,7 @@ func (a *AppService) TokenStatus() []TokenInfo {
 	return out
 }
 
-// SaveToken stores a token in the Keychain.
+// SaveToken stores a token in the Keychain and (re)starts the gateway.
 func (a *AppService) SaveToken(name, value string) error {
 	value = strings.TrimSpace(value)
 	switch name {
@@ -235,18 +268,49 @@ func (a *AppService) SaveToken(name, value string) error {
 	default:
 		return fmt.Errorf("unknown token %q", name)
 	}
-	return secret.KeychainSet(name, value)
+	if err := secret.KeychainSet(name, value); err != nil {
+		return err
+	}
+	a.startAfterSetup()
+	return nil
 }
 
-// TestConnection checks the bot token with auth.test.
-func (a *AppService) TestConnection() (slackio.Identity, error) {
-	app, bot, err := secret.Tokens(a.secretsFile())
-	if err != nil {
-		return slackio.Identity{}, err
-	}
+// TokenTest is the result of checking one token against Slack.
+type TokenTest struct {
+	Name   string `json:"name"`
+	Set    bool   `json:"set"`
+	OK     bool   `json:"ok"`
+	Detail string `json:"detail,omitempty"`
+	Error  string `json:"error,omitempty"`
+}
+
+// TestTokens checks each token that is set: the bot token with auth.test,
+// the app-level token by asking Slack for a Socket Mode connection URL.
+func (a *AppService) TestTokens() []TokenTest {
+	sf := a.secretsFile()
+	appTok, _, _ := secret.Lookup(secret.AppToken, sf)
+	botTok, _, _ := secret.Lookup(secret.BotToken, sf)
 	c, cancel := ctx()
 	defer cancel()
-	return slackio.NewWebAPI(bot, app).AuthTest(c)
+
+	app := TokenTest{Name: secret.AppToken, Set: appTok != ""}
+	if app.Set {
+		if err := slackio.TestAppToken(c, appTok); err != nil {
+			app.Error = err.Error()
+		} else {
+			app.OK = true
+		}
+	}
+	bot := TokenTest{Name: secret.BotToken, Set: botTok != ""}
+	if bot.Set {
+		if id, err := slackio.NewWebAPI(botTok, "").AuthTest(c); err != nil {
+			bot.Error = err.Error()
+		} else {
+			bot.OK = true
+			bot.Detail = id.Team + " · " + id.UserID
+		}
+	}
+	return []TokenTest{app, bot}
 }
 
 // Manifest returns the Slack app manifest.
@@ -257,43 +321,33 @@ func (a *AppService) CopyManifest() bool { return a.app.Clipboard.SetText(assets
 
 // ---- background service --------------------------------------------------
 
-// ServiceInfo is the gateway service state.
+// ServiceInfo describes a `sockdock service install` background service
+// (used without the app). When one runs, the app shows it instead of
+// starting its own gateway.
 type ServiceInfo struct {
 	Installed bool   `json:"installed"`
 	Detail    string `json:"detail"`
-	Binary    string `json:"binary"`
 }
 
-// ServiceStatus reports whether the gateway service is installed and loaded.
+// ServiceStatus reports whether the CLI background service is installed and loaded.
 func (a *AppService) ServiceStatus() ServiceInfo {
 	detail, ok := service.Status()
-	bin, _ := findSockdock()
-	return ServiceInfo{Installed: ok, Detail: detail, Binary: bin}
+	return ServiceInfo{Installed: ok, Detail: detail}
 }
 
-// InstallService installs (or reinstalls) and starts the gateway service.
-func (a *AppService) InstallService() error {
-	if _, err := config.Load(a.dirs.ConfigFile); err != nil {
-		return fmt.Errorf("fix the config first: %w", err)
-	}
-	bin, err := findSockdock()
-	if err != nil {
+// UninstallService removes the CLI background service and lets the app run
+// the gateway itself.
+func (a *AppService) UninstallService() error {
+	if err := service.Uninstall(); err != nil {
 		return err
 	}
-	_, err = service.Install(service.Spec{
-		Binary:     service.StablePath(bin),
-		ConfigFile: a.dirs.ConfigFile,
-		LogDir:     a.dirs.LogDir,
-		Path:       loginShellPath(),
-	})
-	return err
+	// Give launchd a moment to release the lock, then take over.
+	go func() {
+		time.Sleep(2 * time.Second)
+		a.emb.Start()
+	}()
+	return nil
 }
-
-// UninstallService stops and removes the gateway service.
-func (a *AppService) UninstallService() error { return service.Uninstall() }
-
-// RestartService restarts the gateway service.
-func (a *AppService) RestartService() error { return service.Restart() }
 
 // ---- Claude Code ---------------------------------------------------------
 

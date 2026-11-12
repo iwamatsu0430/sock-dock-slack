@@ -16,9 +16,6 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as control$0 from "../internal/control/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as slackio$0 from "../internal/slackio/models.js";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
 import * as store$0 from "../internal/store/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -75,13 +72,6 @@ export function Info(): $CancellablePromise<$models.AppInfo> {
     return $Call.ByID(3943185810).then(($result: any) => {
         return $$createType4($result);
     });
-}
-
-/**
- * InstallService installs (or reinstalls) and starts the gateway service.
- */
-export function InstallService(): $CancellablePromise<void> {
-    return $Call.ByID(664739992);
 }
 
 /**
@@ -162,10 +152,12 @@ export function Reload(): $CancellablePromise<void> {
 }
 
 /**
- * RestartService restarts the gateway service.
+ * RestartGateway restarts the gateway running inside this app.
  */
-export function RestartService(): $CancellablePromise<void> {
-    return $Call.ByID(3266397148);
+export function RestartGateway(): $CancellablePromise<$models.GatewayState> {
+    return $Call.ByID(677431921).then(($result: any) => {
+        return $$createType6($result);
+    });
 }
 
 /**
@@ -181,23 +173,23 @@ export function RevealLogs(): $CancellablePromise<void> {
  */
 export function SaveConfig(content: string): $CancellablePromise<control$0.ValidateResult> {
     return $Call.ByID(2775748437, content).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType7($result);
     });
 }
 
 /**
- * SaveToken stores a token in the Keychain.
+ * SaveToken stores a token in the Keychain and (re)starts the gateway.
  */
 export function SaveToken(name: string, value: string): $CancellablePromise<void> {
     return $Call.ByID(1204991788, name, value);
 }
 
 /**
- * ServiceStatus reports whether the gateway service is installed and loaded.
+ * ServiceStatus reports whether the CLI background service is installed and loaded.
  */
 export function ServiceStatus(): $CancellablePromise<$models.ServiceInfo> {
     return $Call.ByID(644575443).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType8($result);
     });
 }
 
@@ -223,11 +215,28 @@ export function SetPrefs(p: $models.Prefs): $CancellablePromise<void> {
 }
 
 /**
- * TestConnection checks the bot token with auth.test.
+ * StartGateway starts the gateway inside this app.
  */
-export function TestConnection(): $CancellablePromise<slackio$0.Identity> {
-    return $Call.ByID(4037176558).then(($result: any) => {
-        return $$createType8($result);
+export function StartGateway(): $CancellablePromise<$models.GatewayState> {
+    return $Call.ByID(1973440364).then(($result: any) => {
+        return $$createType6($result);
+    });
+}
+
+/**
+ * StopGateway stops the gateway running inside this app.
+ */
+export function StopGateway(): $CancellablePromise<void> {
+    return $Call.ByID(3490732);
+}
+
+/**
+ * TestTokens checks each token that is set: the bot token with auth.test,
+ * the app-level token by asking Slack for a Socket Mode connection URL.
+ */
+export function TestTokens(): $CancellablePromise<$models.TokenTest[]> {
+    return $Call.ByID(3607164548).then(($result: any) => {
+        return $$createType10($result);
     });
 }
 
@@ -236,7 +245,7 @@ export function TestConnection(): $CancellablePromise<slackio$0.Identity> {
  */
 export function Threads(limit: number): $CancellablePromise<store$0.Thread[]> {
     return $Call.ByID(3464577351, limit).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType12($result);
     });
 }
 
@@ -245,7 +254,7 @@ export function Threads(limit: number): $CancellablePromise<store$0.Thread[]> {
  */
 export function TokenStatus(): $CancellablePromise<$models.TokenInfo[]> {
     return $Call.ByID(1399165129).then(($result: any) => {
-        return $$createType12($result);
+        return $$createType14($result);
     });
 }
 
@@ -254,12 +263,13 @@ export function TokenStatus(): $CancellablePromise<$models.TokenInfo[]> {
  */
 export function Turns(limit: number): $CancellablePromise<store$0.Turn[]> {
     return $Call.ByID(2032648206, limit).then(($result: any) => {
-        return $$createType14($result);
+        return $$createType16($result);
     });
 }
 
 /**
- * UninstallService stops and removes the gateway service.
+ * UninstallService removes the CLI background service and lets the app run
+ * the gateway itself.
  */
 export function UninstallService(): $CancellablePromise<void> {
     return $Call.ByID(4092674991);
@@ -270,7 +280,7 @@ export function UninstallService(): $CancellablePromise<void> {
  */
 export function ValidateConfig(content: string): $CancellablePromise<control$0.ValidateResult> {
     return $Call.ByID(2985580066, content).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType7($result);
     });
 }
 
@@ -281,12 +291,14 @@ const $$createType2 = $models.Prefs.createFrom;
 const $$createType3 = $models.Snapshot.createFrom;
 const $$createType4 = $models.AppInfo.createFrom;
 const $$createType5 = control$0.MatchResult.createFrom;
-const $$createType6 = control$0.ValidateResult.createFrom;
-const $$createType7 = $models.ServiceInfo.createFrom;
-const $$createType8 = slackio$0.Identity.createFrom;
-const $$createType9 = store$0.Thread.createFrom;
+const $$createType6 = $models.GatewayState.createFrom;
+const $$createType7 = control$0.ValidateResult.createFrom;
+const $$createType8 = $models.ServiceInfo.createFrom;
+const $$createType9 = $models.TokenTest.createFrom;
 const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = $models.TokenInfo.createFrom;
+const $$createType11 = store$0.Thread.createFrom;
 const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = store$0.Turn.createFrom;
+const $$createType13 = $models.TokenInfo.createFrom;
 const $$createType14 = $Create.Array($$createType13);
+const $$createType15 = store$0.Turn.createFrom;
+const $$createType16 = $Create.Array($$createType15);

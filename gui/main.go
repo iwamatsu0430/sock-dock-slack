@@ -9,6 +9,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -47,6 +48,8 @@ func main() {
 		Assets:      application.AssetOptions{Handler: application.AssetFileServerFS(dist)},
 		Mac:         application.MacOptions{ActivationPolicy: application.ActivationPolicyAccessory},
 		LogLevel:    slog.LevelWarn,
+		// Quitting the app stops the gateway it runs.
+		OnShutdown: func() { svc.emb.Stop(15 * time.Second) },
 		SingleInstance: &application.SingleInstanceOptions{
 			UniqueID: "io.github.iwamatsu0430.sockdock.gui",
 			OnSecondInstanceLaunch: func(application.SecondInstanceData) {
@@ -104,17 +107,34 @@ func main() {
 	reloadItem := menu.Add(svc.tr("menu.reload")).OnClick(func(*application.Context) { _ = svc.Reload() })
 	menu.AddSeparator()
 	quitItem := menu.Add(svc.tr("menu.quit")).OnClick(func(*application.Context) { app.Quit() })
-	svc.onLocale = func() {
+	// Labels depend on the language and on whether quitting stops the gateway.
+	relabel := func() {
 		openItem.SetLabel(svc.tr("menu.open"))
 		reloadItem.SetLabel(svc.tr("menu.reload"))
-		quitItem.SetLabel(svc.tr("menu.quit"))
+		if svc.emb.State().State == GatewayRunning {
+			quitItem.SetLabel(svc.tr("menu.quitStops"))
+		} else {
+			quitItem.SetLabel(svc.tr("menu.quit"))
+		}
 		menu.Update()
 	}
+	svc.onLocale = relabel
 	// Left click toggles the popover; right click opens this menu.
 	tray.SetMenu(menu)
 
 	mon := newMonitor(svc, tray)
+	svc.emb.onChange = func() {
+		relabel()
+		go mon.refresh()
+	}
 	go mon.run()
+
+	// Run the gateway inside the app. Apps opened from Finder get a minimal
+	// PATH, so use the login shell's PATH for handlers (claude, uv, ...).
+	go func() {
+		_ = os.Setenv("PATH", loginShellPath())
+		svc.emb.Start()
+	}()
 
 	if len(os.Args) > 1 && os.Args[1] == "--show" {
 		app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {

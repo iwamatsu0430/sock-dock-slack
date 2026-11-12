@@ -78,6 +78,36 @@ export class ConfigFile {
 }
 
 /**
+ * GatewayState is the embedded gateway's state.
+ */
+export class GatewayState {
+    "state": string;
+    "error"?: string;
+
+    /**
+     * Missing is "config" or "tokens" when State is "setup".
+     */
+    "missing"?: string;
+
+    /** Creates a new GatewayState instance. */
+    constructor($$source: Partial<GatewayState> = {}) {
+        if (!("state" in $$source)) {
+            this["state"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GatewayState instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GatewayState {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new GatewayState($$parsedSource as Partial<GatewayState>);
+    }
+}
+
+/**
  * Prefs are GUI-only preferences.
  */
 export class Prefs {
@@ -110,12 +140,13 @@ export class Prefs {
 }
 
 /**
- * ServiceInfo is the gateway service state.
+ * ServiceInfo describes a `sockdock service install` background service
+ * (used without the app). When one runs, the app shows it instead of
+ * starting its own gateway.
  */
 export class ServiceInfo {
     "installed": boolean;
     "detail": string;
-    "binary": string;
 
     /** Creates a new ServiceInfo instance. */
     constructor($$source: Partial<ServiceInfo> = {}) {
@@ -124,9 +155,6 @@ export class ServiceInfo {
         }
         if (!("detail" in $$source)) {
             this["detail"] = "";
-        }
-        if (!("binary" in $$source)) {
-            this["binary"] = "";
         }
 
         Object.assign(this, $$source);
@@ -149,10 +177,18 @@ export class Snapshot {
     "error"?: string;
     "status"?: gateway$0.Status | null;
 
+    /**
+     * Gateway says whether the gateway runs inside this app, elsewhere, or why not.
+     */
+    "gateway": GatewayState;
+
     /** Creates a new Snapshot instance. */
     constructor($$source: Partial<Snapshot> = {}) {
         if (!("running" in $$source)) {
             this["running"] = false;
+        }
+        if (!("gateway" in $$source)) {
+            this["gateway"] = (new GatewayState());
         }
 
         Object.assign(this, $$source);
@@ -163,9 +199,13 @@ export class Snapshot {
      */
     static createFrom($$source: any = {}): Snapshot {
         const $$createField2_0 = $$createType1;
+        const $$createField3_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("status" in $$parsedSource) {
             $$parsedSource["status"] = $$createField2_0($$parsedSource["status"]);
+        }
+        if ("gateway" in $$parsedSource) {
+            $$parsedSource["gateway"] = $$createField3_0($$parsedSource["gateway"]);
         }
         return new Snapshot($$parsedSource as Partial<Snapshot>);
     }
@@ -208,6 +248,41 @@ export class TokenInfo {
     }
 }
 
+/**
+ * TokenTest is the result of checking one token against Slack.
+ */
+export class TokenTest {
+    "name": string;
+    "set": boolean;
+    "ok": boolean;
+    "detail"?: string;
+    "error"?: string;
+
+    /** Creates a new TokenTest instance. */
+    constructor($$source: Partial<TokenTest> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("set" in $$source)) {
+            this["set"] = false;
+        }
+        if (!("ok" in $$source)) {
+            this["ok"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TokenTest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TokenTest {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new TokenTest($$parsedSource as Partial<TokenTest>);
+    }
+}
+
 // Private type creation functions
 const $$createType0 = gateway$0.Status.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
+const $$createType2 = GatewayState.createFrom;

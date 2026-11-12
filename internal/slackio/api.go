@@ -95,6 +95,13 @@ func (w *WebAPI) AuthTest(ctx context.Context) (Identity, error) {
 	return Identity{UserID: resp.UserID, BotID: resp.BotID, Team: resp.Team, URL: resp.URL}, nil
 }
 
+// TestAppToken checks an app-level token by requesting a Socket Mode
+// connection URL (this also fails when Socket Mode is disabled for the app).
+func TestAppToken(ctx context.Context, appToken string) error {
+	_, _, err := slack.New("", slack.OptionAppLevelToken(appToken)).StartSocketModeContext(ctx)
+	return err
+}
+
 // retry retries rate-limited calls, honoring Retry-After.
 func (w *WebAPI) retry(ctx context.Context, f func() error) error {
 	var err error

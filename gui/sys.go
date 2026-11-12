@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,25 +10,6 @@ import (
 
 	"github.com/iwamatsu0430/sock-dock-slack/internal/config"
 )
-
-// findSockdock locates the CLI binary the background service should run:
-// next to the GUI executable (inside the .app), then PATH, then Homebrew.
-func findSockdock() (string, error) {
-	if exe, err := os.Executable(); err == nil {
-		if p, err := filepath.EvalSymlinks(exe); err == nil {
-			exe = p
-		}
-		cand := filepath.Join(filepath.Dir(exe), "sockdock")
-		if isExecutable(cand) {
-			return cand, nil
-		}
-	}
-	pathEnv := loginShellPath() + string(os.PathListSeparator) + "/opt/homebrew/bin:/usr/local/bin"
-	if p, err := config.LookPath("sockdock", pathEnv); err == nil {
-		return p, nil
-	}
-	return "", errors.New("could not find the sockdock command; install it with Homebrew (brew install sock-dock-slack)")
-}
 
 var cachedPath string
 

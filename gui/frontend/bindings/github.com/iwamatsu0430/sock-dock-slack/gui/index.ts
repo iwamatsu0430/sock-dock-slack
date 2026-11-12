@@ -9,8 +9,10 @@ export {
 export {
     AppInfo,
     ConfigFile,
+    GatewayState,
     Prefs,
     ServiceInfo,
     Snapshot,
-    TokenInfo
+    TokenInfo,
+    TokenTest
 } from "./models.js";

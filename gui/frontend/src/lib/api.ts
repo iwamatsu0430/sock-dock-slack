@@ -1,6 +1,6 @@
 // Thin re-exports so components do not depend on the generated paths.
 export * as App from "../../bindings/github.com/iwamatsu0430/sock-dock-slack/gui/appservice";
-export type { Snapshot, ConfigFile, TokenInfo, ServiceInfo, Prefs, AppInfo } from "../../bindings/github.com/iwamatsu0430/sock-dock-slack/gui/models";
+export type { Snapshot, ConfigFile, TokenInfo, TokenTest, ServiceInfo, Prefs, AppInfo, GatewayState } from "../../bindings/github.com/iwamatsu0430/sock-dock-slack/gui/models";
 export type { Status, RouteStatus, RunningTurn, Event as GatewayEvent } from "../../bindings/github.com/iwamatsu0430/sock-dock-slack/internal/gateway/models";
 export type { Turn, Thread } from "../../bindings/github.com/iwamatsu0430/sock-dock-slack/internal/store/models";
 export type { ValidateResult, MatchResult } from "../../bindings/github.com/iwamatsu0430/sock-dock-slack/internal/control/models";

@@ -63,7 +63,7 @@
       {:else if tab === "config"}
         <Config bind:snippet={pendingSnippet} />
       {:else if tab === "setup"}
-        <Setup />
+        <Setup onnavigate={(id: string) => (tab = id as TabID)} />
       {:else if tab === "logs"}
         <Logs />
       {:else}
