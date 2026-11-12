@@ -75,7 +75,7 @@ var input = Input{
 func TestClaudeArgsAndPrompt(t *testing.T) {
 	r, dir := setup(t, "ok")
 	res, err := RunClaude(context.Background(), r, input, ClaudeOptions{
-		Command: r.Handler.Command, SystemPromptFile: "/tmp/gw.md", SessionID: "sess-old",
+		Command: r.Handler.Command, SystemPromptFile: "/tmp/gw.md", SessionID: "sess-old", InstructionsFile: "/tmp/route-r.md",
 	}, Env{Path: os.Getenv("PATH")})
 	if err != nil {
 		t.Fatal(err)
@@ -92,6 +92,7 @@ func TestClaudeArgsAndPrompt(t *testing.T) {
 		"--disallowedTools mcp__*",
 		"--append-system-prompt-file /tmp/gw.md",
 		"--append-system-prompt-file " + r.Handler.Prompt,
+		"--append-system-prompt-file /tmp/route-r.md",
 		"--model opus", "--resume sess-old",
 	} {
 		if !strings.Contains(joined, want) {

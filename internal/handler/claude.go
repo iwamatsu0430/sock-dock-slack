@@ -19,6 +19,8 @@ type ClaudeOptions struct {
 	SystemPromptFile string
 	// SessionID resumes an earlier conversation when set.
 	SessionID string
+	// InstructionsFile holds the route's inline instructions, if any.
+	InstructionsFile string
 }
 
 // claudeResult is the subset of `claude -p --output-format json` we use.
@@ -115,6 +117,9 @@ func ClaudeArgs(h config.Handler, opts ClaudeOptions) []string {
 	}
 	if h.Prompt != "" {
 		args = append(args, "--append-system-prompt-file", h.Prompt)
+	}
+	if opts.InstructionsFile != "" {
+		args = append(args, "--append-system-prompt-file", opts.InstructionsFile)
 	}
 	if h.Model != "" {
 		args = append(args, "--model", h.Model)

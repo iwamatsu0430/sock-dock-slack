@@ -81,7 +81,10 @@ type Handler struct {
 	TimeoutSec int               `yaml:"timeout_sec"`
 
 	// claude only
-	Prompt       string   `yaml:"prompt"`
+	Prompt string `yaml:"prompt"`
+	// Instructions is inline text appended to the system prompt (like
+	// Prompt, but kept in the config; the app's route form writes it).
+	Instructions string   `yaml:"instructions"`
 	AllowedTools []string `yaml:"allowed_tools"`
 	Tools        []string `yaml:"tools"`
 	AllowMCP     bool     `yaml:"allow_mcp"`
@@ -488,4 +491,16 @@ func expand(s string, local map[string]string, lookupEnv func(string) (string, b
 // Render fills {route} and {timeout_sec} in a canned message.
 func Render(tmpl, route string, timeoutSec int) string {
 	return strings.NewReplacer("{route}", route, "{timeout_sec}", fmt.Sprint(timeoutSec)).Replace(tmpl)
+}
+
+// prepareMatchOnly compiles route regexes without other validation (tests).
+func (c *Config) prepareMatchOnly() error {
+	for _, r := range c.Routes {
+		re, err := regexp.Compile(r.Match)
+		if err != nil {
+			return err
+		}
+		r.re = re
+	}
+	return nil
 }

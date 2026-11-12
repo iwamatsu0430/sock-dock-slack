@@ -7,7 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -295,6 +298,7 @@ func (g *Gateway) process(key string, batch []event.Message) {
 			Command:          cfg.ClaudeCommandFor(r),
 			SystemPromptFile: g.opts.SystemPromptFile,
 			SessionID:        th.SessionID,
+			InstructionsFile: g.instructionsFile(r, log),
 		}, env)
 	default:
 		res, err = g.opts.RunCommand(g.runCtx, r, in, env)
@@ -343,6 +347,20 @@ func (g *Gateway) process(key string, batch []event.Message) {
 	}
 	g.setRunning(key, nil)
 	g.broadcast(Event{Type: "turn_finished", Data: map[string]any{"turn_id": turnID, "route": r.Name, "status": status}})
+}
+
+// instructionsFile writes a route's inline instructions next to the gateway
+// prompt and returns the path ("" when the route has none).
+func (g *Gateway) instructionsFile(r *config.Route, log *slog.Logger) string {
+	if strings.TrimSpace(r.Handler.Instructions) == "" || g.opts.SystemPromptFile == "" {
+		return ""
+	}
+	p := filepath.Join(filepath.Dir(g.opts.SystemPromptFile), "route-"+r.Name+".md")
+	if err := os.WriteFile(p, []byte(r.Handler.Instructions), 0o600); err != nil {
+		log.Warn("could not write route instructions", "err", err)
+		return ""
+	}
+	return p
 }
 
 // Reload re-reads the config file. On error the current config stays active.
