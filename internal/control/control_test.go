@@ -18,8 +18,8 @@ import (
 
 type nopAPI struct{}
 
-func (nopAPI) PostMessage(context.Context, string, string, string) error   { return nil }
-func (nopAPI) AddReaction(context.Context, string, string, string) error   { return nil }
+func (nopAPI) PostMessage(context.Context, string, string, string) error    { return nil }
+func (nopAPI) AddReaction(context.Context, string, string, string) error    { return nil }
 func (nopAPI) RemoveReaction(context.Context, string, string, string) error { return nil }
 func (nopAPI) Permalink(context.Context, string, string) (string, error)    { return "", nil }
 func (nopAPI) AuthTest(context.Context) (slackio.Identity, error) {
