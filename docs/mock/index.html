@@ -72,6 +72,16 @@ label.f { display: block; font-weight: 500; margin-bottom: 4px; }
 .setup .stepno { font-size: 12px; color: var(--muted); }
 .setup .big { font-size: 20px; font-weight: 600; }
 .setupnav { display: flex; gap: 8px; margin-top: 8px; }
+details.existing { border-top: 1px solid var(--border); padding-top: 10px; }
+details.existing summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+details.existing > p:first-of-type { margin: 8px 0 4px; }
+table.need { border-collapse: collapse; width: 100%; }
+table.need th { text-align: left; font-weight: 500; color: var(--muted); white-space: nowrap; vertical-align: top; padding: 4px 12px 4px 0; border-bottom: 1px solid var(--border); }
+table.need td { padding: 4px 0; border-bottom: 1px solid var(--border); }
+.check-list { margin: 4px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.check-list .scopes { margin-top: 4px; }
+details.hint { margin-top: 6px; }
+details.hint summary { cursor: pointer; color: var(--muted); }
 .todo { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
 .todo li > div { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 .scopes { list-style: none; margin: 2px 0 0; padding: 0; display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; color: var(--muted); align-items: baseline; }
@@ -162,11 +172,14 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); color: #f
   <button data-go="s1">1 Slack アプリ</button>
   <button data-go="s2">2 接続</button>
   <button data-go="s2-error">2 失敗</button>
+  <button data-go="s1-existing">1 すでにあるアプリ</button>
   <button data-go="s2-scope">2 スコープ不足</button>
+  <button data-go="s2-botscope">2 Bot のスコープ不足</button>
   <span class="grp">メインウィンドウ</span>
   <button data-go="empty">ルールなし</button>
   <button data-go="routes">一覧</button>
   <button data-go="route">ルール</button>
+  <button data-go="route-none">ルール（届いていない）</button>
   <button data-go="route-new">新しいルール</button>
   <button data-go="route-noscope">チャンネル一覧なし</button>
   <button data-go="banner">接続できない</button>
@@ -181,36 +194,41 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); color: #f
 <div class="stage">
 
   <!-- ============ セットアップ ============ -->
-  <div class="win narrow" data-screen="s1 s2 s2-error s2-scope">
+  <div class="win narrow" data-screen="s1 s1-existing s2 s2-error s2-scope s2-botscope">
     <div class="titlebar"><i></i><i></i><i></i></div>
 
-    <div class="setup" data-only="s1">
+    <div class="setup" data-only="s1 s1-existing">
       <p class="stepno">1 / 2</p>
       <p class="big">Slack アプリを作成</p>
-      <p>SockDock を使うには、専用の Slack アプリが必要です。Slack の管理画面で、次の 3 つを行ってください。</p>
+      <p>SockDock 用の Slack アプリを作ります。</p>
       <ol class="todo">
-        <li><div><span>アプリを作成（設定は入力済みです）</span><button class="small">api.slack.com を開く ↗</button></div></li>
-        <li><div><span>ワークスペースにインストール → Bot Token（<code>xoxb-</code>）が発行されます</span>
-          <ul class="scopes small">
-            <li><code>channels:history</code><span>公開チャンネルの投稿を読む</span></li>
-            <li><code>groups:history</code><span>非公開チャンネルの投稿を読む</span></li>
-            <li><code>chat:write</code><span>スレッドに返信する</span></li>
-            <li><code>reactions:write</code><span>👀 を付ける</span></li>
-            <li><code>channels:read</code><span>チャンネルを一覧から選ぶ（任意）</span></li>
-            <li><code>groups:read</code><span>非公開チャンネルも一覧から選ぶ（任意）</span></li>
-          </ul></div></li>
-        <li><div><span>App-Level Token を発行（スコープ: <code>connections:write</code>）→ <code>xapp-</code> で始まるトークン</span></div></li>
+        <li><div><button class="small">api.slack.com で作る ↗</button>
+          <span class="small muted">必要な設定が入った作成画面が開きます。ワークスペースを選び、［Create］を押してください。</span></div></li>
+        <li><div><span>そのアプリをインストールし、Bot Token（<code>xoxb-</code>）をコピー</span></div></li>
+        <li><div><span>同じアプリで App-Level Token を発行し（スコープ: <code>connections:write</code>）、<code>xapp-</code> で始まるトークンをコピー</span></div></li>
       </ol>
+      <details class="existing" id="existing">
+        <summary>すでにある Slack アプリを使う</summary>
+        <p class="small">次の設定をそろえてください。</p>
+        <table class="need small">
+          <tr><th>Socket Mode</th><td>オン</td></tr>
+          <tr><th>イベント</th><td><code>message.channels</code> <code>message.groups</code></td></tr>
+          <tr><th>Bot Token のスコープ</th><td><code>channels:history</code> <code>groups:history</code> <code>chat:write</code> <code>reactions:write</code><br><span class="muted">（<code>channels:read</code> <code>groups:read</code> は任意）</span></td></tr>
+        </table>
+        <div class="row" style="margin-top:6px"><button class="small" data-copy>設定をコピー</button><span class="small muted">App Manifest の同じ場所に足してください。</span></div>
+        <p class="small" style="margin-top:8px">Socket Mode をオンにすると、このアプリのイベントは SockDock にだけ届くようになります。</p>
+        <p class="small">設定を変えたら、アプリを再インストールしてください。</p>
+      </details>
       <div class="setupnav"><span class="spacer"></span><button class="primary" data-go="s2">次へ</button></div>
     </div>
 
-    <div class="setup" data-only="s2 s2-error s2-scope">
+    <div class="setup" data-only="s2 s2-error s2-scope s2-botscope">
       <p class="stepno">2 / 2</p>
       <p class="big">Slack に接続</p>
       <div>
         <label class="f">App-Level Token</label>
         <input type="password" placeholder="xapp-…" id="tApp">
-        <p class="small muted" style="margin-top:3px" data-only="s2 s2-error">投稿の受信に使います</p>
+        <p class="small muted" style="margin-top:3px" data-only="s2 s2-error s2-botscope">投稿の受信に使います</p>
         <p class="small bad-t" style="margin-top:3px" data-only="s2-scope">このトークンには <code>connections:write</code> のスコープがありません</p>
       </div>
       <div>
@@ -218,6 +236,7 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); color: #f
         <input type="password" placeholder="xoxb-…" id="tBot">
         <p class="small muted" style="margin-top:3px" data-only="s2 s2-scope">返信の投稿に使います</p>
         <p class="small bad-t" style="margin-top:3px" data-only="s2-error">接続できませんでした。トークンを確認してください（invalid_auth）</p>
+        <p class="small bad-t" style="margin-top:3px" data-only="s2-botscope">このトークンには次のスコープがありません: <code>chat:write</code> <code>groups:history</code>。Slack アプリに足して、再インストールしてください。</p>
       </div>
       <p class="small muted">トークンはこの Mac のキーチェーンに保存します。送信先は Slack だけです。</p>
       <div class="setupnav"><button data-go="s1">戻る</button><span class="spacer"></span><button class="primary" data-go="empty">Slack に接続</button></div>
@@ -225,7 +244,7 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); color: #f
   </div>
 
   <!-- ============ メインウィンドウ ============ -->
-  <div class="win main" data-screen="empty routes route route-new route-noscope banner settings reset">
+  <div class="win main" data-screen="empty routes route route-none route-new route-noscope banner settings reset">
     <div class="titlebar"><i></i><i></i><i></i><span>SockDock</span></div>
     <div class="topnav"><div class="seg">
       <button data-go="routes" data-tab="rules">ルール</button><button data-go="settings" data-tab="settings">設定</button>
@@ -320,20 +339,20 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); color: #f
       </div>
 
       <!-- ルール -->
-      <div data-only="route route-new route-noscope">
+      <div data-only="route route-none route-new route-noscope">
         <div style="min-height:28px"><button class="back" data-go="routes">← ルール</button></div>
         <h1 id="title" style="margin-bottom:6px">#dev-help「review」</h1>
 
         <div class="sec first">
           <h2>チャンネル</h2>
           <div class="ctl">
-            <div data-only="route route-new">
+            <div data-only="route route-none route-new">
               <select id="ch"><option value="">選んでください</option><option>#dev-help</option><option>#general</option><option>🔒ops</option></select>
               <p class="small muted" style="margin-top:6px">一覧に出るのは、Slack アプリを追加したチャンネルです。</p>
             </div>
             <div data-only="route-noscope">
               <input type="text" value="C0ABCDEF12">
-              <p class="small muted" style="margin-top:6px">チャンネル一覧を取得できません。チャンネル ID かリンクを入力してください。一覧を使うには、Slack アプリに <code>channels:read</code> と <code>groups:read</code> のスコープを追加してください。</p>
+              <p class="small muted" style="margin-top:6px">チャンネル ID かリンクを入力してください。一覧から選ぶには、Slack アプリに <code>channels:read</code> と <code>groups:read</code> のスコープが要ります。</p>
             </div>
             <p class="small">このチャンネルのメンバーなら誰でも実行できます。</p>
           </div>
@@ -382,8 +401,22 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); color: #f
           <div class="sec"><h2>上限時間</h2><div class="ctl"><div class="row"><input type="text" value="600" style="max-width:80px"><span class="muted">秒</span></div></div></div>
         </details>
         <div class="formfoot">
-          <button class="danger" data-only="route route-noscope">削除</button><span class="spacer"></span>
+          <button class="danger" data-only="route route-none route-noscope">削除</button><span class="spacer"></span>
           <button data-go="routes">キャンセル</button><button class="primary" data-go="routes">保存</button>
+        </div>
+
+        <div data-only="route-none" style="margin-top:6px">
+          <h2 style="margin-bottom:8px">最近の処理</h2>
+          <p class="small muted">#dev-help に「review 〜」と投稿すると、ここに表示されます。</p>
+          <p class="small bad-t" style="margin-top:6px">このチャンネルの投稿は、まだ届いていません。</p>
+          <details class="hint small">
+            <summary>届かないとき</summary>
+            <ul class="check-list">
+              <li>Slack アプリを、このチャンネルに追加したか</li>
+              <li>2 つのトークンを、同じアプリで発行したか</li>
+              <li>Slack アプリが、イベント <code>message.channels</code> <code>message.groups</code> を購読しているか</li>
+            </ul>
+          </details>
         </div>
 
         <div data-only="route route-noscope" style="margin-top:6px">
@@ -515,6 +548,7 @@ function go(id) {
 
   const blank = id === "route-new";
   const noscope = id === "route-noscope";
+  if (id === "route-none") opened = "#dev-help|start|review";
   const [ch, mode, kw] = (blank ? "||" : noscope ? "C0ABCDEF12|start|review" : opened || "#dev-help|start|review").split("|");
   opened = null;
   $("#title").textContent = blank ? "新しいルール" : shortName(ch, mode, kw);
@@ -528,12 +562,13 @@ function go(id) {
   modeChanged();
   refreshList();
 
-  const filled = id === "s2-error" || id === "s2-scope";
+  const filled = id === "s2-error" || id === "s2-scope" || id === "s2-botscope";
   $("#tApp").value = filled ? "xapp-1-A0000000000-0000-aaaa" : "";
   $("#tBot").value = filled ? "xoxb-0000000000-0000-bbbb" : "";
-  $("#tBot").classList.toggle("invalid", id === "s2-error");
+  $("#tBot").classList.toggle("invalid", id === "s2-error" || id === "s2-botscope");
   $("#tApp").classList.toggle("invalid", id === "s2-scope");
   $("#replace").hidden = true;
+  $("#existing").open = id === "s1-existing";
   try { history.replaceState(null, "", "#" + id); } catch {}
 }
 // MCP: how to register SockDock depends on the client (docs/mcp.md §2.1).
