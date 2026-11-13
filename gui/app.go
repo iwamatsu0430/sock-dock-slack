@@ -237,9 +237,16 @@ func (a *AppService) ConnectSlack(appToken, botToken string) ConnectResult {
 	if err := slackio.TestAppToken(c, appToken); err != nil {
 		res.App = tokenProblem(err)
 	}
-	id, err := slackio.NewWebAPI(botToken, "").AuthTest(c)
-	if err != nil {
+	id, scopes, err := slackio.AuthTestScopes(c, botToken)
+	switch {
+	case err != nil:
 		res.Bot = tokenProblem(err)
+	case scopes != nil:
+		// An existing Slack app may lack scopes; name the required ones that
+		// are missing. The optional ones only enable the channel list.
+		if missing := slackio.MissingScopes(scopes, slackio.RequiredBotScopes); len(missing) > 0 {
+			res.Bot = &TokenProblem{Code: "missing_bot_scopes", Detail: strings.Join(missing, " ")}
+		}
 	}
 	if res.App != nil || res.Bot != nil {
 		return res
@@ -312,6 +319,34 @@ func (a *AppService) hasTokens() bool {
 	app, _, _ := secret.Lookup(secret.AppToken, sf)
 	bot, _, _ := secret.Lookup(secret.BotToken, sf)
 	return app != "" && bot != ""
+}
+
+// slackSettingsSnippet is the part of the manifest an existing Slack app
+// needs; it is meant to be added to that app's App Manifest, not to replace it.
+const slackSettingsSnippet = `oauth_config:
+  scopes:
+    bot:
+      - channels:history
+      - groups:history
+      - chat:write
+      - reactions:write
+      - channels:read
+      - groups:read
+settings:
+  event_subscriptions:
+    bot_events:
+      - message.channels
+      - message.groups
+  socket_mode_enabled: true
+`
+
+// CopySlackSettings copies the settings an existing Slack app needs, as a
+// manifest snippet, to the clipboard.
+func (a *AppService) CopySlackSettings() error {
+	if !a.app.Clipboard.SetText(slackSettingsSnippet) {
+		return errors.New("could not copy to the clipboard")
+	}
+	return nil
 }
 
 // OpenSlackAppPage opens api.slack.com's "create an app" page with the

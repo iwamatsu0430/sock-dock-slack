@@ -42,6 +42,7 @@
   <p class="small bad-t hint">
     {#if p.code === "format"}<Rich key={kind === "app" ? "token.formatApp" : "token.formatBot"} />
     {:else if p.code === "missing_scope" && kind === "app"}<Rich key="token.missingScope" />
+    {:else if p.code === "missing_bot_scopes"}<Rich key="token.botScopes" params={{ scopes: p.detail ?? "" }} />
     {:else if p.code === "network"}{t("token.network", { detail: p.detail ?? "" })}
     {:else if p.code === "keychain"}{t("token.keychainError", { detail: p.detail ?? "" })}
     {:else}{t("token.auth", { code: p.code })}{/if}

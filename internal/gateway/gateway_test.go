@@ -316,3 +316,14 @@ func TestStopTurn(t *testing.T) {
 		t.Error("stopping a finished turn should fail")
 	}
 }
+
+func TestHeardChannels(t *testing.T) {
+	gw := newHarness(t, func(handler.Input) (handler.Result, error) { return handler.Result{}, nil }).gw
+	if st := gw.Status(0); len(st.Heard) != 0 {
+		t.Fatalf("heard before any post: %v", st.Heard)
+	}
+	gw.HandleMessage(event.Message{Channel: "C9", TS: "1.0", User: "U1", Text: "no rule matches this"})
+	if st := gw.Status(0); len(st.Heard) != 1 || st.Heard[0] != "C9" {
+		t.Errorf("heard = %v", st.Heard)
+	}
+}

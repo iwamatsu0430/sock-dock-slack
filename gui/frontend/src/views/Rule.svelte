@@ -64,6 +64,11 @@
   });
 
   const problem = (field: string) => problemText(problems.find((p) => p.field === field));
+  // SockDock knows which channels' posts reached it since it connected; when
+  // this rule's channel has none, the problem is delivery, not the condition.
+  const notHeard = $derived(
+    !!live.snap?.status?.connected && !!saved.channel && !(live.snap?.status?.heard ?? []).includes(saved.channel),
+  );
   const triggers = ["starts_with", "contains", "match", "all_posts"];
   const channelShown = $derived(
     (() => {
@@ -233,6 +238,17 @@
     <div class="runs">
       <h2>{t("runs.title")}</h2>
       <p class="small muted">{t(`runs.empty.${saved.trigger}` as MessageKey, { channel: channelShown, keyword: saved.keyword })}</p>
+      {#if notHeard}
+        <p class="small bad-t heard">{t("runs.notHeard")}</p>
+        <details class="hint small">
+          <summary>{t("runs.notHeardHelp")}</summary>
+          <ul>
+            <li>{t("runs.checkInvite")}</li>
+            <li>{t("runs.checkSameApp")}</li>
+            <li><Rich key="runs.checkEvents" /></li>
+          </ul>
+        </details>
+      {/if}
     </div>
   {:else if name}
     <div class="runs">
@@ -296,5 +312,9 @@
   tr:last-child td { border-bottom: none; }
   .nowrap { white-space: nowrap; }
   .actions { text-align: right; }
+  .heard { margin-top: 6px; }
+  details.hint { margin-top: 4px; }
+  details.hint summary { cursor: pointer; color: var(--muted); }
+  details.hint ul { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
   .reason { white-space: pre-wrap; word-break: break-word; max-height: 4.5em; overflow: hidden; }
 </style>

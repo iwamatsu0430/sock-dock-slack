@@ -143,6 +143,12 @@ export class Status {
      */
     "broken"?: config$0.BrokenRoute[];
     "running": RunningTurn[];
+
+    /**
+     * Heard lists the channels whose posts have reached SockDock since it
+     * started.
+     */
+    "heard": string[];
     "pending": number;
 
     /** Creates a new Status instance. */
@@ -171,6 +177,9 @@ export class Status {
         if (!("running" in $$source)) {
             this["running"] = [];
         }
+        if (!("heard" in $$source)) {
+            this["heard"] = [];
+        }
         if (!("pending" in $$source)) {
             this["pending"] = 0;
         }
@@ -186,6 +195,7 @@ export class Status {
         const $$createField10_0 = $$createType2;
         const $$createField11_0 = $$createType4;
         const $$createField12_0 = $$createType6;
+        const $$createField13_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("identity" in $$parsedSource) {
             $$parsedSource["identity"] = $$createField8_0($$parsedSource["identity"]);
@@ -199,6 +209,9 @@ export class Status {
         if ("running" in $$parsedSource) {
             $$parsedSource["running"] = $$createField12_0($$parsedSource["running"]);
         }
+        if ("heard" in $$parsedSource) {
+            $$parsedSource["heard"] = $$createField13_0($$parsedSource["heard"]);
+        }
         return new Status($$parsedSource as Partial<Status>);
     }
 }
@@ -211,3 +224,4 @@ const $$createType3 = config$0.BrokenRoute.createFrom;
 const $$createType4 = $Create.Array($$createType3);
 const $$createType5 = RunningTurn.createFrom;
 const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = $Create.Array($Create.Any);

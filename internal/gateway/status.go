@@ -26,7 +26,10 @@ type Status struct {
 	// Broken lists routes left out because of problems.
 	Broken  []config.BrokenRoute `json:"broken,omitempty"`
 	Running []RunningTurn        `json:"running"`
-	Pending int                  `json:"pending"`
+	// Heard lists the channels whose posts have reached SockDock since it
+	// started.
+	Heard   []string `json:"heard"`
+	Pending int      `json:"pending"`
 }
 
 // RouteStatus summarizes a route.
@@ -67,6 +70,11 @@ func (g *Gateway) Status(pid int) Status {
 		s.Running = append(s.Running, rt)
 	}
 	sort.Slice(s.Running, func(i, j int) bool { return s.Running[i].StartedAt.Before(s.Running[j].StartedAt) })
+	s.Heard = []string{}
+	for ch := range g.heard {
+		s.Heard = append(s.Heard, ch)
+	}
+	sort.Strings(s.Heard)
 	return s
 }
 

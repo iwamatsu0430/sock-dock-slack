@@ -59,6 +59,8 @@ type Gateway struct {
 	stops   map[int64]context.CancelFunc
 	stopped map[int64]bool
 	paused  map[string]bool
+	// heard holds channels whose posts reached SockDock since it started.
+	heard   map[string]bool
 	subs    map[chan Event]struct{}
 	started time.Time
 	ident   slackio.Identity
@@ -117,6 +119,7 @@ func New(opts Options, cfg *config.Config) *Gateway {
 		stops:     map[int64]context.CancelFunc{},
 		stopped:   map[int64]bool{},
 		paused:    map[string]bool{},
+		heard:     map[string]bool{},
 		subs:      map[chan Event]struct{}{},
 		started:   opts.Now(),
 	}
@@ -183,6 +186,11 @@ func (g *Gateway) HandleMessage(m event.Message) {
 	ctx := g.runCtx
 	g.mu.Lock()
 	self := g.self
+	// Remember that posts from this channel reach SockDock at all, so the app
+	// can tell "nothing arrived" apart from "nothing matched".
+	if m.Channel != "" {
+		g.heard[m.Channel] = true
+	}
 	g.mu.Unlock()
 	if !router.Accept(m, self) {
 		return

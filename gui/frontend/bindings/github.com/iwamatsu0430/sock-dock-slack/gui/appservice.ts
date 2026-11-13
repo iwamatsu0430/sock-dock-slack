@@ -49,6 +49,14 @@ export function CopyMCPSetup(client: string): $CancellablePromise<void> {
 }
 
 /**
+ * CopySlackSettings copies the settings an existing Slack app needs, as a
+ * manifest snippet, to the clipboard.
+ */
+export function CopySlackSettings(): $CancellablePromise<void> {
+    return $Call.ByID(346655756);
+}
+
+/**
  * DeleteRoute removes a route and saves the config.
  */
 export function DeleteRoute(name: string): $CancellablePromise<$models.RouteSaveResult> {
