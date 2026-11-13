@@ -77,10 +77,15 @@ label.f { display: block; font-weight: 500; margin-bottom: 4px; }
 
 /* routes */
 .list { overflow: hidden; }
-.route { display: flex; align-items: center; gap: 12px; padding: 11px 14px; cursor: pointer; }
+.group + .group { margin-top: 16px; }
+.ghead { display: flex; align-items: baseline; gap: 10px; margin: 0 2px 6px; }
+.route { display: flex; align-items: center; gap: 12px; padding: 11px 14px 11px 8px; cursor: pointer; }
+.route.dragging { opacity: .35; }
+.handle { cursor: grab; color: var(--muted); font-size: 14px; line-height: 1; padding: 0 2px; user-select: none; -webkit-user-select: none; }
 .route + .route { border-top: 1px solid var(--border); }
 .route:hover { background: color-mix(in srgb, var(--text) 3%, transparent); }
-.route .what { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.route .what { flex: 1; min-width: 0; }
+.route .ln { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .route.off .what { opacity: .45; }
 .last { font-size: 12px; white-space: nowrap; }
 .empty { text-align: center; padding: 48px 24px; display: flex; flex-direction: column; gap: 14px; align-items: center; }
@@ -220,26 +225,73 @@ tr:last-child td { border-bottom: none; }
           <button class="primary" data-go="route-new">ルールを追加</button>
         </div>
 
-        <div class="card list" data-only="routes banner">
-          <div class="route" data-go="route">
-            <div class="what"><strong>#dev-help「entry」</strong> <span class="muted">→ Claude Code（~/projects/web-app）</span></div>
-            <span class="last"><span class="ok-t">成功</span> · 3分前</span>
-            <span class="switch on" data-toggle></span>
+        <div data-only="routes banner">
+          <div class="group">
+            <div class="ghead"><strong>#dev-help</strong><span class="small muted" data-note>上のルールが優先されます。</span></div>
+            <div class="card list">
+              <div class="route" draggable="true" data-rule="#dev-help|start|entry">
+                <span class="handle">⠿</span>
+                <div class="what"><div class="ln"><strong>「entry」で始まる</strong> <span class="muted">→ Claude Code（~/projects/web-app）</span></div><div class="prob small bad-t" hidden></div></div>
+                <span class="last"><span class="ok-t">成功</span> · 3分前</span>
+                <span class="switch on" data-toggle></span>
+              </div>
+              <div class="route" draggable="true" data-rule="#dev-help|contains|相談">
+                <span class="handle">⠿</span>
+                <div class="what"><div class="ln"><strong>「相談」を含む</strong> <span class="muted">→ Claude Code（~/projects/web-app）</span></div><div class="prob small bad-t" hidden></div></div>
+                <span class="last"><span class="ok-t">成功</span> · 昨日</span>
+                <span class="switch on" data-toggle></span>
+              </div>
+            </div>
           </div>
-          <div class="route" data-go="route">
-            <div class="what"><strong>🔒ops「deploy」</strong> <span class="muted">→ ~/bin/deploy.sh</span></div>
-            <span class="last"><span class="bad-t">失敗</span> · 1時間前</span>
-            <span class="switch on" data-toggle></span>
+          <div class="group">
+            <div class="ghead"><strong>#ask</strong><span class="small muted" data-note>上のルールが優先されます。</span></div>
+            <div class="card list">
+              <div class="route" draggable="true" data-rule="#ask|all|" data-all>
+                <span class="handle">⠿</span>
+                <div class="what"><div class="ln"><strong>すべての投稿</strong> <span class="muted">→ Claude Code（~/notes）</span></div><div class="prob small bad-t" hidden></div></div>
+                <span class="last"><span class="ok-t">成功</span> · 10分前</span>
+                <span class="switch on" data-toggle></span>
+              </div>
+              <div class="route" draggable="true" data-rule="#ask|start|review">
+                <span class="handle">⠿</span>
+                <div class="what"><div class="ln"><strong>「review」で始まる</strong> <span class="muted">→ Claude Code（~/app）</span></div><div class="prob small bad-t" hidden></div></div>
+                <span class="last muted"></span>
+                <span class="switch on" data-toggle></span>
+              </div>
+            </div>
           </div>
-          <div class="route" data-go="route">
-            <div class="what"><strong>#reports「report」</strong> <span class="muted">→ Claude Code（~/old-project）</span></div>
-            <span class="last bad-t">作業フォルダが見つかりません</span>
-            <span class="switch on" data-toggle></span>
+          <div class="group">
+            <div class="ghead"><strong>🔒ops</strong></div>
+            <div class="card list">
+              <div class="route" draggable="true" data-rule="🔒ops|start|deploy">
+                <span class="handle">⠿</span>
+                <div class="what"><div class="ln"><strong>「deploy」で始まる</strong> <span class="muted">→ ~/bin/deploy.sh</span></div><div class="prob small bad-t" hidden></div></div>
+                <span class="last"><span class="bad-t">失敗</span> · 1時間前</span>
+                <span class="switch on" data-toggle></span>
+              </div>
+            </div>
           </div>
-          <div class="route off" data-go="route">
-            <div class="what"><strong>#notes「memo」</strong> <span class="muted">→ Claude Code（~/notes）</span></div>
-            <span class="last muted">オフ</span>
-            <span class="switch" data-toggle></span>
+          <div class="group">
+            <div class="ghead"><strong>#reports</strong></div>
+            <div class="card list">
+              <div class="route" draggable="true" data-rule="#reports|start|report" data-problem="作業フォルダが見つかりません">
+                <span class="handle">⠿</span>
+                <div class="what"><div class="ln"><strong>「report」で始まる</strong> <span class="muted">→ Claude Code（~/old-project）</span></div><div class="prob small bad-t" hidden></div></div>
+                <span class="last muted">先週</span>
+                <span class="switch on" data-toggle></span>
+              </div>
+            </div>
+          </div>
+          <div class="group">
+            <div class="ghead"><strong>#notes</strong></div>
+            <div class="card list">
+              <div class="route off" draggable="true" data-rule="#notes|start|memo">
+                <span class="handle">⠿</span>
+                <div class="what"><div class="ln"><strong>「memo」で始まる</strong> <span class="muted">→ Claude Code（~/notes）</span></div><div class="prob small bad-t" hidden></div></div>
+                <span class="last muted" data-orig="" data-cls="last muted">オフ</span>
+                <span class="switch" data-toggle></span>
+              </div>
+            </div>
           </div>
         </div>
         <p class="foot" data-only="routes banner"><button class="link small">設定ファイルを開く</button></p>
@@ -265,10 +317,18 @@ tr:last-child td { border-bottom: none; }
           </div>
         </div>
         <div class="sec">
-          <h2>キーワード</h2>
+          <h2>反応する投稿</h2>
           <div class="ctl">
-            <input type="text" id="kw" style="max-width:200px">
-            <p class="small muted">「<span id="kwEx">entry</span> 〜」で始まる投稿で動きます</p>
+            <div class="row">
+              <select id="mode" style="width:auto;flex:none">
+                <option value="start">〜で始まる投稿</option>
+                <option value="contains">〜を含む投稿</option>
+                <option value="regex">正規表現に一致する投稿</option>
+                <option value="all">すべての投稿</option>
+              </select>
+              <input type="text" id="kw" style="flex:1;min-width:0;max-width:240px">
+            </div>
+            <p class="small muted" id="allHelp" hidden>このチャンネルのすべての投稿で動きます。</p>
           </div>
         </div>
         <div class="sec">
@@ -298,7 +358,6 @@ tr:last-child td { border-bottom: none; }
           <summary>オプション</summary>
           <div class="sec first"><h2>モデル</h2><div class="ctl"><select style="max-width:200px"><option>既定</option><option>opus</option><option>sonnet</option></select></div></div>
           <div class="sec"><h2>上限時間</h2><div class="ctl"><div class="row"><input type="text" value="600" style="max-width:80px"><span class="muted">秒</span></div></div></div>
-          <div class="sec"><h2>正規表現</h2><div class="ctl"><input type="text" placeholder="キーワードの代わりに使う"></div></div>
         </details>
         <div class="formfoot">
           <button class="danger" data-only="route route-noscope">削除</button><span class="spacer"></span>
@@ -408,14 +467,18 @@ function go(id) {
 
   const blank = id === "route-new";
   const noscope = id === "route-noscope";
-  $("#title").textContent = blank ? "新しいルール" : noscope ? "C0ABCDEF12「entry」" : "#dev-help「entry」";
-  $("#ch").selectedIndex = blank ? 0 : 1;
-  $("#kw").value = blank ? "" : "entry";
+  const [ch, mode, kw] = (blank ? "||" : noscope ? "C0ABCDEF12|start|entry" : opened || "#dev-help|start|entry").split("|");
+  opened = null;
+  $("#title").textContent = blank ? "新しいルール" : shortName(ch, mode, kw);
+  $("#ch").value = [...$("#ch").options].some((o) => o.value === ch) ? ch : "";
+  $("#mode").value = mode || "start";
+  $("#kw").value = kw;
   $("#folder").value = blank ? "" : "~/projects/web-app";
   $("#inst").value = blank ? "" : "prompts/entry.md の手順に従ってください。";
   $("#cmd").value = blank ? "" : "npm test";
   $("#web").checked = !blank;
-  kwEx();
+  modeChanged();
+  refreshList();
 
   const filled = id === "s2-error" || id === "s2-scope";
   $("#tApp").value = filled ? "xapp-1-A0000000000-0000-aaaa" : "";
@@ -425,8 +488,63 @@ function go(id) {
   $("#replace").hidden = true;
   try { history.replaceState(null, "", "#" + id); } catch {}
 }
-function kwEx() { $("#kwEx").textContent = $("#kw").value.trim() || "キーワード"; }
-$("#kw").addEventListener("input", kwEx);
+let opened = null;
+function shortName(ch, mode, kw) {
+  return mode === "all" ? ch : mode === "regex" ? `${ch} /${kw}/` : `${ch}「${kw}」`;
+}
+function modeChanged() {
+  const m = $("#mode").value;
+  $("#kw").hidden = m === "all";
+  $("#allHelp").hidden = m !== "all";
+  $("#kw").placeholder = m === "regex" ? "例: ^deploy (prod|stg)$" : "キーワード";
+}
+$("#mode").addEventListener("change", modeChanged);
+$("#ch").innerHTML = '<option value="">選んでください</option>' +
+  ["#dev-help", "#ask", "#general", "🔒ops"].map((c) => `<option>${c}</option>`).join("");
+
+// Rule list: within a channel, rules are checked top to bottom. A rule that
+// comes after an enabled "all posts" rule can never run.
+function refreshList() {
+  $$(".group").forEach((g) => {
+    const rows = [...g.querySelectorAll(".route")];
+    const note = g.querySelector("[data-note]");
+    if (note) note.hidden = rows.length < 2;
+    let above = null;
+    rows.forEach((r) => {
+      const last = r.querySelector(".last");
+      const prob = r.querySelector(".prob");
+      if (last.dataset.orig == null) { last.dataset.orig = last.innerHTML; last.dataset.cls = last.className; }
+      const on = !r.classList.contains("off");
+      const problem = !on ? "" : r.dataset.problem || (above ? `上の「${above}」のルールに先に合うため、動きません` : "");
+      prob.textContent = problem;
+      prob.hidden = !problem;
+      if (!on) { last.className = "last muted"; last.textContent = "オフ"; }
+      else { last.className = last.dataset.cls; last.innerHTML = last.dataset.orig; }
+      if (on && !above && "all" in r.dataset) above = "すべての投稿";
+    });
+  });
+}
+
+let dragging = null;
+document.addEventListener("dragstart", (e) => {
+  dragging = e.target.closest(".route");
+  if (!dragging) return;
+  dragging.classList.add("dragging");
+  e.dataTransfer.effectAllowed = "move";
+  e.dataTransfer.setData("text/plain", "");
+});
+document.addEventListener("dragover", (e) => {
+  const over = e.target.closest(".route");
+  if (!dragging || !over || over === dragging || over.parentNode !== dragging.parentNode) return;
+  e.preventDefault();
+  const box = over.getBoundingClientRect();
+  over.parentNode.insertBefore(dragging, e.clientY < box.top + box.height / 2 ? over : over.nextSibling);
+});
+document.addEventListener("dragend", () => {
+  if (dragging) dragging.classList.remove("dragging");
+  dragging = null;
+  refreshList();
+});
 
 document.addEventListener("click", (e) => {
   const t = e.target;
@@ -434,9 +552,11 @@ document.addEventListener("click", (e) => {
   if (sw) {
     sw.classList.toggle("on");
     const row = sw.closest(".route");
-    if (row) row.classList.toggle("off", !sw.classList.contains("on"));
+    if (row) { row.classList.toggle("off", !sw.classList.contains("on")); refreshList(); }
     e.stopPropagation(); return;
   }
+  const rule = t.closest(".route");
+  if (rule && !t.closest(".handle")) { opened = rule.dataset.rule; go("route"); return; }
   if (t.closest("[data-reveal]")) { $("#replace").hidden = !$("#replace").hidden; return; }
   const kind = t.closest("[data-kind]");
   if (kind) {
