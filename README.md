@@ -44,6 +44,8 @@ sockdock manifest
 3. **Install App**: install it to your workspace and copy the **Bot User OAuth Token** (`xoxb-…`).
 4. Invite the bot to every channel you want to route from: `/invite @SockDock`.
 
+Optional: to show SockDock's icon on its replies, upload [`assets/slack-icon.png`](assets/slack-icon.png) as the app icon (**Basic Information → Display Information**). Slack manifests can't set it.
+
 ### 3. Store the tokens
 
 ```bash

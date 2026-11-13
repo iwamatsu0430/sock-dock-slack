@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/zip"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -14,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/iwamatsu0430/sock-dock-slack/internal/brand"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/mcpserver"
 )
 
@@ -29,6 +31,7 @@ type mcpbManifest struct {
 	Description     string               `json:"description"`
 	Author          map[string]string    `json:"author"`
 	Homepage        string               `json:"homepage,omitempty"`
+	Icon            string               `json:"icon,omitempty"`
 	Server          mcpbServer           `json:"server"`
 	Tools           []mcpserver.ToolInfo `json:"tools,omitempty"`
 	Compatibility   map[string]any       `json:"compatibility"`
@@ -75,6 +78,7 @@ func buildMCPB(ctx context.Context, out, cli, version string) error {
 		Description:     "Create and check SockDock rules (Slack posts that run Claude Code or a program) while SockDock runs on this Mac.",
 		Author:          map[string]string{"name": "SockDock for Slack"},
 		Homepage:        "https://github.com/iwamatsu0430/sock-dock-slack",
+		Icon:            "icon.png",
 		Server: mcpbServer{
 			Type:       "binary",
 			EntryPoint: "server/sockdock",
@@ -111,6 +115,9 @@ func buildMCPB(ctx context.Context, out, cli, version string) error {
 		return err
 	}
 	if err := add("manifest.json", 0o644, strings.NewReader(string(manJSON))); err != nil {
+		return err
+	}
+	if err := add("icon.png", 0o644, bytes.NewReader(brand.AppIconPNG(512))); err != nil {
 		return err
 	}
 	if err := add("server/sockdock", 0o755, bin); err != nil {

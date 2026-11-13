@@ -44,6 +44,8 @@ sockdock manifest
 3. **Install App** でワークスペースにインストールし、**Bot User OAuth Token** をコピーします（`xoxb-…`）。
 4. 振り分けに使うチャンネルに Bot を招待します: `/invite @SockDock`
 
+必要なら: 返信に SockDock のアイコンを出すには、[`assets/slack-icon.png`](assets/slack-icon.png) をアプリのアイコンとして上げます（**Basic Information → Display Information**）。マニフェストではアイコンを決められません。
+
 ### 3. トークンを保存する
 
 ```bash
