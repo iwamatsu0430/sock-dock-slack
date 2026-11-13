@@ -28,6 +28,9 @@ type Server struct {
 	logFile string
 	srv     *http.Server
 	rules   ruleState
+	// closing ends long-lived event streams on Shutdown; http.Server.Shutdown
+	// does not cancel their requests and would wait out its whole timeout.
+	closing chan struct{}
 }
 
 // NewServer creates a server for gw. logFile is served by /v1/logs.
@@ -54,6 +57,8 @@ func NewServer(gw *gateway.Gateway, log *slog.Logger, logFile string) *Server {
 	mux.HandleFunc("DELETE /v1/rules/{name}", s.deleteRule)
 	mux.HandleFunc("GET /v1/channels", s.channels)
 	s.srv = &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	s.closing = make(chan struct{})
+	s.srv.RegisterOnShutdown(func() { close(s.closing) })
 	return s
 }
 
@@ -103,6 +108,8 @@ func (s *Server) events(w http.ResponseWriter, r *http.Request) {
 	for {
 		select {
 		case <-r.Context().Done():
+			return
+		case <-s.closing:
 			return
 		case e, ok := <-ch:
 			if !ok {

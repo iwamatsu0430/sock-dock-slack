@@ -39,7 +39,14 @@ type embedded struct {
 	state   GatewayState
 	stopped bool // the user asked it to stop; do not restart
 	gen     int  // bumps on every start, so stale watchers do nothing
+	// stopping is closed when the last stopped daemon has fully shut down
+	// (and released its lock); Start waits for it.
+	stopping <-chan struct{}
 }
+
+// stopWait caps how long Start waits for the previous daemon to finish. Its
+// own shutdown is capped at 30 seconds.
+const stopWait = 45 * time.Second
 
 const restartDelay = 15 * time.Second
 
@@ -65,8 +72,17 @@ func (e *embedded) Start() GatewayState {
 	e.stopped = false
 	e.gen++
 	gen := e.gen
+	prev := e.stopping
 	e.mu.Unlock()
 
+	// A daemon this app just stopped may still hold the lock; starting before
+	// it lets go would look like another SockDock running.
+	if prev != nil {
+		select {
+		case <-prev:
+		case <-time.After(stopWait):
+		}
+	}
 	d, err := daemon.Start(daemon.Options{Dirs: e.dirs, Version: e.version})
 
 	e.mu.Lock()
@@ -99,6 +115,9 @@ func (e *embedded) Stop(timeout time.Duration) {
 	e.gen++
 	if e.state.State == GatewayRunning {
 		e.state = GatewayState{State: GatewayStopped}
+	}
+	if d != nil {
+		e.stopping = d.Done()
 	}
 	e.mu.Unlock()
 	if d != nil {
