@@ -57,7 +57,7 @@ export function rich(key: MessageKey, params?: Params): Segment[] {
   let last = 0;
   for (let m = re.exec(src); m; m = re.exec(src)) {
     if (m.index > last) out.push({ kind: "text", text: src.slice(last, m.index) });
-    if (m[1] !== undefined) out.push({ kind: "code", text: m[1] });
+    if (m[1] !== undefined) out.push({ kind: "code", text: m[1].replace(/\{(\w+)\}/g, (x, k) => (params && k in params ? String(params[k]) : x)) });
     else if (m[2] !== undefined) out.push({ kind: "em", text: m[2] });
     else if (params && m[3] in params) out.push({ kind: "text", text: String(params[m[3]]) });
     else out.push({ kind: "slot", text: m[3] });

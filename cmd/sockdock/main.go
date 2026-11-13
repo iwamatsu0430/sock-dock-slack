@@ -59,6 +59,7 @@ func main() {
 		authCmd(g),
 		serviceCmd(g),
 		manifestCmd(),
+		mcpCmd(g),
 	)
 
 	if err := root.Execute(); err != nil {

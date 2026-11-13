@@ -27,6 +27,7 @@ var nativeText = map[string]map[string]string{
 		"title.settings":     "Settings",
 		"notify.failed":      "%s failed",
 		"notify.down":        "Can't connect to Slack",
+		"notify.mcp":         "%s was changed through MCP",
 		"err.disconnectEnv":  "The tokens are set in an environment variable or secrets_file, so SockDock can't remove them.",
 	},
 	"ja": {
@@ -51,6 +52,7 @@ var nativeText = map[string]map[string]string{
 		"title.settings":     "設定",
 		"notify.failed":      "%s の処理が失敗しました",
 		"notify.down":        "Slack に接続できません",
+		"notify.mcp":         "MCP から %s を変更しました",
 		"err.disconnectEnv":  "トークンが環境変数か secrets_file に書かれているため、SockDock からは解除できません。",
 	},
 }

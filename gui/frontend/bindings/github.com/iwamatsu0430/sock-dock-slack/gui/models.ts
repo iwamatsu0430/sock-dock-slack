@@ -10,6 +10,9 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as gateway$0 from "../internal/gateway/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as rules$0 from "../internal/rules/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as store$0 from "../internal/store/models.js";
 
 /**
@@ -79,34 +82,6 @@ export class ChannelList {
 }
 
 /**
- * Condition is a rule's condition as the list shows it.
- */
-export class Condition {
-    "trigger": string;
-    "keyword": string;
-
-    /** Creates a new Condition instance. */
-    constructor($$source: Partial<Condition> = {}) {
-        if (!("trigger" in $$source)) {
-            this["trigger"] = "";
-        }
-        if (!("keyword" in $$source)) {
-            this["keyword"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new Condition instance from a string or object.
-     */
-    static createFrom($$source: any = {}): Condition {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new Condition($$parsedSource as Partial<Condition>);
-    }
-}
-
-/**
  * ConnectResult is the outcome of ConnectSlack.
  */
 export class ConnectResult {
@@ -142,34 +117,14 @@ export class ConnectResult {
 }
 
 /**
- * FieldProblem is a validation problem tied to a form field. Code is
- * translated by the UI; Detail carries extra text (e.g. a path).
+ * The form types are shared with the control API (internal/rules).
  */
-export class FieldProblem {
-    "field": string;
-    "code": string;
-    "detail"?: string;
+export const FieldProblem = rules$0.FieldProblem;
 
-    /** Creates a new FieldProblem instance. */
-    constructor($$source: Partial<FieldProblem> = {}) {
-        if (!("field" in $$source)) {
-            this["field"] = "";
-        }
-        if (!("code" in $$source)) {
-            this["code"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new FieldProblem instance from a string or object.
-     */
-    static createFrom($$source: any = {}): FieldProblem {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new FieldProblem($$parsedSource as Partial<FieldProblem>);
-    }
-}
+/**
+ * The form types are shared with the control API (internal/rules).
+ */
+export type FieldProblem = rules$0.FieldProblem;
 
 /**
  * GatewayState is the embedded gateway's state.
@@ -202,6 +157,47 @@ export class GatewayState {
 }
 
 /**
+ * MCPSetup is what the settings window copies for one MCP client.
+ */
+export class MCPSetup {
+    "client": string;
+
+    /**
+     * Kind is "command" (run it in a terminal) or "config" (add it to a file).
+     */
+    "kind": string;
+    "text": string;
+
+    /**
+     * File is the config file to add it to (Kind "config"; "" for other).
+     */
+    "file"?: string;
+
+    /** Creates a new MCPSetup instance. */
+    constructor($$source: Partial<MCPSetup> = {}) {
+        if (!("client" in $$source)) {
+            this["client"] = "";
+        }
+        if (!("kind" in $$source)) {
+            this["kind"] = "";
+        }
+        if (!("text" in $$source)) {
+            this["text"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MCPSetup instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MCPSetup {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new MCPSetup($$parsedSource as Partial<MCPSetup>);
+    }
+}
+
+/**
  * Prefs are GUI preferences.
  */
 export class Prefs {
@@ -213,6 +209,11 @@ export class Prefs {
      */
     "language": string;
 
+    /**
+     * MCPClient is the MCP client last chosen in settings (see mcp.go).
+     */
+    "mcp_client": string;
+
     /** Creates a new Prefs instance. */
     constructor($$source: Partial<Prefs> = {}) {
         if (!("notifications" in $$source)) {
@@ -220,6 +221,9 @@ export class Prefs {
         }
         if (!("language" in $$source)) {
             this["language"] = "";
+        }
+        if (!("mcp_client" in $$source)) {
+            this["mcp_client"] = "";
         }
 
         Object.assign(this, $$source);
@@ -235,142 +239,14 @@ export class Prefs {
 }
 
 /**
- * RouteForm is a route as the app's form edits it: plain choices instead of
- * raw YAML. It maps to and from config.Route.
+ * The form types are shared with the control API (internal/rules).
  */
-export class RouteForm {
-    /**
-     * OriginalName is the name before editing ("" for a new route).
-     */
-    "original_name": string;
+export const RouteForm = rules$0.Form;
 
-    /**
-     * Name is the route's name in the config. The app does not show it; a
-     * new route gets one automatically.
-     */
-    "name": string;
-
-    /**
-     * Channel is a channel ID or a pasted channel link.
-     */
-    "channel": string;
-
-    /**
-     * Trigger is the condition kind: "starts_with", "contains", "match" (a
-     * regex) or "all_posts". Keyword is the keyword or the regex.
-     */
-    "trigger": string;
-    "keyword": string;
-
-    /**
-     * Type is "claude" or "command".
-     */
-    "type": string;
-
-    /**
-     * Folder is the working directory (claude: the project folder).
-     */
-    "folder": string;
-
-    /**
-     * claude
-     */
-    "instructions": string;
-    "allow_web": boolean;
-    "allow_edit": boolean;
-
-    /**
-     * each allows "Bash(<command> *)"
-     */
-    "commands": string[];
-
-    /**
-     * other allowed_tools rules, kept as is
-     */
-    "other_tools": string[];
-    "model": string;
-    "prompt_file": string;
-
-    /**
-     * command
-     */
-    "program": string;
-    "args": string;
-    "timeout_sec": number;
-
-    /** Creates a new RouteForm instance. */
-    constructor($$source: Partial<RouteForm> = {}) {
-        if (!("original_name" in $$source)) {
-            this["original_name"] = "";
-        }
-        if (!("name" in $$source)) {
-            this["name"] = "";
-        }
-        if (!("channel" in $$source)) {
-            this["channel"] = "";
-        }
-        if (!("trigger" in $$source)) {
-            this["trigger"] = "";
-        }
-        if (!("keyword" in $$source)) {
-            this["keyword"] = "";
-        }
-        if (!("type" in $$source)) {
-            this["type"] = "";
-        }
-        if (!("folder" in $$source)) {
-            this["folder"] = "";
-        }
-        if (!("instructions" in $$source)) {
-            this["instructions"] = "";
-        }
-        if (!("allow_web" in $$source)) {
-            this["allow_web"] = false;
-        }
-        if (!("allow_edit" in $$source)) {
-            this["allow_edit"] = false;
-        }
-        if (!("commands" in $$source)) {
-            this["commands"] = [];
-        }
-        if (!("other_tools" in $$source)) {
-            this["other_tools"] = [];
-        }
-        if (!("model" in $$source)) {
-            this["model"] = "";
-        }
-        if (!("prompt_file" in $$source)) {
-            this["prompt_file"] = "";
-        }
-        if (!("program" in $$source)) {
-            this["program"] = "";
-        }
-        if (!("args" in $$source)) {
-            this["args"] = "";
-        }
-        if (!("timeout_sec" in $$source)) {
-            this["timeout_sec"] = 0;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new RouteForm instance from a string or object.
-     */
-    static createFrom($$source: any = {}): RouteForm {
-        const $$createField10_0 = $$createType4;
-        const $$createField11_0 = $$createType4;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("commands" in $$parsedSource) {
-            $$parsedSource["commands"] = $$createField10_0($$parsedSource["commands"]);
-        }
-        if ("other_tools" in $$parsedSource) {
-            $$parsedSource["other_tools"] = $$createField11_0($$parsedSource["other_tools"]);
-        }
-        return new RouteForm($$parsedSource as Partial<RouteForm>);
-    }
-}
+/**
+ * The form types are shared with the control API (internal/rules).
+ */
+export type RouteForm = rules$0.Form;
 
 /**
  * RouteSaveResult is the outcome of saving a route.
@@ -403,8 +279,8 @@ export class RouteSaveResult {
      * Creates a new RouteSaveResult instance from a string or object.
      */
     static createFrom($$source: any = {}): RouteSaveResult {
-        const $$createField1_0 = $$createType6;
-        const $$createField2_0 = $$createType4;
+        const $$createField1_0 = $$createType5;
+        const $$createField2_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("problems" in $$parsedSource) {
             $$parsedSource["problems"] = $$createField1_0($$parsedSource["problems"]);
@@ -449,29 +325,29 @@ export class RuleList {
  * RuleRow is one line of the rule list.
  */
 export class RuleRow {
-    "form": RouteForm;
-    "label": string;
+    "form": rules$0.Form;
 
     /**
-     * Channel is the channel's name ("#name") or ID; the list groups by it.
-     */
-    "channel": string;
-
-    /**
-     * ShadowedBy is the condition of an earlier rule in the same channel that
-     * every matching post meets first, so this rule never runs.
-     */
-    "shadowed_by"?: Condition | null;
-
-    /**
-     * Off is true when the rule is turned off (paused).
+     * Off is true when the rule is turned off.
      */
     "off": boolean;
 
     /**
      * Problem is why the rule cannot run, if anything.
      */
-    "problem"?: FieldProblem | null;
+    "problem"?: rules$0.FieldProblem | null;
+
+    /**
+     * ShadowedBy is the condition of an earlier rule in the same channel that
+     * every matching post meets first, so this rule never runs.
+     */
+    "shadowed_by"?: rules$0.Condition | null;
+    "label": string;
+
+    /**
+     * Channel is the channel's name ("#name") or ID; the list groups by it.
+     */
+    "channel": string;
 
     /**
      * Last is the most recent run.
@@ -481,16 +357,16 @@ export class RuleRow {
     /** Creates a new RuleRow instance. */
     constructor($$source: Partial<RuleRow> = {}) {
         if (!("form" in $$source)) {
-            this["form"] = (new RouteForm());
+            this["form"] = (new rules$0.Form());
+        }
+        if (!("off" in $$source)) {
+            this["off"] = false;
         }
         if (!("label" in $$source)) {
             this["label"] = "";
         }
         if (!("channel" in $$source)) {
             this["channel"] = "";
-        }
-        if (!("off" in $$source)) {
-            this["off"] = false;
         }
 
         Object.assign(this, $$source);
@@ -501,18 +377,18 @@ export class RuleRow {
      */
     static createFrom($$source: any = {}): RuleRow {
         const $$createField0_0 = $$createType9;
-        const $$createField3_0 = $$createType11;
-        const $$createField5_0 = $$createType12;
+        const $$createField2_0 = $$createType10;
+        const $$createField3_0 = $$createType12;
         const $$createField6_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("form" in $$parsedSource) {
             $$parsedSource["form"] = $$createField0_0($$parsedSource["form"]);
         }
+        if ("problem" in $$parsedSource) {
+            $$parsedSource["problem"] = $$createField2_0($$parsedSource["problem"]);
+        }
         if ("shadowed_by" in $$parsedSource) {
             $$parsedSource["shadowed_by"] = $$createField3_0($$parsedSource["shadowed_by"]);
-        }
-        if ("problem" in $$parsedSource) {
-            $$parsedSource["problem"] = $$createField5_0($$parsedSource["problem"]);
         }
         if ("last" in $$parsedSource) {
             $$parsedSource["last"] = $$createField6_0($$parsedSource["last"]);
@@ -595,15 +471,15 @@ const $$createType0 = Channel.createFrom;
 const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = TokenProblem.createFrom;
 const $$createType3 = $Create.Nullable($$createType2);
-const $$createType4 = $Create.Array($Create.Any);
-const $$createType5 = FieldProblem.createFrom;
-const $$createType6 = $Create.Array($$createType5);
+const $$createType4 = rules$0.FieldProblem.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = $Create.Array($Create.Any);
 const $$createType7 = RuleRow.createFrom;
 const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = RouteForm.createFrom;
-const $$createType10 = Condition.createFrom;
-const $$createType11 = $Create.Nullable($$createType10);
-const $$createType12 = $Create.Nullable($$createType5);
+const $$createType9 = rules$0.Form.createFrom;
+const $$createType10 = $Create.Nullable($$createType4);
+const $$createType11 = rules$0.Condition.createFrom;
+const $$createType12 = $Create.Nullable($$createType11);
 const $$createType13 = store$0.Turn.createFrom;
 const $$createType14 = $Create.Nullable($$createType13);
 const $$createType15 = gateway$0.Status.createFrom;

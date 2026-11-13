@@ -199,8 +199,31 @@ settings:
 | `sockdock auth set` / `status` / `delete` | キーチェーンのトークンの管理 |
 | `sockdock service install` / `uninstall` / `status` | メニューバーのアプリを使わない場合のバックグラウンドのサービス（launchd / systemd） |
 | `sockdock manifest` | Slack アプリのマニフェストを出力する |
+| `sockdock mcp` | MCP サーバーとして動く（下の「MCP」） |
 
 データと制御用のソケットは `~/Library/Application Support/sockdock/`、ログは `~/Library/Logs/sockdock/` にあります。
+
+## MCP
+
+SockDock が動いている間（アプリでも `sockdock run` でも）、Claude Code・Codex などの MCP クライアントから操作できます。たとえば「#ask の投稿で ~/app の Claude Code が動くルールを作って」と頼めます。
+
+登録のしかたは、アプリの「設定…」の「MCP」でクライアントを選んでコピーするのがいちばん簡単です。手で登録するなら次のとおりです（`<sockdock>` は CLI の絶対パス。アプリなら `SockDock.app/Contents/MacOS/sockdock`）。
+
+| クライアント | 登録のしかた |
+|---|---|
+| Claude Code | `claude mcp add -s user sockdock -- <sockdock> mcp` |
+| Codex | `codex mcp add sockdock -- <sockdock> mcp` |
+| Gemini CLI | `gemini mcp add -s user sockdock <sockdock> mcp` |
+| VS Code | `code --add-mcp '{"name":"sockdock","command":"<sockdock>","args":["mcp"]}'` |
+| Claude Desktop / Cursor / その他 | 設定ファイルの `mcpServers` に `"sockdock": {"command": "<sockdock>", "args": ["mcp"]}` を足す |
+
+ツールは、状態・ルール・最近の処理・チャンネルを見るもの、どのルールが動くかを試すもの、ルールの追加・変更・削除・並べ替え・オン/オフ、処理の停止です。
+
+- MCP からルールを変えると、Mac に通知が出ます（通知の設定がオフでも出ます）。
+- トークンと投稿の本文は MCP に渡しません。
+- SockDock が動かした処理の中（Slack から動いたエージェント）では、`sockdock mcp` は起動しません。
+
+くわしくは [docs/mcp.md](docs/mcp.md) を見てください。
 
 ## 開発
 

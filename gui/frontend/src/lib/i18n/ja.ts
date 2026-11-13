@@ -153,4 +153,12 @@ export const ja: Record<MessageKey, string> = {
   "settings.language": "言語",
   "settings.languageAuto": "システムに合わせる",
   "settings.showLogs": "ログを表示",
+  "settings.mcp": "MCP",
+  "settings.mcpOther": "その他",
+  "settings.mcpCopyCommand": "コマンドをコピー",
+  "settings.mcpCopyConfig": "設定をコピー",
+  "settings.mcpCopied": "コピーしました",
+  "settings.mcpCommandHelp": "コピーしたコマンドをターミナルで実行すると、{client} にルールの作成や状況の確認を頼めるようになります。",
+  "settings.mcpConfigHelp": "`{file}` の `mcpServers` に足すと、{client} にルールの作成や状況の確認を頼めるようになります。",
+  "settings.mcpOtherHelp": "お使いのクライアントの MCP の設定に足すと、ルールの作成や状況の確認を頼めるようになります。",
 };

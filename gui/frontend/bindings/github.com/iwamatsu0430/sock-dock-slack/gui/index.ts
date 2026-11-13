@@ -9,10 +9,10 @@ export {
 export {
     Channel,
     ChannelList,
-    Condition,
     ConnectResult,
     FieldProblem,
     GatewayState,
+    MCPSetup,
     Prefs,
     RouteForm,
     RouteSaveResult,

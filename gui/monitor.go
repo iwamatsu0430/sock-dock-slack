@@ -9,6 +9,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"github.com/iwamatsu0430/sock-dock-slack/internal/brand"
+	"github.com/iwamatsu0430/sock-dock-slack/internal/config"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/gateway"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/store"
 )
@@ -53,8 +54,11 @@ func (m *monitor) run() {
 		m.refresh()
 		_ = m.svc.client.Events(ctx, func(e gateway.Event) {
 			m.svc.app.Event.Emit(evActivity, e)
-			if e.Type == "turn_finished" {
+			switch e.Type {
+			case "turn_finished":
 				m.maybeNotifyTurn(e)
+			case "rule_changed":
+				m.notifyRuleChange(e)
 			}
 			m.refresh()
 		})
@@ -221,4 +225,30 @@ func (m *monitor) maybeNotifyTurn(e gateway.Event) {
 	}
 	route, _ := data["route"].(string)
 	notify("SockDock", m.svc.tr("notify.failed", m.svc.labelFor(route)))
+}
+
+// notifyRuleChange tells the user about a rule changed through MCP. It is
+// shown even when notifications are off, so a rule never changes unnoticed
+// (docs/mcp.md §8-1).
+func (m *monitor) notifyRuleChange(e gateway.Event) {
+	data, ok := e.Data.(map[string]any)
+	if !ok {
+		return
+	}
+	str := func(k string) string { s, _ := data[k].(string); return s }
+	if str("source") != "mcp" {
+		return
+	}
+	r := &config.Route{Channel: str("channel")}
+	switch kw := str("keyword"); str("trigger") {
+	case config.KindStartsWith:
+		r.StartsWith = kw
+	case config.KindContains:
+		r.Contains = kw
+	case config.KindMatch:
+		r.Match = kw
+	case config.KindAllPosts:
+		r.AllPosts = true
+	}
+	notify("SockDock", m.svc.tr("notify.mcp", m.svc.ruleLabel(r)))
 }

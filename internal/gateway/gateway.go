@@ -128,6 +128,13 @@ func New(opts Options, cfg *config.Config) *Gateway {
 // Config returns the active config.
 func (g *Gateway) Config() *config.Config { return g.cfg.Load() }
 
+// API returns the Slack Web API client.
+func (g *Gateway) API() slackio.API { return g.opts.API }
+
+// Announce sends an event to subscribers (e.g. a rule changed through the
+// control API).
+func (g *Gateway) Announce(e Event) { g.broadcast(e) }
+
 // Start identifies the bot, restores paused routes and cleans up turns left
 // running by a previous process.
 func (g *Gateway) Start(ctx context.Context) error {

@@ -152,6 +152,14 @@ export const en = {
   "settings.language": "Language",
   "settings.languageAuto": "Same as the system",
   "settings.showLogs": "Show Logs",
+  "settings.mcp": "MCP",
+  "settings.mcpOther": "Other",
+  "settings.mcpCopyCommand": "Copy Command",
+  "settings.mcpCopyConfig": "Copy Settings",
+  "settings.mcpCopied": "Copied",
+  "settings.mcpCommandHelp": "Run the copied command in a terminal, then ask {client} to create rules or check on SockDock.",
+  "settings.mcpConfigHelp": "Add it to `mcpServers` in `{file}`, then ask {client} to create rules or check on SockDock.",
+  "settings.mcpOtherHelp": "Add it to your client's MCP settings, then ask it to create rules or check on SockDock.",
 } as const;
 
 export type MessageKey = keyof typeof en;

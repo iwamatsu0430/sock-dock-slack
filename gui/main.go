@@ -18,6 +18,7 @@ import (
 	"github.com/iwamatsu0430/sock-dock-slack/internal/brand"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/gateway"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/paths"
+	"github.com/iwamatsu0430/sock-dock-slack/internal/rules"
 )
 
 //go:embed all:frontend/dist
@@ -120,7 +121,7 @@ func main() {
 	// Run the gateway inside the app. Apps opened from Finder get a minimal
 	// PATH, so use the login shell's PATH for handlers (claude, uv, ...).
 	go func() {
-		_ = os.Setenv("PATH", loginShellPath())
+		_ = os.Setenv("PATH", rules.LoginShellPath())
 		_ = svc.ensureConfig()
 		svc.emb.Start()
 	}()

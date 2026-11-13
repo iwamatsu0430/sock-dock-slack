@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/iwamatsu0430/sock-dock-slack/internal/gateway"
+	"github.com/iwamatsu0430/sock-dock-slack/internal/rules"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/store"
 )
 
@@ -24,6 +25,9 @@ var ErrNotRunning = errors.New("sockdock is not running (no control socket)")
 // Client talks to a running sockdock over its control socket.
 type Client struct {
 	hc *http.Client
+	// Source is sent as SourceHeader with every request ("mcp" for
+	// `sockdock mcp`), so changes are announced to the app.
+	Source string
 }
 
 // NewClient creates a client for the socket at path.
@@ -68,6 +72,9 @@ func (c *Client) do(ctx context.Context, method, path string, in, out any) error
 	}
 	if in != nil {
 		req.Header.Set("Content-Type", "application/json")
+	}
+	if c.Source != "" {
+		req.Header.Set(SourceHeader, c.Source)
 	}
 	resp, err := c.hc.Do(req)
 	if err != nil {
@@ -142,7 +149,43 @@ func (c *Client) SetPaused(ctx context.Context, route string, paused bool) error
 	if paused {
 		action = "pause"
 	}
-	return c.do(ctx, http.MethodPost, "/v1/routes/"+route+"/"+action, nil, nil)
+	return c.do(ctx, http.MethodPost, "/v1/routes/"+url.PathEscape(route)+"/"+action, nil, nil)
+}
+
+// Rules lists the rules in the order they are tried.
+func (c *Client) Rules(ctx context.Context) ([]RuleInfo, error) {
+	var out []RuleInfo
+	return out, c.do(ctx, http.MethodGet, "/v1/rules", nil, &out)
+}
+
+// Rule returns one rule.
+func (c *Client) Rule(ctx context.Context, name string) (RuleInfo, error) {
+	var out RuleInfo
+	return out, c.do(ctx, http.MethodGet, "/v1/rules/"+url.PathEscape(name), nil, &out)
+}
+
+// SaveRule adds (OriginalName == "") or updates a rule.
+func (c *Client) SaveRule(ctx context.Context, f rules.Form) (RuleSaveResult, error) {
+	var out RuleSaveResult
+	return out, c.do(ctx, http.MethodPut, "/v1/rules", f, &out)
+}
+
+// DeleteRule removes a rule.
+func (c *Client) DeleteRule(ctx context.Context, name string) (RuleSaveResult, error) {
+	var out RuleSaveResult
+	return out, c.do(ctx, http.MethodDelete, "/v1/rules/"+url.PathEscape(name), nil, &out)
+}
+
+// OrderRules orders one channel's rules.
+func (c *Client) OrderRules(ctx context.Context, req OrderRequest) (RuleSaveResult, error) {
+	var out RuleSaveResult
+	return out, c.do(ctx, http.MethodPost, "/v1/rules/order", req, &out)
+}
+
+// Channels lists the channels the Slack app is in.
+func (c *Client) Channels(ctx context.Context) (ChannelsResult, error) {
+	var out ChannelsResult
+	return out, c.do(ctx, http.MethodGet, "/v1/channels", nil, &out)
 }
 
 // Config returns the config file content.

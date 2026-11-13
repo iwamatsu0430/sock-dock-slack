@@ -13,6 +13,9 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as rules$0 from "../internal/rules/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as store$0 from "../internal/store/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -35,6 +38,14 @@ export function ConnectSlack(appToken: string, botToken: string): $CancellablePr
     return $Call.ByID(3459895432, appToken, botToken).then(($result: any) => {
         return $$createType0($result);
     });
+}
+
+/**
+ * CopyMCPSetup copies a client's registration to the clipboard and remembers
+ * the client.
+ */
+export function CopyMCPSetup(client: string): $CancellablePromise<void> {
+    return $Call.ByID(3694391190, client);
 }
 
 /**
@@ -89,20 +100,11 @@ export function ListChannels(): $CancellablePromise<$models.ChannelList> {
 }
 
 /**
- * ListRoutes returns the configured routes as forms.
- */
-export function ListRoutes(): $CancellablePromise<$models.RouteForm[]> {
-    return $Call.ByID(123234820).then(($result: any) => {
-        return $$createType6($result);
-    });
-}
-
-/**
  * ListRules returns the rules with their state and last run.
  */
 export function ListRules(): $CancellablePromise<$models.RuleList> {
     return $Call.ByID(3471677289).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType5($result);
     });
 }
 
@@ -111,6 +113,15 @@ export function ListRules(): $CancellablePromise<$models.RuleList> {
  */
 export function Locale(): $CancellablePromise<string> {
     return $Call.ByID(1895595820);
+}
+
+/**
+ * MCPSetup returns what to copy for a client ("" for the last one chosen).
+ */
+export function MCPSetup(client: string): $CancellablePromise<$models.MCPSetup> {
+    return $Call.ByID(274028147, client).then(($result: any) => {
+        return $$createType6($result);
+    });
 }
 
 /**
@@ -168,7 +179,7 @@ export function PickFolder(title: string): $CancellablePromise<string> {
  */
 export function RecentTurns(limit: number): $CancellablePromise<store$0.Turn[]> {
     return $Call.ByID(2254536103, limit).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType8($result);
     });
 }
 
@@ -187,7 +198,7 @@ export function ReorderRules(names: string[]): $CancellablePromise<$models.Route
  */
 export function RuleTurns(route: string): $CancellablePromise<store$0.Turn[]> {
     return $Call.ByID(3105143504, route).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType8($result);
     });
 }
 
@@ -241,7 +252,7 @@ export function StopTurn(id: number): $CancellablePromise<void> {
  */
 export function ValidateRoute(f: $models.RouteForm): $CancellablePromise<$models.FieldProblem[]> {
     return $Call.ByID(2577932297, f).then(($result: any) => {
-        return $$createType11($result);
+        return $$createType10($result);
     });
 }
 
@@ -258,10 +269,9 @@ const $$createType1 = $models.RouteSaveResult.createFrom;
 const $$createType2 = $models.Prefs.createFrom;
 const $$createType3 = $models.Snapshot.createFrom;
 const $$createType4 = $models.ChannelList.createFrom;
-const $$createType5 = $models.RouteForm.createFrom;
-const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = $models.RuleList.createFrom;
-const $$createType8 = store$0.Turn.createFrom;
-const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = $models.FieldProblem.createFrom;
-const $$createType11 = $Create.Array($$createType10);
+const $$createType5 = $models.RuleList.createFrom;
+const $$createType6 = $models.MCPSetup.createFrom;
+const $$createType7 = store$0.Turn.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = rules$0.FieldProblem.createFrom;
+const $$createType10 = $Create.Array($$createType9);

@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -291,6 +292,8 @@ type Prefs struct {
 	// Language is "auto" (follow the system), "en" or "ja". It is used for
 	// the app and for the messages posted to Slack.
 	Language string `json:"language"`
+	// MCPClient is the MCP client last chosen in settings (see mcp.go).
+	MCPClient string `json:"mcp_client"`
 }
 
 func (a *AppService) prefsPath() string { return filepath.Join(a.dirs.DataDir, "gui.json") }
@@ -303,6 +306,9 @@ func (a *AppService) GetPrefs() Prefs {
 	}
 	if !locale.Valid(p.Language) || p.Language == "" {
 		p.Language = locale.Auto
+	}
+	if !slices.Contains(mcpClients, p.MCPClient) {
+		p.MCPClient = mcpClients[0]
 	}
 	return p
 }

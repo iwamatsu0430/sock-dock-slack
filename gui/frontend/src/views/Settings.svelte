@@ -1,20 +1,45 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { App, errorText, type Prefs } from "../lib/api";
+  import { App, errorText, type MCPSetup, type Prefs } from "../lib/api";
   import { live, needsSetup } from "../lib/live.svelte";
   import { languageNames, setLocale, t } from "../lib/i18n/index.svelte";
   import TokenFields from "../lib/TokenFields.svelte";
+  import Rich from "../lib/Rich.svelte";
 
-  // The settings window (⌘,): Slack and General (docs/ia.md「設定ウィンドウ」).
+  // The settings window (⌘,): Slack, General and MCP (docs/ia.md「設定ウィンドウ」).
   let prefs = $state<Prefs | null>(null);
   let atLogin = $state(false);
   let version = $state("");
   let replacing = $state(false);
   let error = $state("");
+  let mcp = $state<MCPSetup | null>(null);
+  let copied = $state(false);
+
+  // MCP clients, in the order of docs/mcp.md §2.1.
+  const mcpClients: [string, string][] = [
+    ["claude-code", "Claude Code"], ["codex", "Codex"], ["gemini", "Gemini CLI"], ["vscode", "VS Code"],
+    ["claude-desktop", "Claude Desktop"], ["cursor", "Cursor"], ["other", ""],
+  ];
+  const clientName = (id: string) => mcpClients.find(([k]) => k === id)?.[1] || t("settings.mcpOther");
 
   onMount(async () => {
-    [prefs, atLogin, version] = await Promise.all([App.GetPrefs(), App.LaunchAtLogin(), App.Version()]);
+    [prefs, atLogin, version, mcp] = await Promise.all([App.GetPrefs(), App.LaunchAtLogin(), App.Version(), App.MCPSetup("")]);
   });
+
+  async function pickClient(id: string) {
+    copied = false;
+    mcp = await App.MCPSetup(id);
+  }
+  async function copyMCP() {
+    if (!mcp) return;
+    try {
+      await App.CopyMCPSetup(mcp.client);
+      copied = true;
+      setTimeout(() => (copied = false), 2000);
+    } catch (e) {
+      error = errorText(e);
+    }
+  }
 
   const s = $derived(live.snap);
   const setup = $derived(needsSetup(s) || s?.gateway?.state === "stopped");
@@ -91,6 +116,31 @@
     </div>
   </div>
 
+  <div>
+    <h2>{t("settings.mcp")}</h2>
+    <div class="card">
+      <div class="item stack mcp">
+        <div class="row">
+          <select class="client" value={mcp?.client ?? "claude-code"} disabled={!mcp}
+            onchange={(e) => pickClient((e.currentTarget as HTMLSelectElement).value)}>
+            {#each mcpClients as [id] (id)}<option value={id}>{clientName(id)}</option>{/each}
+          </select>
+          <span class="spacer"></span>
+          <button class="small" disabled={!mcp} onclick={copyMCP}>
+            {copied ? t("settings.mcpCopied") : mcp?.kind === "config" ? t("settings.mcpCopyConfig") : t("settings.mcpCopyCommand")}
+          </button>
+        </div>
+        {#if mcp}
+          <p class="small muted">
+            {#if mcp.kind === "command"}{t("settings.mcpCommandHelp", { client: clientName(mcp.client) })}
+            {:else if mcp.file}<Rich key="settings.mcpConfigHelp" params={{ file: mcp.file, client: clientName(mcp.client) }} />
+            {:else}{t("settings.mcpOtherHelp")}{/if}
+          </p>
+        {/if}
+      </div>
+    </div>
+  </div>
+
   {#if error}<p class="small bad-t">{error}</p>{/if}
   <p class="small muted">SockDock {version} · <button class="link small" onclick={() => App.ShowLogs()}>{t("settings.showLogs")}</button></p>
 </div>
@@ -103,4 +153,6 @@
   .lbl { flex: 1; }
   .replace { align-items: stretch; gap: 8px; }
   .lang { width: 180px; }
+  .mcp { align-items: stretch; gap: 6px; }
+  .client { width: auto; }
 </style>

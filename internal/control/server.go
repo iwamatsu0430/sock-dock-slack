@@ -12,7 +12,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -28,6 +27,7 @@ type Server struct {
 	log     *slog.Logger
 	logFile string
 	srv     *http.Server
+	rules   ruleState
 }
 
 // NewServer creates a server for gw. logFile is served by /v1/logs.
@@ -47,6 +47,12 @@ func NewServer(gw *gateway.Gateway, log *slog.Logger, logFile string) *Server {
 	mux.HandleFunc("POST /v1/routes/{name}/pause", s.pause(true))
 	mux.HandleFunc("POST /v1/routes/{name}/resume", s.pause(false))
 	mux.HandleFunc("GET /v1/logs", s.logs)
+	mux.HandleFunc("GET /v1/rules", s.listRules)
+	mux.HandleFunc("PUT /v1/rules", s.saveRule)
+	mux.HandleFunc("POST /v1/rules/order", s.orderRules)
+	mux.HandleFunc("GET /v1/rules/{name}", s.getRule)
+	mux.HandleFunc("DELETE /v1/rules/{name}", s.deleteRule)
+	mux.HandleFunc("GET /v1/channels", s.channels)
 	s.srv = &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	return s
 }
@@ -199,28 +205,18 @@ func (s *Server) putConfig(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	path := s.gw.Config().Path
-	if res := validate(path, []byte(body.Content)); !res.OK {
-		writeJSON(w, http.StatusUnprocessableEntity, res)
-		return
-	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".config-*.yaml")
+	s.rules.mu.Lock()
+	defer s.rules.mu.Unlock()
+	res, err := s.writeConfig([]byte(body.Content))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	_, werr := tmp.WriteString(body.Content)
-	cerr := tmp.Close()
-	if err := errors.Join(werr, cerr, os.Chmod(tmp.Name(), 0o600), os.Rename(tmp.Name(), path)); err != nil {
-		os.Remove(tmp.Name())
-		writeError(w, http.StatusInternalServerError, err)
+	if !res.OK {
+		writeJSON(w, http.StatusUnprocessableEntity, res)
 		return
 	}
-	if err := s.gw.Reload(); err != nil {
-		writeError(w, http.StatusInternalServerError, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, ValidateResult{OK: true})
+	writeJSON(w, http.StatusOK, res)
 }
 
 func (s *Server) reload(w http.ResponseWriter, _ *http.Request) {
@@ -264,7 +260,21 @@ func (s *Server) match(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, MatchConfig(s.gw.Config(), req))
+	// Like a real post: the first enabled rule wins, a leading mention of the
+	// Slack app is ignored.
+	st := s.gw.Status(os.Getpid())
+	off := map[string]bool{}
+	for _, rt := range st.Routes {
+		off[rt.Name] = rt.Paused
+	}
+	route, groups := s.gw.Config().MatchWith(req.Channel, req.Text, config.MatchOptions{
+		BotUserID: st.Identity.UserID, Skip: func(n string) bool { return off[n] },
+	})
+	if route == nil {
+		writeJSON(w, http.StatusOK, MatchResult{})
+		return
+	}
+	writeJSON(w, http.StatusOK, MatchResult{Matched: true, Route: route.Name, Groups: groups})
 }
 
 func (s *Server) pause(paused bool) http.HandlerFunc {
@@ -273,6 +283,7 @@ func (s *Server) pause(paused bool) http.HandlerFunc {
 			writeError(w, http.StatusNotFound, err)
 			return
 		}
+		s.announce(r, s.pauseChange(r.PathValue("name"), paused))
 		writeJSON(w, http.StatusOK, map[string]bool{"paused": paused})
 	}
 }

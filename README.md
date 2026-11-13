@@ -199,8 +199,31 @@ settings:
 | `sockdock auth set` / `status` / `delete` | Manage tokens in the Keychain |
 | `sockdock service install` / `uninstall` / `status` | Background service for use without the menu bar app (launchd / systemd) |
 | `sockdock manifest` | Print the Slack app manifest |
+| `sockdock mcp` | Serve MCP over stdio (see "MCP" below) |
 
 Files: data and the control socket are in `~/Library/Application Support/sockdock/`, logs in `~/Library/Logs/sockdock/`.
+
+## MCP
+
+While SockDock runs (the app or `sockdock run`), MCP clients such as Claude Code and Codex can control it — e.g. "add a rule that runs Claude Code in ~/app for posts in #ask".
+
+The easiest way to register it is **Settings… → MCP** in the app: pick your client and copy. To register by hand (`<sockdock>` is the CLI's absolute path; in the app, `SockDock.app/Contents/MacOS/sockdock`):
+
+| Client | Register with |
+|---|---|
+| Claude Code | `claude mcp add -s user sockdock -- <sockdock> mcp` |
+| Codex | `codex mcp add sockdock -- <sockdock> mcp` |
+| Gemini CLI | `gemini mcp add -s user sockdock <sockdock> mcp` |
+| VS Code | `code --add-mcp '{"name":"sockdock","command":"<sockdock>","args":["mcp"]}'` |
+| Claude Desktop / Cursor / others | add `"sockdock": {"command": "<sockdock>", "args": ["mcp"]}` to `mcpServers` in its config file |
+
+The tools show the status, rules, recent runs and channels, test which rule a post would hit, add, change, delete, reorder and turn rules on or off, and stop runs.
+
+- A rule changed through MCP raises a notification on the Mac (even with notifications off).
+- Tokens and post texts are never passed to MCP.
+- `sockdock mcp` refuses to start inside a run started by SockDock (an agent answering a Slack post).
+
+See [docs/mcp.md](docs/mcp.md) for details.
 
 ## Development
 
