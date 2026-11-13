@@ -406,6 +406,22 @@ tr:last-child td { border-bottom: none; }
           <div class="item"><span class="lbl">言語</span><select style="width:180px"><option>システムに合わせる</option><option>English</option><option>日本語</option></select></div>
         </div>
       </div>
+      <div>
+        <h2>MCP</h2>
+        <div class="card">
+          <div class="item stack" style="align-items:stretch;gap:6px">
+            <div class="row">
+              <select id="mcpClient" style="width:auto">
+                <option>Claude Code</option><option>Codex</option><option>Gemini CLI</option><option>VS Code</option>
+                <option>Claude Desktop</option><option>Cursor</option><option>その他</option>
+              </select>
+              <span class="spacer"></span>
+              <button class="small" data-copy id="mcpCopy">コマンドをコピー</button>
+            </div>
+            <p class="small muted" id="mcpHelp"></p>
+          </div>
+        </div>
+      </div>
       <p class="small muted">SockDock 0.1.0 · <button class="link small">ログを表示</button></p>
     </div>
   </div>
@@ -488,6 +504,25 @@ function go(id) {
   $("#replace").hidden = true;
   try { history.replaceState(null, "", "#" + id); } catch {}
 }
+// MCP: how to register SockDock depends on the client (docs/mcp.md §2.1).
+const mcpFiles = { "Claude Desktop": "~/Library/Application Support/Claude/claude_desktop_config.json", "Cursor": "~/.cursor/mcp.json" };
+function mcpChanged() {
+  const c = $("#mcpClient").value;
+  const ask = "ルールの作成や状況の確認を頼めるようになります。";
+  if (c === "その他") {
+    $("#mcpCopy").textContent = "設定をコピー";
+    $("#mcpHelp").textContent = "お使いのクライアントの MCP の設定に足すと、" + ask;
+  } else if (mcpFiles[c]) {
+    $("#mcpCopy").textContent = "設定をコピー";
+    $("#mcpHelp").innerHTML = `<code>${mcpFiles[c]}</code> の <code>mcpServers</code> に足すと、${c} に${ask}`;
+  } else {
+    $("#mcpCopy").textContent = "コマンドをコピー";
+    $("#mcpHelp").textContent = `コピーしたコマンドをターミナルで実行すると、${c} に${ask}`;
+  }
+}
+$("#mcpClient").addEventListener("change", mcpChanged);
+mcpChanged();
+
 let opened = null;
 function shortName(ch, mode, kw) {
   return mode === "all" ? ch : mode === "regex" ? `${ch} /${kw}/` : `${ch}「${kw}」`;
@@ -557,6 +592,8 @@ document.addEventListener("click", (e) => {
   }
   const rule = t.closest(".route");
   if (rule && !t.closest(".handle")) { opened = rule.dataset.rule; go("route"); return; }
+  const cp = t.closest("[data-copy]");
+  if (cp) { const was = cp.textContent; cp.textContent = "コピーしました"; setTimeout(() => (cp.textContent = was), 2000); return; }
   if (t.closest("[data-reveal]")) { $("#replace").hidden = !$("#replace").hidden; return; }
   const kind = t.closest("[data-kind]");
   if (kind) {
