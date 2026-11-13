@@ -46,6 +46,8 @@ export const ja: Record<MessageKey, string> = {
   "banner.app": "Slack に接続できません。App-Level Token が無効になっています。",
   "banner.retry": "Slack に接続できません。つなぎ直しています。",
   "banner.reset": "トークンを再設定",
+  "banner.claude": "Claude Code にサインインしていません。",
+  "claude.signIn": "ターミナルでサインイン",
 
   "rules.title": "ルール",
   "rules.add": "ルールを追加",
@@ -134,6 +136,7 @@ export const ja: Record<MessageKey, string> = {
   "runs.thread": "スレッド ↗",
   "runs.running": "処理中 · {elapsed}",
   "runs.timeoutReason": "上限時間（{sec} 秒）を超えたため停止しました",
+  "runs.signedOut": "Claude Code にサインインしていません",
   "runs.notHeard": "このチャンネルの投稿は、まだ届いていません。",
   "runs.notHeardHelp": "届かないとき",
   "runs.checkInvite": "Slack アプリを、このチャンネルに追加したか",

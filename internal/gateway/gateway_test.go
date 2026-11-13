@@ -327,3 +327,66 @@ func TestHeardChannels(t *testing.T) {
 		t.Errorf("heard = %v", st.Heard)
 	}
 }
+
+func TestClaudeSignIn(t *testing.T) {
+	h := newHarness(t, func(in handler.Input) (handler.Result, error) {
+		if strings.Contains(in.Messages[0].Text, "ok") {
+			return handler.Result{Text: "done"}, nil
+		}
+		return handler.Result{}, &handler.ExitError{Code: 1, Reason: handler.ReasonSignedOut}
+	})
+	var mu sync.Mutex
+	checks, answer := 0, true
+	h.gw.opts.ClaudeSignedIn = func(context.Context, []string, string) (bool, bool) {
+		mu.Lock()
+		defer mu.Unlock()
+		checks++
+		return answer, true
+	}
+	events, cancel := h.gw.Subscribe()
+	defer cancel()
+
+	if st := h.gw.Status(0); st.ClaudeSignedIn != nil {
+		t.Fatalf("known before anything: %v", *st.ClaudeSignedIn)
+	}
+	// A run that fails to authenticate means signed out.
+	h.gw.HandleMessage(msg("5.1", "", "entry fail"))
+	waitFor(t, "signed out", func() bool {
+		v := h.gw.Status(0).ClaudeSignedIn
+		return v != nil && !*v
+	})
+	waitFor(t, "claude_auth event", func() bool {
+		for {
+			select {
+			case e := <-events:
+				if e.Type == "claude_auth" {
+					return true
+				}
+			default:
+				return false
+			}
+		}
+	})
+
+	// A check asks Claude Code; a recent answer is reused unless forced.
+	ctx := context.Background()
+	if v := h.gw.CheckClaude(ctx, time.Minute); v == nil || !*v {
+		t.Fatalf("check = %v, want signed in", v)
+	}
+	mu.Lock()
+	answer = false
+	mu.Unlock()
+	if v := h.gw.CheckClaude(ctx, time.Minute); v == nil || !*v || checks != 1 {
+		t.Fatalf("recent answer not reused: %v, %d checks", v, checks)
+	}
+	if v := h.gw.CheckClaude(ctx, 0); v == nil || *v || checks != 2 {
+		t.Fatalf("forced check = %v, %d checks", v, checks)
+	}
+
+	// A successful run means signed in.
+	h.gw.HandleMessage(msg("6.1", "", "entry ok"))
+	waitFor(t, "signed in", func() bool {
+		v := h.gw.Status(0).ClaudeSignedIn
+		return v != nil && *v
+	})
+}

@@ -56,6 +56,7 @@ func NewServer(gw *gateway.Gateway, log *slog.Logger, logFile string) *Server {
 	mux.HandleFunc("GET /v1/rules/{name}", s.getRule)
 	mux.HandleFunc("DELETE /v1/rules/{name}", s.deleteRule)
 	mux.HandleFunc("GET /v1/channels", s.channels)
+	mux.HandleFunc("POST /v1/claude/check", s.checkClaude)
 	s.srv = &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	s.closing = make(chan struct{})
 	s.srv.RegisterOnShutdown(func() { close(s.closing) })
@@ -85,6 +86,25 @@ func (s *Server) Shutdown(ctx context.Context) error { return s.srv.Shutdown(ctx
 
 func (s *Server) status(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, s.gw.Status(os.Getpid()))
+}
+
+// ClaudeCheck answers POST /v1/claude/check.
+type ClaudeCheck struct {
+	// SignedIn is whether Claude Code is signed in; absent when unknown or
+	// no rule runs Claude Code.
+	SignedIn *bool `json:"signed_in,omitempty"`
+}
+
+// claudeCheckAge is how long a sign-in answer is reused, so that focusing
+// the window often does not start Claude Code each time.
+const claudeCheckAge = 30 * time.Second
+
+func (s *Server) checkClaude(w http.ResponseWriter, r *http.Request) {
+	age := claudeCheckAge
+	if r.URL.Query().Get("force") == "1" {
+		age = 0
+	}
+	writeJSON(w, http.StatusOK, ClaudeCheck{SignedIn: s.gw.CheckClaude(r.Context(), age)})
 }
 
 func (s *Server) events(w http.ResponseWriter, r *http.Request) {

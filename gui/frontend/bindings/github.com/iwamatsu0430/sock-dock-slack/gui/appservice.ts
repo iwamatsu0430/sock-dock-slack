@@ -31,6 +31,15 @@ export function ChannelName(idOrLink: string): $CancellablePromise<string> {
 }
 
 /**
+ * CheckClaude asks the gateway whether Claude Code is signed in (docs/ia.md
+ * §11-21). It returns at once; a changed answer reaches the UI in the
+ * snapshot. force skips the gateway's recent answer (after signing in).
+ */
+export function CheckClaude(force: boolean): $CancellablePromise<void> {
+    return $Call.ByID(2751394920, force);
+}
+
+/**
  * ConnectSlack checks both tokens with Slack and, only if both work, saves
  * them in the Keychain and (re)starts the gateway. Nothing is saved before.
  */
@@ -266,6 +275,15 @@ export function SetPrefs(p: $models.Prefs): $CancellablePromise<void> {
  */
 export function ShowLogs(): $CancellablePromise<void> {
     return $Call.ByID(264459956);
+}
+
+/**
+ * SignInClaude opens Terminal and starts signing in to the Claude Code that
+ * rules run (settings.claude_command), which can differ from the `claude`
+ * the user's shell finds.
+ */
+export function SignInClaude(): $CancellablePromise<void> {
+    return $Call.ByID(2761682310);
 }
 
 /**

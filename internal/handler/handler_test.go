@@ -29,6 +29,8 @@ case "$FAKE_MODE" in
     echo '{"type":"result","subtype":"success","is_error":false,"result":"fresh","session_id":"sess-fresh"}' ;;
   error)
     echo '{"type":"result","subtype":"error_during_execution","is_error":true,"result":"boom","session_id":"s"}'; exit 1 ;;
+  auth)
+    echo '{"type":"result","subtype":"success","is_error":true,"result":"Failed to authenticate: OAuth session expired and could not be refreshed","session_id":"s"}'; exit 1 ;;
   sleep)
     trap 'echo interrupted > "$RECORD_DIR/signal"; exit 130' INT
     sleep 30 & wait ;;

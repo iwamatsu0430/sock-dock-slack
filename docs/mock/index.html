@@ -184,6 +184,8 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); color: #f
   <button data-go="route-noscope">チャンネル一覧なし</button>
   <button data-go="route-nochannels">チャンネルが 0 件</button>
   <button data-go="banner">接続できない</button>
+  <button data-go="routes-signin">Claude 未サインイン（一覧）</button>
+  <button data-go="route-signin">Claude 未サインイン（ルール）</button>
   <span class="grp">Slack</span>
   <button data-go="slack">スレッド</button>
   <span class="grp">ほか</span>
@@ -245,7 +247,7 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); color: #f
   </div>
 
   <!-- ============ メインウィンドウ ============ -->
-  <div class="win main" data-screen="empty routes route route-none route-new route-noscope route-nochannels banner settings reset">
+  <div class="win main" data-screen="empty routes route route-none route-new route-noscope route-nochannels route-signin banner routes-signin settings reset">
     <div class="titlebar"><i></i><i></i><i></i><span>SockDock</span></div>
     <div class="topnav"><div class="seg">
       <button data-go="routes" data-tab="rules">ルール</button><button data-go="settings" data-tab="settings">設定</button>
@@ -255,11 +257,15 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); color: #f
         <span>Slack に接続できません。Bot Token が無効になっています。</span><span class="spacer"></span>
         <button class="small" data-go="settings">トークンを再設定</button>
       </div>
+      <div class="banner" data-only="routes-signin">
+        <span>Claude Code にサインインしていません。</span><span class="spacer"></span>
+        <button class="small">ターミナルでサインイン</button>
+      </div>
 
       <!-- 一覧 -->
-      <div data-only="empty routes banner">
+      <div data-only="empty routes banner routes-signin">
         <div class="row" style="min-height:40px;margin-bottom:12px"><h1>ルール</h1><span class="spacer"></span>
-          <button class="primary" data-go="route-new" data-only="routes banner">ルールを追加</button></div>
+          <button class="primary" data-go="route-new" data-only="routes banner routes-signin">ルールを追加</button></div>
 
         <div class="card empty" data-only="empty">
           <h2 style="font-size:15px">ルールはまだありません</h2>
@@ -267,7 +273,7 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); color: #f
           <button class="primary" data-go="route-new">ルールを追加</button>
         </div>
 
-        <div data-only="routes banner">
+        <div data-only="routes banner routes-signin">
           <div class="group">
             <div class="ghead"><strong>#dev-help</strong><span class="small muted" data-note>上のルールが優先されます。</span></div>
             <div class="card list">
@@ -336,18 +342,18 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); color: #f
             </div>
           </div>
         </div>
-        <p class="foot" data-only="routes banner"><button class="link small">設定ファイルを開く</button></p>
+        <p class="foot" data-only="routes banner routes-signin"><button class="link small">設定ファイルを開く</button></p>
       </div>
 
       <!-- ルール -->
-      <div data-only="route route-none route-new route-noscope route-nochannels">
+      <div data-only="route route-none route-new route-noscope route-nochannels route-signin">
         <div style="min-height:28px"><button class="back" data-go="routes">← ルール</button></div>
         <h1 id="title" style="margin-bottom:6px">#dev-help「review」</h1>
 
         <div class="sec first">
           <h2>チャンネル</h2>
           <div class="ctl">
-            <div data-only="route route-none route-new">
+            <div data-only="route route-none route-new route-signin">
               <select id="ch"><option value="">選んでください</option><option>#dev-help</option><option>#general</option><option>🔒ops</option></select>
               <p class="small muted" style="margin-top:6px">一覧に出るのは、Slack アプリを追加したチャンネルです。</p>
             </div>
@@ -379,7 +385,8 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); color: #f
           <div class="ctl">
             <div class="seg"><button class="on" data-kind="claude">AI エージェント</button><button data-kind="program">プログラム</button></div>
             <div data-kind-body="claude" class="stack" style="gap:10px;margin-top:4px">
-              <div><label class="f small">エージェント</label><select style="max-width:200px"><option>Claude Code</option></select></div>
+              <div><label class="f small">エージェント</label><select style="max-width:200px"><option>Claude Code</option></select>
+                <p class="small bad-t row" style="margin-top:6px;gap:8px" data-only="route-signin">Claude Code にサインインしていません。<button class="small">ターミナルでサインイン</button></p></div>
               <div><label class="f small">作業フォルダ</label><div class="row"><input type="text" id="folder"><button>選ぶ…</button></div></div>
               <div><label class="f small">指示（省略可）</label><textarea rows="2" id="inst"></textarea></div>
               <div><label class="f small">エージェントに許可する操作</label>
@@ -403,7 +410,7 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); color: #f
           <div class="sec"><h2>上限時間</h2><div class="ctl"><div class="row"><input type="text" value="600" style="max-width:80px"><span class="muted">秒</span></div></div></div>
         </details>
         <div class="formfoot">
-          <button class="danger" data-only="route route-none route-noscope route-nochannels">削除</button><span class="spacer"></span>
+          <button class="danger" data-only="route route-none route-noscope route-nochannels route-signin">削除</button><span class="spacer"></span>
           <button data-go="routes">キャンセル</button><button class="primary" data-go="routes">保存</button>
         </div>
 
@@ -419,6 +426,19 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); color: #f
               <li>Slack アプリが、イベント <code>message.channels</code> <code>message.groups</code> を購読しているか</li>
             </ul>
           </details>
+        </div>
+
+        <div data-only="route-signin" style="margin-top:6px">
+          <h2 style="margin-bottom:8px">最近の処理</h2>
+          <div class="card">
+            <table>
+              <thead><tr><th>時刻</th><th>結果</th><th></th></tr></thead>
+              <tbody>
+                <tr><td>00:24</td><td><span class="bad-t">失敗</span><div class="muted">Claude Code にサインインしていません</div></td><td><button class="link small">スレッド ↗</button></td></tr>
+                <tr><td>昨日 13:58</td><td class="ok-t">成功</td><td><button class="link small">スレッド ↗</button></td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div data-only="route route-noscope" style="margin-top:6px">

@@ -34,6 +34,7 @@ type Backend interface {
 	OrderRules(ctx context.Context, req control.OrderRequest) (control.RuleSaveResult, error)
 	SetPaused(ctx context.Context, route string, paused bool) error
 	StopTurn(ctx context.Context, id int64) error
+	CheckClaude(ctx context.Context, force bool) (*bool, error)
 }
 
 // New builds the MCP server.
@@ -176,6 +177,8 @@ type StatusOut struct {
 	Running   []Run  `json:"running"`
 	// PostsArrivedFrom lists channel IDs whose posts reached SockDock since it connected.
 	PostsArrivedFrom []string `json:"posts_arrived_from" jsonschema:"channel IDs whose posts have reached SockDock since it connected"`
+	// ClaudeSignedIn is whether the Claude Code that agent rules run is signed in.
+	ClaudeSignedIn *bool `json:"claude_signed_in,omitempty" jsonschema:"whether the Claude Code that agent rules run is signed in; left out when unknown or no rule runs Claude Code"`
 }
 
 func (t *tools) getStatus(ctx context.Context, _ *mcp.CallToolRequest, _ none) (*mcp.CallToolResult, StatusOut, error) {
@@ -189,6 +192,9 @@ func (t *tools) getStatus(ctx context.Context, _ *mcp.CallToolRequest, _ none) (
 	}
 	for _, r := range st.Running {
 		out.Running = append(out.Running, Run{ID: r.TurnID, Rule: r.Route, Status: store.StatusRunning, StartedAt: r.StartedAt, ThreadURL: r.Permalink})
+	}
+	if v, err := t.b.CheckClaude(ctx, false); err == nil {
+		out.ClaudeSignedIn = v
 	}
 	return nil, out, nil
 }

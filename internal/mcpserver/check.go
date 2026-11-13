@@ -7,6 +7,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/iwamatsu0430/sock-dock-slack/internal/config"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/rules"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/store"
 )
@@ -117,6 +118,15 @@ func (t *tools) checkRule(ctx context.Context, _ *mcp.CallToolRequest, in NameIn
 		add(false, "settings", problemMessage(*ri.Problem)+" Fix it with sockdock_save_rule.")
 	} else {
 		add(true, "settings", "The rule's settings are valid.")
+	}
+	if f.Type == config.TypeClaude {
+		if v, err := t.b.CheckClaude(ctx, true); err == nil && v != nil {
+			if *v {
+				add(true, "Claude Code sign-in", "Claude Code is signed in.")
+			} else {
+				add(false, "Claude Code sign-in", "Claude Code is not signed in, so agent rules fail. Ask the user to click Sign In in Terminal (ターミナルでサインイン) in the SockDock app (or run claude auth login in Terminal).")
+			}
+		}
 	}
 	if ri.ShadowedBy != nil {
 		add(false, "order", fmt.Sprintf("An earlier rule in %s (%s %q) always matches first, so this rule never runs. Move this rule up with sockdock_reorder_rules.",

@@ -81,6 +81,15 @@ func runClaudeOnce(ctx context.Context, r *config.Route, in Input, opts ClaudeOp
 		return Result{}, ErrTimeout
 	}
 	cr, ok := parseClaudeOutput(pr.Stdout)
+	// Without a JSON result, look at the raw output; otherwise only at the
+	// error result (an answer may mention logins for other reasons).
+	said := cr.Result
+	if !ok {
+		said = string(pr.Stdout)
+	}
+	if (!ok || cr.IsError || pr.ExitCode != 0) && isAuthFailure(said, string(pr.Stderr)) {
+		return Result{SessionID: cr.SessionID}, &ExitError{Code: pr.ExitCode, Stderr: tail(string(pr.Stderr)+string(pr.Stdout), 4000), Reason: ReasonSignedOut}
+	}
 	if !ok {
 		return Result{}, &ExitError{Code: pr.ExitCode, Stderr: tail(string(pr.Stderr)+string(pr.Stdout), 4000), Reason: reasonNoResult}
 	}

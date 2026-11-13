@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { App, errorText, type ChannelList, type FieldProblem, type RouteForm, type Turn } from "../lib/api";
-  import { live } from "../lib/live.svelte";
+  import { live, reasonSignedOut, signInClaude } from "../lib/live.svelte";
   import { i18n, t } from "../lib/i18n/index.svelte";
   import type { MessageKey } from "../lib/i18n/en";
   import Rich from "../lib/Rich.svelte";
@@ -205,7 +205,10 @@
       {#if f.type === "claude"}
         <div class="stack body">
           <div><label class="f small" for="r-agent">{t("rule.agent")}</label>
-            <select id="r-agent" class="narrow"><option>{t("agent.claude")}</option></select></div>
+            <select id="r-agent" class="narrow"><option>{t("agent.claude")}</option></select>
+            {#if live.snap?.status?.claude_signed_in === false}
+              <p class="small bad-t row signin">{t("banner.claude")}<button class="small" onclick={() => signInClaude().catch((e) => (error = errorText(e)))}>{t("claude.signIn")}</button></p>
+            {/if}</div>
           <div><label class="f small" for="r-folder">{t("rule.folder")}</label>
             <div class="row"><input id="r-folder" type="text" bind:value={f.folder} class:invalid={problem("folder")} /><button onclick={pickFolder}>{t("rule.choose")}</button></div>
             {#if problem("folder")}<p class="small bad-t">{problem("folder")}</p>{/if}</div>
@@ -282,6 +285,7 @@
                   {#if r.status === "running"}{t("runs.running", { elapsed: elapsed(r.started_at, live.now) })}
                   {:else}<span class={statusClass(r.status)}>{statusLabel(r.status)}</span>
                     {#if r.status === "timeout"}<div class="muted">{t("runs.timeoutReason", { sec: f.timeout_sec || defaultTimeout })}</div>
+                    {:else if r.status === "error" && r.error === reasonSignedOut}<div class="muted">{t("runs.signedOut")}</div>
                     {:else if r.status === "error" && r.error}<div class="muted reason">{r.error}</div>{/if}
                   {/if}
                 </td>
@@ -334,5 +338,6 @@
   details.hint { margin-top: 4px; }
   details.hint summary { cursor: pointer; color: var(--muted); }
   details.hint ul { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+  .signin { margin-top: 6px; gap: 8px; }
   .reason { white-space: pre-wrap; word-break: break-word; max-height: 4.5em; overflow: hidden; }
 </style>

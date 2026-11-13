@@ -17,6 +17,7 @@ import (
 )
 
 type fake struct {
+	claude *bool
 	heard  []string
 	turns  []store.Turn
 	down   bool
@@ -36,6 +37,7 @@ func (f *fake) Status(context.Context) (gateway.Status, error) {
 	return gateway.Status{Connected: true, Identity: slackio.Identity{Team: "acme"}, Heard: f.heard}, f.err()
 }
 func (f *fake) Rules(context.Context) ([]control.RuleInfo, error) { return f.rules, f.err() }
+func (f *fake) CheckClaude(context.Context, bool) (*bool, error)  { return f.claude, f.err() }
 func (f *fake) Rule(_ context.Context, name string) (control.RuleInfo, error) {
 	for _, r := range f.rules {
 		if r.Form.Name == name {
@@ -234,6 +236,30 @@ func TestCheckRule(t *testing.T) {
 	call(t, cs, "sockdock_check_rule", map[string]any{"name": "c"}, &out)
 	if out.CanRun || !strings.Contains(fmt.Sprint(out.Findings), "sockdock_reorder_rules") {
 		t.Errorf("shadowed rule c should point to reordering: %+v", out.Findings)
+	}
+}
+
+func TestClaudeSignIn(t *testing.T) {
+	f := sample()
+	f.heard = []string{"C0123ASK"}
+	signedOut := false
+	f.claude = &signedOut
+	cs := connect(t, f)
+	var st StatusOut
+	call(t, cs, "sockdock_get_status", nil, &st)
+	if st.ClaudeSignedIn == nil || *st.ClaudeSignedIn {
+		t.Errorf("status claude_signed_in = %v, want false", st.ClaudeSignedIn)
+	}
+	var out CheckOut
+	call(t, cs, "sockdock_check_rule", map[string]any{"name": "a"}, &out)
+	if out.CanRun || !strings.Contains(fmt.Sprint(out.Findings), "not signed in") {
+		t.Errorf("signed-out agent rule findings = %+v", out.Findings)
+	}
+	f.claude = nil
+	var st2 StatusOut
+	call(t, cs, "sockdock_get_status", nil, &st2)
+	if st2.ClaudeSignedIn != nil {
+		t.Errorf("unknown sign-in should be left out, got %v", *st2.ClaudeSignedIn)
 	}
 }
 

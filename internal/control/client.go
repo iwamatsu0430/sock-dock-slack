@@ -109,6 +109,18 @@ func (c *Client) Status(ctx context.Context) (gateway.Status, error) {
 	return s, c.do(ctx, http.MethodGet, "/v1/status", nil, &s)
 }
 
+// CheckClaude asks whether Claude Code is signed in (nil when unknown). force
+// skips the recent answer.
+func (c *Client) CheckClaude(ctx context.Context, force bool) (*bool, error) {
+	path := "/v1/claude/check"
+	if force {
+		path += "?force=1"
+	}
+	var out ClaudeCheck
+	err := c.do(ctx, http.MethodPost, path, nil, &out)
+	return out.SignedIn, err
+}
+
 // Reload asks the gateway to re-read its config.
 func (c *Client) Reload(ctx context.Context) error {
 	return c.do(ctx, http.MethodPost, "/v1/reload", nil, nil)

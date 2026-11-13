@@ -149,6 +149,11 @@ export class Status {
      * started.
      */
     "heard": string[];
+
+    /**
+     * ClaudeSignedIn is whether Claude Code is signed in, when known.
+     */
+    "claude_signed_in"?: boolean | null;
     "pending": number;
 
     /** Creates a new Status instance. */

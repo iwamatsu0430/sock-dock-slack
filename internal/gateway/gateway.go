@@ -37,7 +37,9 @@ type Options struct {
 	// Overridable for tests.
 	RunCommand func(context.Context, *config.Route, handler.Input, handler.Env) (handler.Result, error)
 	RunClaude  func(context.Context, *config.Route, handler.Input, handler.ClaudeOptions, handler.Env) (handler.Result, error)
-	Now        func() time.Time
+	// ClaudeSignedIn asks Claude Code whether it is signed in.
+	ClaudeSignedIn func(ctx context.Context, command []string, pathEnv string) (signedIn, ok bool)
+	Now            func() time.Time
 }
 
 // Gateway is the running core.
@@ -61,6 +63,7 @@ type Gateway struct {
 	paused  map[string]bool
 	// heard holds channels whose posts reached SockDock since it started.
 	heard   map[string]bool
+	claude  claudeAuth
 	subs    map[chan Event]struct{}
 	started time.Time
 	ident   slackio.Identity
@@ -105,6 +108,9 @@ func New(opts Options, cfg *config.Config) *Gateway {
 	}
 	if opts.RunClaude == nil {
 		opts.RunClaude = handler.RunClaude
+	}
+	if opts.ClaudeSignedIn == nil {
+		opts.ClaudeSignedIn = handler.ClaudeSignedIn
 	}
 	if opts.Log == nil {
 		opts.Log = slog.Default()
@@ -333,6 +339,15 @@ func (g *Gateway) process(key string, batch []event.Message) {
 	delete(g.stops, turnID)
 	delete(g.stopped, turnID)
 	g.mu.Unlock()
+	if r.Handler.Type == config.TypeClaude {
+		var ee *handler.ExitError
+		switch {
+		case err == nil:
+			g.setClaudeSignedIn(true)
+		case errors.As(err, &ee) && ee.Reason == handler.ReasonSignedOut:
+			g.setClaudeSignedIn(false)
+		}
+	}
 
 	status, errMsg := store.StatusOK, ""
 	switch {

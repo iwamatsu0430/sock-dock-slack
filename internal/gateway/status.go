@@ -28,8 +28,10 @@ type Status struct {
 	Running []RunningTurn        `json:"running"`
 	// Heard lists the channels whose posts have reached SockDock since it
 	// started.
-	Heard   []string `json:"heard"`
-	Pending int      `json:"pending"`
+	Heard []string `json:"heard"`
+	// ClaudeSignedIn is whether Claude Code is signed in, when known.
+	ClaudeSignedIn *bool `json:"claude_signed_in,omitempty"`
+	Pending        int   `json:"pending"`
 }
 
 // RouteStatus summarizes a route.
@@ -75,6 +77,7 @@ func (g *Gateway) Status(pid int) Status {
 		s.Heard = append(s.Heard, ch)
 	}
 	sort.Strings(s.Heard)
+	s.ClaudeSignedIn = g.claudeSignedInLocked()
 	return s
 }
 

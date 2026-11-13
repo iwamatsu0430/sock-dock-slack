@@ -45,6 +45,8 @@ export const en = {
   "banner.app": "Can't connect to Slack. The App-Level Token is no longer valid.",
   "banner.retry": "Can't connect to Slack. Reconnecting…",
   "banner.reset": "Replace tokens",
+  "banner.claude": "Claude Code isn't signed in.",
+  "claude.signIn": "Sign In in Terminal",
 
   "rules.title": "Rules",
   "rules.add": "Add Rule",
@@ -133,6 +135,7 @@ export const en = {
   "runs.thread": "Thread ↗",
   "runs.running": "Running · {elapsed}",
   "runs.timeoutReason": "Stopped after the time limit ({sec} seconds)",
+  "runs.signedOut": "Claude Code isn't signed in",
   "runs.notHeard": "No posts from this channel have reached SockDock yet.",
   "runs.notHeardHelp": "If posts don't arrive",
   "runs.checkInvite": "Is the Slack app added to this channel?",
