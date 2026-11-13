@@ -3,6 +3,7 @@ package mcpserver
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -16,6 +17,8 @@ import (
 )
 
 type fake struct {
+	heard  []string
+	turns  []store.Turn
 	down   bool
 	rules  []control.RuleInfo
 	saved  *rules.Form
@@ -30,7 +33,7 @@ func (f *fake) err() error {
 	return nil
 }
 func (f *fake) Status(context.Context) (gateway.Status, error) {
-	return gateway.Status{Connected: true, Identity: slackio.Identity{Team: "acme"}}, f.err()
+	return gateway.Status{Connected: true, Identity: slackio.Identity{Team: "acme"}, Heard: f.heard}, f.err()
 }
 func (f *fake) Rules(context.Context) ([]control.RuleInfo, error) { return f.rules, f.err() }
 func (f *fake) Rule(_ context.Context, name string) (control.RuleInfo, error) {
@@ -44,7 +47,9 @@ func (f *fake) Rule(_ context.Context, name string) (control.RuleInfo, error) {
 func (f *fake) Turns(context.Context, int) ([]store.Turn, error) {
 	return []store.Turn{{ID: 1, Route: "a", Status: "error", Error: strings.Repeat("x", 900)}}, f.err()
 }
-func (f *fake) RouteTurns(context.Context, string, int) ([]store.Turn, error) { return nil, f.err() }
+func (f *fake) RouteTurns(context.Context, string, int) ([]store.Turn, error) {
+	return f.turns, f.err()
+}
 func (f *fake) Channels(context.Context) (control.ChannelsResult, error) {
 	return control.ChannelsResult{Channels: []slackio.Channel{{ID: "C0123ASK", Name: "ask"}}}, f.err()
 }
@@ -120,8 +125,8 @@ func TestToolsAndAnnotations(t *testing.T) {
 	for _, tl := range res.Tools {
 		reads[tl.Name] = tl.Annotations != nil && tl.Annotations.ReadOnlyHint
 	}
-	want := map[string]bool{"get_status": true, "list_rules": true, "get_rule": true, "list_runs": true, "list_channels": true, "test_match": true,
-		"save_rule": false, "delete_rule": false, "reorder_rules": false, "set_rule_enabled": false, "stop_run": false}
+	want := map[string]bool{"sockdock_get_status": true, "sockdock_list_rules": true, "sockdock_get_rule": true, "sockdock_list_runs": true, "sockdock_list_channels": true, "sockdock_test_match": true,
+		"sockdock_check_rule": true, "sockdock_save_rule": false, "sockdock_delete_rule": false, "sockdock_reorder_rules": false, "sockdock_set_rule_enabled": false, "sockdock_stop_run": false}
 	if len(reads) != len(want) {
 		t.Errorf("tools = %v", reads)
 	}
@@ -135,7 +140,7 @@ func TestToolsAndAnnotations(t *testing.T) {
 func TestListRulesGroupsByChannel(t *testing.T) {
 	cs := connect(t, sample())
 	var out RulesOut
-	call(t, cs, "list_rules", nil, &out)
+	call(t, cs, "sockdock_list_rules", nil, &out)
 	var names []string
 	for _, r := range out.Rules {
 		names = append(names, r.Name)
@@ -149,20 +154,20 @@ func TestSaveRuleKeepsOmittedFields(t *testing.T) {
 	f := sample()
 	cs := connect(t, f)
 	var out SaveOut
-	call(t, cs, "save_rule", map[string]any{"name": "b", "keyword": "ship", "channel": "#ask"}, &out)
+	call(t, cs, "sockdock_save_rule", map[string]any{"name": "b", "keyword": "ship", "channel": "#ask"}, &out)
 	s := f.saved
 	if !out.OK || s == nil || s.OriginalName != "b" || s.Keyword != "ship" || s.Channel != "C0123ASK" ||
 		s.Instructions != "be brief" || !s.AllowWeb || len(s.Commands) != 1 {
 		t.Fatalf("saved = %+v, out = %+v", s, out)
 	}
 
-	call(t, cs, "save_rule", map[string]any{"channel": "C0123ASK", "runs": "program", "program": "/usr/local/bin/x", "condition_type": "contains", "keyword": "help"}, &out)
+	call(t, cs, "sockdock_save_rule", map[string]any{"channel": "C0123ASK", "runs": "program", "program": "/usr/local/bin/x", "condition_type": "contains", "keyword": "help"}, &out)
 	s = f.saved
 	if s.OriginalName != "" || s.Type != "command" || s.Folder != "/usr/local/bin" || s.Trigger != "contains" {
 		t.Errorf("new program rule = %+v", s)
 	}
 
-	res := call(t, cs, "save_rule", map[string]any{"channel": "#nowhere"}, nil)
+	res := call(t, cs, "sockdock_save_rule", map[string]any{"channel": "#nowhere"}, nil)
 	if !res.IsError {
 		t.Error("an unknown channel name should be an error")
 	}
@@ -172,20 +177,20 @@ func TestOtherTools(t *testing.T) {
 	f := sample()
 	cs := connect(t, f)
 	var runs RunsOut
-	call(t, cs, "list_runs", nil, &runs)
+	call(t, cs, "sockdock_list_runs", nil, &runs)
 	if len(runs.Runs) != 1 || len(runs.Runs[0].Error) > 510 {
 		t.Errorf("runs = %+v", runs)
 	}
 	var m MatchOut
-	call(t, cs, "test_match", map[string]any{"channel": "ask", "text": "hi"}, &m)
+	call(t, cs, "sockdock_test_match", map[string]any{"channel": "ask", "text": "hi"}, &m)
 	if !m.Matched {
 		t.Errorf("match = %+v", m)
 	}
-	call(t, cs, "reorder_rules", map[string]any{"channel": "#ask", "names": []string{"c", "a"}}, nil)
+	call(t, cs, "sockdock_reorder_rules", map[string]any{"channel": "#ask", "names": []string{"c", "a"}}, nil)
 	if f.order == nil || f.order.Channel != "C0123ASK" {
 		t.Errorf("order = %+v", f.order)
 	}
-	call(t, cs, "set_rule_enabled", map[string]any{"name": "a", "enabled": false}, nil)
+	call(t, cs, "sockdock_set_rule_enabled", map[string]any{"name": "a", "enabled": false}, nil)
 	if !f.paused["a"] {
 		t.Error("rule a should be off")
 	}
@@ -195,12 +200,83 @@ func TestNotRunning(t *testing.T) {
 	f := sample()
 	f.down = true
 	cs := connect(t, f)
-	res := call(t, cs, "get_status", nil, nil)
+	res := call(t, cs, "sockdock_get_status", nil, nil)
 	if !res.IsError {
 		t.Fatal("want an error")
 	}
 	text := res.Content[0].(*mcp.TextContent).Text
 	if !strings.Contains(text, "not running") {
 		t.Errorf("error = %q", text)
+	}
+}
+
+func TestCheckRule(t *testing.T) {
+	f := sample()
+	f.heard = []string{"C0123ASK"}
+	cs := connect(t, f)
+	var out CheckOut
+	call(t, cs, "sockdock_check_rule", map[string]any{"name": "a"}, &out)
+	if !out.CanRun {
+		t.Errorf("rule a should be able to run: %+v", out.Findings)
+	}
+	f.turns = []store.Turn{{ID: 9, Route: "b", Status: "error", Error: "exit 1"}}
+	call(t, cs, "sockdock_check_rule", map[string]any{"name": "b"}, &out)
+	var failed []string
+	for _, x := range out.Findings {
+		if !x.OK {
+			failed = append(failed, x.Check)
+		}
+	}
+	if out.CanRun || strings.Join(failed, ",") != "posts arrive,recent runs" {
+		t.Errorf("rule b findings = %+v", out.Findings)
+	}
+	f.turns = nil
+	call(t, cs, "sockdock_check_rule", map[string]any{"name": "c"}, &out)
+	if out.CanRun || !strings.Contains(fmt.Sprint(out.Findings), "sockdock_reorder_rules") {
+		t.Errorf("shadowed rule c should point to reordering: %+v", out.Findings)
+	}
+}
+
+func TestPostsArrivedInList(t *testing.T) {
+	f := sample()
+	f.heard = []string{"C0123ASK"}
+	cs := connect(t, f)
+	var out RulesOut
+	call(t, cs, "sockdock_list_rules", nil, &out)
+	got := map[string]bool{}
+	for _, r := range out.Rules {
+		if r.PostsArrived == nil {
+			t.Fatalf("%s: posts_arrived unknown", r.Name)
+		}
+		got[r.Name] = *r.PostsArrived
+	}
+	if !got["a"] || got["b"] {
+		t.Errorf("posts_arrived = %v", got)
+	}
+}
+
+func TestProblemMessages(t *testing.T) {
+	m := problemMessage(rules.FieldProblem{Field: "folder", Code: "not_dir", Detail: "/nope"})
+	if !strings.Contains(m, "/nope") || !strings.Contains(m, "does not exist") {
+		t.Errorf("folder message = %q", m)
+	}
+	if m := problemMessage(rules.FieldProblem{Field: "x", Code: "odd_thing"}); m != "x: odd thing" {
+		t.Errorf("fallback = %q", m)
+	}
+}
+
+func TestDescriptionsAreDetailed(t *testing.T) {
+	cs := connect(t, sample())
+	res, err := cs.ListTools(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tl := range res.Tools {
+		if !strings.HasPrefix(tl.Name, "sockdock_") {
+			t.Errorf("%s: missing sockdock_ prefix", tl.Name)
+		}
+		if n := strings.Count(tl.Description, ". "); n < 2 {
+			t.Errorf("%s: description has %d sentences, want 3 or more", tl.Name, n+1)
+		}
 	}
 }

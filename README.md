@@ -145,7 +145,7 @@ handler:
   timeout_sec: 300
 ```
 
-- stdout is posted to the thread (nothing is posted if it is empty), so a handler can also post on its own.
+- stdout is posted to the thread (nothing is posted if it is empty).
 - Environment: `SLACK_CHANNEL`, `SLACK_THREAD_TS`, `SOCKDOCK_ROUTE`, `SOCKDOCK_TURN`, plus `env_file`/`env`. Slack tokens are never passed: the reply is whatever the handler prints.
 - A non-zero exit or a timeout posts a short error; stderr goes to the log only.
 
@@ -215,7 +215,8 @@ The easiest way to register it is **Settings → MCP** in the app: pick your cli
 | Codex | `codex mcp add sockdock -- <sockdock> mcp` |
 | Gemini CLI | `gemini mcp add -s user sockdock <sockdock> mcp` |
 | VS Code | `code --add-mcp '{"name":"sockdock","command":"<sockdock>","args":["mcp"]}'` |
-| Claude Desktop / Cursor / others | add `"sockdock": {"command": "<sockdock>", "args": ["mcp"]}` to `mcpServers` in its config file |
+| Claude Desktop | in the app, **Settings → MCP**, choose Claude Desktop and press **Add to Claude Desktop** (it builds and opens the `SockDock.mcpb` extension) |
+| Cursor / others | add `"sockdock": {"command": "<sockdock>", "args": ["mcp"]}` to `mcpServers` in its config file |
 
 The tools show the status, rules, recent runs and channels, test which rule a post would hit, add, change, delete, reorder and turn rules on or off, and stop runs.
 

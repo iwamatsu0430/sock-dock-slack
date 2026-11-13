@@ -18,7 +18,8 @@ var mcpClients = []string{"claude-code", "codex", "gemini", "vscode", "claude-de
 // MCPSetup is what the settings window copies for one MCP client.
 type MCPSetup struct {
 	Client string `json:"client"`
-	// Kind is "command" (run it in a terminal) or "config" (add it to a file).
+	// Kind is "command" (run it in a terminal), "config" (add it to a file) or
+	// "extension" (Claude Desktop: build and open SockDock.mcpb).
 	Kind string `json:"kind"`
 	Text string `json:"text"`
 	// File is the config file to add it to (Kind "config"; "" for other).
@@ -71,7 +72,8 @@ func mcpSetupFor(client, cli string) (MCPSetup, error) {
 		b, _ := json.Marshal(map[string]any{"name": "sockdock", "command": cli, "args": []string{"mcp"}})
 		return MCPSetup{Client: client, Kind: "command", Text: "code --add-mcp " + shellQuote(string(b))}, nil
 	case "claude-desktop":
-		return MCPSetup{Client: client, Kind: "config", File: "~/Library/Application Support/Claude/claude_desktop_config.json", Text: servers()}, nil
+		// Installed as a Claude Desktop extension (see mcpb.go).
+		return MCPSetup{Client: client, Kind: "extension"}, nil
 	case "cursor":
 		return MCPSetup{Client: client, Kind: "config", File: "~/.cursor/mcp.json", Text: servers()}, nil
 	case "other":

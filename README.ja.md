@@ -145,7 +145,7 @@ handler:
   timeout_sec: 300
 ```
 
-- 標準出力をスレッドに投稿します（空なら何も投稿しません）。ハンドラが自分で投稿することもできます。
+- 標準出力をスレッドに投稿します（空なら何も投稿しません）。
 - 環境変数: `SLACK_CHANNEL`、`SLACK_THREAD_TS`、`SOCKDOCK_ROUTE`、`SOCKDOCK_TURN`、それに `env_file`・`env` の値。Slack のトークンは渡しません。返信は、ハンドラが標準出力に書いたものです。
 - 終了コードが 0 以外、またはタイムアウトなら短いエラーを返します。標準エラーはログにだけ残します。
 
@@ -215,7 +215,8 @@ SockDock が動いている間（アプリでも `sockdock run` でも）、Clau
 | Codex | `codex mcp add sockdock -- <sockdock> mcp` |
 | Gemini CLI | `gemini mcp add -s user sockdock <sockdock> mcp` |
 | VS Code | `code --add-mcp '{"name":"sockdock","command":"<sockdock>","args":["mcp"]}'` |
-| Claude Desktop / Cursor / その他 | 設定ファイルの `mcpServers` に `"sockdock": {"command": "<sockdock>", "args": ["mcp"]}` を足す |
+| Claude Desktop | アプリの「設定」→「MCP」で Claude Desktop を選び、［Claude Desktop に追加］を押す（拡張機能 `SockDock.mcpb` を作って開きます） |
+| Cursor / その他 | 設定ファイルの `mcpServers` に `"sockdock": {"command": "<sockdock>", "args": ["mcp"]}` を足す |
 
 ツールは、状態・ルール・最近の処理・チャンネルを見るもの、どのルールが動くかを試すもの、ルールの追加・変更・削除・並べ替え・オン/オフ、処理の停止です。
 

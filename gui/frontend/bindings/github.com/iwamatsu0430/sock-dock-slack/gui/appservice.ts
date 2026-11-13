@@ -91,6 +91,14 @@ export function GetSnapshot(): $CancellablePromise<$models.Snapshot> {
 }
 
 /**
+ * InstallClaudeDesktopExtension builds SockDock.mcpb and opens it, which shows
+ * Claude Desktop's install confirmation.
+ */
+export function InstallClaudeDesktopExtension(): $CancellablePromise<void> {
+    return $Call.ByID(2446564214);
+}
+
+/**
  * LaunchAtLogin reports whether the app starts at login.
  */
 export function LaunchAtLogin(): $CancellablePromise<boolean> {

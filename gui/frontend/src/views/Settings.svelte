@@ -34,6 +34,15 @@
   }
   async function copyMCP() {
     if (!mcp) return;
+    if (mcp.kind === "extension") {
+      error = "";
+      try {
+        await App.InstallClaudeDesktopExtension();
+      } catch (e) {
+        error = errorText(e);
+      }
+      return;
+    }
     try {
       await App.CopyMCPSetup(mcp.client);
       copied = true;
@@ -142,12 +151,13 @@
           </select>
           <span class="spacer"></span>
           <button class="small" disabled={!mcp} onclick={copyMCP}>
-            {copied ? t("settings.mcpCopied") : mcp?.kind === "config" ? t("settings.mcpCopyConfig") : t("settings.mcpCopyCommand")}
+            {mcp?.kind === "extension" ? t("settings.mcpAddDesktop") : copied ? t("settings.mcpCopied") : mcp?.kind === "config" ? t("settings.mcpCopyConfig") : t("settings.mcpCopyCommand")}
           </button>
         </div>
         {#if mcp}
           <p class="small muted">
-            {#if mcp.kind === "command"}{t("settings.mcpCommandHelp", { client: clientName(mcp.client) })}
+            {#if mcp.kind === "extension"}{t("settings.mcpDesktopHelp")}
+            {:else if mcp.kind === "command"}{t("settings.mcpCommandHelp", { client: clientName(mcp.client) })}
             {:else if mcp.file}<Rich key="settings.mcpConfigHelp" params={{ file: mcp.file, client: clientName(mcp.client) }} />
             {:else}{t("settings.mcpOtherHelp")}{/if}
           </p>

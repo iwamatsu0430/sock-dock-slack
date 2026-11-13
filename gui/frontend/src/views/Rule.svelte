@@ -43,10 +43,27 @@
       loadedProgram = f.program;
       saved = { trigger: f.trigger, keyword: f.keyword, channel: f.channel };
     }
-    const ids = (chs.channels ?? []).map((c) => c.id);
-    pasteMode = ids.length === 0 || (!!f.channel && !ids.includes(f.channel));
+    choosePasteMode();
     loaded = true;
   });
+
+  // Paste an ID or link when the list is empty or the rule's channel is not in it.
+  function choosePasteMode() {
+    const ids = (channels?.channels ?? []).map((c) => c.id);
+    pasteMode = ids.length === 0 || (!!f.channel && !ids.includes(f.channel));
+  }
+
+  // After adding the Slack app to a channel, show the list without reopening.
+  let reloading = $state(false);
+  async function reloadChannels() {
+    reloading = true;
+    try {
+      channels = await App.ListChannels();
+      choosePasteMode();
+    } finally {
+      reloading = false;
+    }
+  }
 
   // Recent runs reload when something changes.
   $effect(() => {
@@ -152,7 +169,8 @@
         {#if resolved}<p class="small muted">{resolved}</p>{/if}
         {#if channels?.problem === "missing_scope"}<p class="small muted"><Rich key="rule.channelNoScope" /></p>
         {:else if channels?.problem === "error"}<p class="small muted">{t("rule.channelError", { error: channels.error ?? "" })}</p>
-        {:else if !channels?.channels?.length}<p class="small muted">{t("rule.channelPaste")}</p>{/if}
+        {:else if !channels?.channels?.length}<p class="small muted"><Rich key="rule.channelPaste" />
+          <button class="link small" disabled={reloading} onclick={reloadChannels}>{t("rule.reloadChannels")}</button></p>{/if}
       {/if}
       {#if problem("channel")}<p class="small bad-t">{problem("channel")}</p>{/if}
       <p class="small">{t("rule.channelMembers")}</p>

@@ -23,7 +23,7 @@ func TestMCPSetup(t *testing.T) {
 	if vs.Text != `code --add-mcp '{"args":["mcp"],"command":"/usr/local/bin/sockdock","name":"sockdock"}'` {
 		t.Errorf("vscode = %q", vs.Text)
 	}
-	for _, client := range []string{"claude-desktop", "cursor", "other"} {
+	for _, client := range []string{"cursor", "other"} {
 		s, err := mcpSetupFor(client, cli)
 		var v struct {
 			MCPServers map[string]struct {
@@ -37,6 +37,9 @@ func TestMCPSetup(t *testing.T) {
 		if (client == "other") != (s.File == "") {
 			t.Errorf("%s file = %q", client, s.File)
 		}
+	}
+	if s, _ := mcpSetupFor("claude-desktop", cli); s.Kind != "extension" || s.Text != "" {
+		t.Errorf("claude-desktop = %+v", s)
 	}
 	if _, err := mcpSetupFor("nope", cli); err == nil {
 		t.Error("unknown client should fail")

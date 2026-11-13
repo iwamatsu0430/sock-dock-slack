@@ -173,7 +173,8 @@ export class MCPSetup {
     "client": string;
 
     /**
-     * Kind is "command" (run it in a terminal) or "config" (add it to a file).
+     * Kind is "command" (run it in a terminal), "config" (add it to a file) or
+     * "extension" (Claude Desktop: build and open SockDock.mcpb).
      */
     "kind": string;
     "text": string;

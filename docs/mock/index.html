@@ -182,6 +182,7 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); color: #f
   <button data-go="route-none">ルール（届いていない）</button>
   <button data-go="route-new">新しいルール</button>
   <button data-go="route-noscope">チャンネル一覧なし</button>
+  <button data-go="route-nochannels">チャンネルが 0 件</button>
   <button data-go="banner">接続できない</button>
   <span class="grp">Slack</span>
   <button data-go="slack">スレッド</button>
@@ -244,7 +245,7 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); color: #f
   </div>
 
   <!-- ============ メインウィンドウ ============ -->
-  <div class="win main" data-screen="empty routes route route-none route-new route-noscope banner settings reset">
+  <div class="win main" data-screen="empty routes route route-none route-new route-noscope route-nochannels banner settings reset">
     <div class="titlebar"><i></i><i></i><i></i><span>SockDock</span></div>
     <div class="topnav"><div class="seg">
       <button data-go="routes" data-tab="rules">ルール</button><button data-go="settings" data-tab="settings">設定</button>
@@ -339,7 +340,7 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); color: #f
       </div>
 
       <!-- ルール -->
-      <div data-only="route route-none route-new route-noscope">
+      <div data-only="route route-none route-new route-noscope route-nochannels">
         <div style="min-height:28px"><button class="back" data-go="routes">← ルール</button></div>
         <h1 id="title" style="margin-bottom:6px">#dev-help「review」</h1>
 
@@ -350,9 +351,10 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); color: #f
               <select id="ch"><option value="">選んでください</option><option>#dev-help</option><option>#general</option><option>🔒ops</option></select>
               <p class="small muted" style="margin-top:6px">一覧に出るのは、Slack アプリを追加したチャンネルです。</p>
             </div>
-            <div data-only="route-noscope">
+            <div data-only="route-noscope route-nochannels">
               <input type="text" value="C0ABCDEF12">
-              <p class="small muted" style="margin-top:6px">チャンネル ID かリンクを入力してください。一覧から選ぶには、Slack アプリに <code>channels:read</code> と <code>groups:read</code> のスコープが要ります。</p>
+              <p class="small muted" data-only="route-noscope" style="margin-top:6px">チャンネル ID かリンクを入力してください。一覧から選ぶには、Slack アプリに <code>channels:read</code> と <code>groups:read</code> のスコープが要ります。</p>
+              <p class="small muted" style="margin-top:6px" data-only="route-nochannels">Slack アプリを追加したチャンネルが、まだありません。チャンネルで <code>/invite</code> を使ってアプリを追加してください。 <button class="link small">一覧を読み込み直す</button></p>
             </div>
             <p class="small">このチャンネルのメンバーなら誰でも実行できます。</p>
           </div>
@@ -401,7 +403,7 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); color: #f
           <div class="sec"><h2>上限時間</h2><div class="ctl"><div class="row"><input type="text" value="600" style="max-width:80px"><span class="muted">秒</span></div></div></div>
         </details>
         <div class="formfoot">
-          <button class="danger" data-only="route route-none route-noscope">削除</button><span class="spacer"></span>
+          <button class="danger" data-only="route route-none route-noscope route-nochannels">削除</button><span class="spacer"></span>
           <button data-go="routes">キャンセル</button><button class="primary" data-go="routes">保存</button>
         </div>
 
@@ -547,7 +549,7 @@ function go(id) {
   $$("[data-tab]").forEach((b) => b.classList.toggle("on", b.dataset.tab === tab));
 
   const blank = id === "route-new";
-  const noscope = id === "route-noscope";
+  const noscope = id === "route-noscope" || id === "route-nochannels";
   if (id === "route-none") opened = "#dev-help|start|review";
   const [ch, mode, kw] = (blank ? "||" : noscope ? "C0ABCDEF12|start|review" : opened || "#dev-help|start|review").split("|");
   opened = null;
@@ -572,11 +574,14 @@ function go(id) {
   try { history.replaceState(null, "", "#" + id); } catch {}
 }
 // MCP: how to register SockDock depends on the client (docs/mcp.md §2.1).
-const mcpFiles = { "Claude Desktop": "~/Library/Application Support/Claude/claude_desktop_config.json", "Cursor": "~/.cursor/mcp.json" };
+const mcpFiles = { "Cursor": "~/.cursor/mcp.json" };
 function mcpChanged() {
   const c = $("#mcpClient").value;
   const ask = "ルールの作成や状況の確認を頼めるようになります。";
-  if (c === "その他") {
+  if (c === "Claude Desktop") {
+    $("#mcpCopy").textContent = "Claude Desktop に追加";
+    $("#mcpHelp").textContent = "SockDock の拡張機能を Claude Desktop で開きます。確認が出たら［インストール］を押すと、" + ask;
+  } else if (c === "その他") {
     $("#mcpCopy").textContent = "設定をコピー";
     $("#mcpHelp").textContent = "お使いのクライアントの MCP の設定に足すと、" + ask;
   } else if (mcpFiles[c]) {
