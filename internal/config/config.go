@@ -68,12 +68,17 @@ type Messages struct {
 	ResumeFailed string `yaml:"resume_failed"`
 }
 
-// Route binds a condition (channel + regex on the top-level message) to a handler.
+// Route binds a condition on top-level posts in a channel to a handler. The
+// condition is exactly one of StartsWith, Contains, Match (a regex) and
+// AllPosts (see match.go).
 type Route struct {
-	Name    string  `yaml:"name"`
-	Channel string  `yaml:"channel"`
-	Match   string  `yaml:"match"`
-	Handler Handler `yaml:"handler"`
+	Name       string  `yaml:"name"`
+	Channel    string  `yaml:"channel"`
+	StartsWith string  `yaml:"starts_with"`
+	Contains   string  `yaml:"contains"`
+	Match      string  `yaml:"match"`
+	AllPosts   bool    `yaml:"all_posts"`
+	Handler    Handler `yaml:"handler"`
 
 	re *regexp.Regexp
 	// Env holds the values read from Handler.EnvFile plus Handler.Env.
@@ -243,6 +248,9 @@ func parse(data []byte, path string) (c *Config, global []string, broken []Broke
 		return nil, nil, nil, fmt.Errorf("parse %s: %w", path, err)
 	}
 	c.Path = path
+	for _, r := range c.Routes {
+		r.upgradeLegacy()
+	}
 	c.applyDefaults()
 	global, broken = c.prepare(os.LookupEnv)
 	return c, global, broken, nil
@@ -373,6 +381,8 @@ func (c *Config) prepare(lookupEnv func(string) (string, bool)) (global []string
 			return out
 		}
 		r.Channel = ex("channel", r.Channel)
+		r.StartsWith = ex("starts_with", r.StartsWith)
+		r.Contains = ex("contains", r.Contains)
 		r.Match = ex("match", r.Match)
 		h.Prompt = ex("prompt", h.Prompt)
 		h.Model = ex("model", h.Model)
@@ -389,12 +399,8 @@ func (c *Config) prepare(lookupEnv func(string) (string, bool)) (global []string
 		if r.Channel == "" {
 			add("%s: channel is required", label)
 		}
-		if r.Match == "" {
-			add("%s: match is required", label)
-		} else if re, err := regexp.Compile(r.Match); err != nil {
-			add("%s: match: %v", label, err)
-		} else {
-			r.re = re
+		if p := r.conditionProblem(); p != "" {
+			add("%s: %s", label, p)
 		}
 
 		switch h.Type {
@@ -524,29 +530,6 @@ func (c *Config) Route(name string) *Route {
 	return nil
 }
 
-// Match finds the first route whose channel and regex match a top-level
-// message. It returns the route and the named groups, or nil.
-func (c *Config) Match(channel, text string) (*Route, map[string]string) {
-	text = strings.TrimSpace(text)
-	for _, r := range c.Routes {
-		if r.re == nil || r.Channel != channel {
-			continue
-		}
-		m := r.re.FindStringSubmatch(text)
-		if m == nil {
-			continue
-		}
-		groups := map[string]string{}
-		for i, name := range r.re.SubexpNames() {
-			if i > 0 && name != "" {
-				groups[name] = m[i]
-			}
-		}
-		return r, groups
-	}
-	return nil, nil
-}
-
 // expand replaces ${VAR} using local first, then lookupEnv. It returns the
 // names that could not be resolved.
 func expand(s string, local map[string]string, lookupEnv func(string) (string, bool)) (string, []string) {
@@ -570,14 +553,13 @@ func Render(tmpl, route string, timeoutSec int) string {
 	return strings.NewReplacer("{route}", route, "{timeout_sec}", fmt.Sprint(timeoutSec)).Replace(tmpl)
 }
 
-// prepareMatchOnly compiles route regexes without other validation (tests).
+// prepareMatchOnly checks route conditions without other validation (tests).
 func (c *Config) prepareMatchOnly() error {
 	for _, r := range c.Routes {
-		re, err := regexp.Compile(r.Match)
-		if err != nil {
-			return err
+		r.upgradeLegacy()
+		if p := r.conditionProblem(); p != "" {
+			return errors.New(p)
 		}
-		r.re = re
 	}
 	return nil
 }

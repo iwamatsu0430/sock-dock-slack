@@ -25,15 +25,21 @@ func ParseRaw(data []byte) (*Config, error) {
 	if err := yaml.UnmarshalWithOptions(data, &c, yaml.DisallowUnknownField()); err != nil {
 		return nil, err
 	}
+	for _, r := range c.Routes {
+		r.upgradeLegacy()
+	}
 	return &c, nil
 }
 
 // routeOut and handlerOut control how routes are written: empty fields are left out.
 type routeOut struct {
-	Name    string     `yaml:"name"`
-	Channel string     `yaml:"channel"`
-	Match   string     `yaml:"match"`
-	Handler handlerOut `yaml:"handler"`
+	Name       string     `yaml:"name"`
+	Channel    string     `yaml:"channel"`
+	StartsWith string     `yaml:"starts_with,omitempty"`
+	Contains   string     `yaml:"contains,omitempty"`
+	Match      string     `yaml:"match,omitempty"`
+	AllPosts   bool       `yaml:"all_posts,omitempty"`
+	Handler    handlerOut `yaml:"handler"`
 }
 
 type handlerOut struct {
@@ -61,7 +67,7 @@ func RenderRoutes(routes []*Route) ([]byte, error) {
 	for _, r := range routes {
 		h := r.Handler
 		out = append(out, routeOut{
-			Name: r.Name, Channel: r.Channel, Match: r.Match,
+			Name: r.Name, Channel: r.Channel, StartsWith: r.StartsWith, Contains: r.Contains, Match: r.Match, AllPosts: r.AllPosts,
 			Handler: handlerOut{
 				Type: h.Type, Cwd: h.Cwd, EnvFile: h.EnvFile, Env: h.Env, Command: h.Command,
 				Prompt: h.Prompt, Instructions: h.Instructions, AllowedTools: h.AllowedTools, Tools: h.Tools,
@@ -158,8 +164,8 @@ func SetSetting(data []byte, key, value string) ([]byte, error) {
 	return []byte(strings.Join(lines, "\n") + "\n"), nil
 }
 
-// KeywordMatch builds the regex for "a message that starts with <keyword>";
-// the rest of the message is captured as the "text" group.
+// KeywordMatch builds the regex older versions of the app wrote for "a
+// message that starts with <keyword>" (read back as starts_with).
 func KeywordMatch(keyword string) string {
 	return `(?s)^\s*` + regexp.QuoteMeta(keyword) + `(?:\s+(?P<text>.*))?$`
 }

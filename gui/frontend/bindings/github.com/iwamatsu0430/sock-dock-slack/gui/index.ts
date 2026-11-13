@@ -9,6 +9,7 @@ export {
 export {
     Channel,
     ChannelList,
+    Condition,
     ConnectResult,
     FieldProblem,
     GatewayState,

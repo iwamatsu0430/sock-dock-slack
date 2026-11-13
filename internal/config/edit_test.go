@@ -32,7 +32,7 @@ func TestReplaceRoutesKeepsTheRest(t *testing.T) {
 		t.Fatalf("result does not parse: %v\n%s", err, s)
 	}
 	r := raw.Routes[0]
-	if r.Channel != "${CH}" || r.Handler.Instructions != "line one\nline two" || len(r.Handler.AllowedTools) != 2 || r.Match != KeywordMatch("entry") {
+	if r.Channel != "${CH}" || r.Handler.Instructions != "line one\nline two" || len(r.Handler.AllowedTools) != 2 || r.StartsWith != "entry" || r.Match != "" {
 		t.Fatalf("round trip lost data: %+v\n%s", r.Handler, s)
 	}
 	if strings.Contains(s, "env_file") || strings.Contains(s, "allow_mcp") {
@@ -65,7 +65,8 @@ func TestSetSetting(t *testing.T) {
 	}
 }
 
-func TestKeywordMatch(t *testing.T) {
+// A keyword regex written by older versions of the app is read as starts_with.
+func TestLegacyKeywordMatch(t *testing.T) {
 	cfg := &Config{Routes: []*Route{{Name: "r", Channel: "C", Match: KeywordMatch("entry")}}}
 	if err := cfg.prepareMatchOnly(); err != nil {
 		t.Fatal(err)

@@ -34,8 +34,9 @@ type RouteStatus struct {
 	Name    string `json:"name"`
 	Type    string `json:"type"`
 	Channel string `json:"channel"`
-	Match   string `json:"match"`
-	Paused  bool   `json:"paused"`
+	// Condition is the route's condition as written in the config.
+	Condition string `json:"condition"`
+	Paused    bool   `json:"paused"`
 }
 
 // Status returns the current state.
@@ -58,7 +59,7 @@ func (g *Gateway) Status(pid int) Status {
 	s.LastEventAt = timePtr(g.conn.lastEvent)
 	for _, r := range cfg.Routes {
 		s.Routes = append(s.Routes, RouteStatus{
-			Name: r.Name, Type: r.Handler.Type, Channel: r.Channel, Match: r.Match, Paused: g.paused[r.Name],
+			Name: r.Name, Type: r.Handler.Type, Channel: r.Channel, Condition: r.Condition(), Paused: g.paused[r.Name],
 		})
 	}
 	s.Broken = cfg.Broken

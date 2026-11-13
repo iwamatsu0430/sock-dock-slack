@@ -173,6 +173,16 @@ export function RecentTurns(limit: number): $CancellablePromise<store$0.Turn[]> 
 }
 
 /**
+ * ReorderRules saves the rules in the given order (all rule names). Within a
+ * channel, rules are tried top to bottom.
+ */
+export function ReorderRules(names: string[]): $CancellablePromise<$models.RouteSaveResult> {
+    return $Call.ByID(157335092, names).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
  * RuleTurns returns the recent runs of one rule.
  */
 export function RuleTurns(route: string): $CancellablePromise<store$0.Turn[]> {

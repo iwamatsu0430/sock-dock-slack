@@ -79,6 +79,34 @@ export class ChannelList {
 }
 
 /**
+ * Condition is a rule's condition as the list shows it.
+ */
+export class Condition {
+    "trigger": string;
+    "keyword": string;
+
+    /** Creates a new Condition instance. */
+    constructor($$source: Partial<Condition> = {}) {
+        if (!("trigger" in $$source)) {
+            this["trigger"] = "";
+        }
+        if (!("keyword" in $$source)) {
+            this["keyword"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Condition instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Condition {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Condition($$parsedSource as Partial<Condition>);
+    }
+}
+
+/**
  * ConnectResult is the outcome of ConnectSlack.
  */
 export class ConnectResult {
@@ -228,11 +256,11 @@ export class RouteForm {
     "channel": string;
 
     /**
-     * Trigger is "keyword" (message starts with Keyword) or "regex".
+     * Trigger is the condition kind: "starts_with", "contains", "match" (a
+     * regex) or "all_posts". Keyword is the keyword or the regex.
      */
     "trigger": string;
     "keyword": string;
-    "regex": string;
 
     /**
      * Type is "claude" or "command".
@@ -287,9 +315,6 @@ export class RouteForm {
         if (!("keyword" in $$source)) {
             this["keyword"] = "";
         }
-        if (!("regex" in $$source)) {
-            this["regex"] = "";
-        }
         if (!("type" in $$source)) {
             this["type"] = "";
         }
@@ -334,14 +359,14 @@ export class RouteForm {
      * Creates a new RouteForm instance from a string or object.
      */
     static createFrom($$source: any = {}): RouteForm {
+        const $$createField10_0 = $$createType4;
         const $$createField11_0 = $$createType4;
-        const $$createField12_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("commands" in $$parsedSource) {
-            $$parsedSource["commands"] = $$createField11_0($$parsedSource["commands"]);
+            $$parsedSource["commands"] = $$createField10_0($$parsedSource["commands"]);
         }
         if ("other_tools" in $$parsedSource) {
-            $$parsedSource["other_tools"] = $$createField12_0($$parsedSource["other_tools"]);
+            $$parsedSource["other_tools"] = $$createField11_0($$parsedSource["other_tools"]);
         }
         return new RouteForm($$parsedSource as Partial<RouteForm>);
     }
@@ -428,6 +453,17 @@ export class RuleRow {
     "label": string;
 
     /**
+     * Channel is the channel's name ("#name") or ID; the list groups by it.
+     */
+    "channel": string;
+
+    /**
+     * ShadowedBy is the condition of an earlier rule in the same channel that
+     * every matching post meets first, so this rule never runs.
+     */
+    "shadowed_by"?: Condition | null;
+
+    /**
      * Off is true when the rule is turned off (paused).
      */
     "off": boolean;
@@ -450,6 +486,9 @@ export class RuleRow {
         if (!("label" in $$source)) {
             this["label"] = "";
         }
+        if (!("channel" in $$source)) {
+            this["channel"] = "";
+        }
         if (!("off" in $$source)) {
             this["off"] = false;
         }
@@ -462,17 +501,21 @@ export class RuleRow {
      */
     static createFrom($$source: any = {}): RuleRow {
         const $$createField0_0 = $$createType9;
-        const $$createField3_0 = $$createType10;
-        const $$createField4_0 = $$createType12;
+        const $$createField3_0 = $$createType11;
+        const $$createField5_0 = $$createType12;
+        const $$createField6_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("form" in $$parsedSource) {
             $$parsedSource["form"] = $$createField0_0($$parsedSource["form"]);
         }
+        if ("shadowed_by" in $$parsedSource) {
+            $$parsedSource["shadowed_by"] = $$createField3_0($$parsedSource["shadowed_by"]);
+        }
         if ("problem" in $$parsedSource) {
-            $$parsedSource["problem"] = $$createField3_0($$parsedSource["problem"]);
+            $$parsedSource["problem"] = $$createField5_0($$parsedSource["problem"]);
         }
         if ("last" in $$parsedSource) {
-            $$parsedSource["last"] = $$createField4_0($$parsedSource["last"]);
+            $$parsedSource["last"] = $$createField6_0($$parsedSource["last"]);
         }
         return new RuleRow($$parsedSource as Partial<RuleRow>);
     }
@@ -507,8 +550,8 @@ export class Snapshot {
      * Creates a new Snapshot instance from a string or object.
      */
     static createFrom($$source: any = {}): Snapshot {
-        const $$createField2_0 = $$createType14;
-        const $$createField3_0 = $$createType15;
+        const $$createField2_0 = $$createType16;
+        const $$createField3_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("status" in $$parsedSource) {
             $$parsedSource["status"] = $$createField2_0($$parsedSource["status"]);
@@ -558,9 +601,11 @@ const $$createType6 = $Create.Array($$createType5);
 const $$createType7 = RuleRow.createFrom;
 const $$createType8 = $Create.Array($$createType7);
 const $$createType9 = RouteForm.createFrom;
-const $$createType10 = $Create.Nullable($$createType5);
-const $$createType11 = store$0.Turn.createFrom;
-const $$createType12 = $Create.Nullable($$createType11);
-const $$createType13 = gateway$0.Status.createFrom;
+const $$createType10 = Condition.createFrom;
+const $$createType11 = $Create.Nullable($$createType10);
+const $$createType12 = $Create.Nullable($$createType5);
+const $$createType13 = store$0.Turn.createFrom;
 const $$createType14 = $Create.Nullable($$createType13);
-const $$createType15 = GatewayState.createFrom;
+const $$createType15 = gateway$0.Status.createFrom;
+const $$createType16 = $Create.Nullable($$createType15);
+const $$createType17 = GatewayState.createFrom;

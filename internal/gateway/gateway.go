@@ -195,8 +195,9 @@ func (g *Gateway) HandleMessage(m event.Message) {
 	cfg := g.cfg.Load()
 	var r *config.Route
 	if m.IsTopLevel() {
-		route, groups := cfg.Match(m.Channel, m.Text)
-		if route == nil || g.isPaused(route.Name) {
+		// Rules are tried top to bottom; a rule that is off is passed over.
+		route, groups := cfg.MatchWith(m.Channel, m.Text, config.MatchOptions{BotUserID: self.UserID, Skip: g.isPaused})
+		if route == nil {
 			return
 		}
 		if err := g.opts.Store.BindThread(ctx, store.Thread{

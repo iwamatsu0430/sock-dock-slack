@@ -27,10 +27,10 @@ type RouteForm struct {
 	Name string `json:"name"`
 	// Channel is a channel ID or a pasted channel link.
 	Channel string `json:"channel"`
-	// Trigger is "keyword" (message starts with Keyword) or "regex".
+	// Trigger is the condition kind: "starts_with", "contains", "match" (a
+	// regex) or "all_posts". Keyword is the keyword or the regex.
 	Trigger string `json:"trigger"`
 	Keyword string `json:"keyword"`
-	Regex   string `json:"regex"`
 	// Type is "claude" or "command".
 	Type string `json:"type"`
 	// Folder is the working directory (claude: the project folder).
@@ -127,10 +127,9 @@ func routeToForm(r *config.Route) RouteForm {
 		Instructions: h.Instructions, Model: h.Model, PromptFile: h.Prompt, TimeoutSec: h.TimeoutSec,
 		Commands: []string{}, OtherTools: []string{},
 	}
-	if kw, ok := config.KeywordFromMatch(r.Match); ok {
-		f.Trigger, f.Keyword = "keyword", kw
-	} else {
-		f.Trigger, f.Regex = "regex", r.Match
+	f.Trigger, f.Keyword = r.Kind(), r.Pattern()
+	if f.Trigger == "" {
+		f.Trigger = config.KindStartsWith
 	}
 	if h.Type == config.TypeCommand && len(h.Command) > 0 {
 		f.Program = h.Command[0]
@@ -167,10 +166,16 @@ func formToRoute(f RouteForm, base *config.Route) *config.Route {
 	}
 	r.Name = strings.TrimSpace(f.Name)
 	r.Channel = normalizeChannel(f.Channel)
-	if f.Trigger == "regex" {
-		r.Match = strings.TrimSpace(f.Regex)
-	} else {
-		r.Match = config.KeywordMatch(strings.TrimSpace(f.Keyword))
+	r.StartsWith, r.Contains, r.Match, r.AllPosts = "", "", "", false
+	switch f.Trigger {
+	case config.KindStartsWith:
+		r.StartsWith = strings.TrimSpace(f.Keyword)
+	case config.KindContains:
+		r.Contains = strings.TrimSpace(f.Keyword)
+	case config.KindMatch:
+		r.Match = strings.TrimSpace(f.Keyword)
+	case config.KindAllPosts:
+		r.AllPosts = true
 	}
 	h := &r.Handler
 	h.Type = f.Type
@@ -241,16 +246,20 @@ func (a *AppService) validateForm(f RouteForm, raw *config.Config) []FieldProble
 		add("channel", "bad_channel", "")
 	}
 
-	if f.Trigger == "regex" {
-		if strings.TrimSpace(f.Regex) == "" {
-			add("regex", "required", "")
-		} else if _, err := regexp.Compile(f.Regex); err != nil {
-			add("regex", "bad_regex", err.Error())
+	switch kw := strings.TrimSpace(f.Keyword); f.Trigger {
+	case config.KindStartsWith, config.KindContains:
+		if kw == "" {
+			add("keyword", "required", "")
 		}
-	} else if strings.TrimSpace(f.Keyword) == "" {
-		add("keyword", "required", "")
-	} else if strings.ContainsAny(strings.TrimSpace(f.Keyword), " \t\n") {
-		add("keyword", "no_spaces", "")
+	case config.KindMatch:
+		if kw == "" {
+			add("keyword", "required", "")
+		} else if _, err := regexp.Compile(kw); err != nil {
+			add("keyword", "bad_regex", err.Error())
+		}
+	case config.KindAllPosts:
+	default:
+		add("trigger", "required", "")
 	}
 
 	folder := paths.ExpandHome(strings.TrimSpace(f.Folder))
@@ -310,17 +319,28 @@ func (a *AppService) SaveRoute(f RouteForm) (RouteSaveResult, error) {
 		return RouteSaveResult{Problems: ps}, nil
 	}
 
+	// A new rule, or one moved to another channel, goes to the bottom of its
+	// channel (rules are tried top to bottom).
 	var routes []*config.Route
+	var moved *config.Route
 	replaced := false
 	for _, r := range raw.Routes {
 		if f.OriginalName != "" && r.Name == f.OriginalName {
-			routes = append(routes, formToRoute(f, r))
+			nr := formToRoute(f, r)
 			replaced = true
+			if nr.Channel != r.Channel {
+				moved = nr
+				continue
+			}
+			routes = append(routes, nr)
 		} else {
 			routes = append(routes, r)
 		}
 	}
-	if !replaced {
+	switch {
+	case moved != nil:
+		routes = append(routes, moved)
+	case !replaced:
 		routes = append(routes, formToRoute(f, nil))
 	}
 	content, err := config.ReplaceRoutes(data, routes)
@@ -477,16 +497,25 @@ func (a *AppService) ChannelName(idOrLink string) string {
 	return "#" + ch.Name
 }
 
-// ruleLabel is how the app names a rule: #channel「keyword」.
+// channelLabel is "#name" when the channel's name is known, else the ID.
+func (a *AppService) channelLabel(id string) string {
+	if ch := a.ChannelName(id); ch != "" {
+		return ch
+	}
+	return id
+}
+
+// ruleLabel is how menus and notifications name a rule: #channel「keyword」,
+// #channel /regex/, or #channel for all posts.
 func (a *AppService) ruleLabel(r *config.Route) string {
-	ch := a.ChannelName(r.Channel)
-	if ch == "" {
-		ch = r.Channel
+	ch := a.channelLabel(r.Channel)
+	switch r.Kind() {
+	case config.KindStartsWith, config.KindContains:
+		return a.tr("label.keyword", ch, r.Pattern())
+	case config.KindMatch:
+		return a.tr("label.regex", ch, r.Match)
 	}
-	if kw, ok := config.KeywordFromMatch(r.Match); ok {
-		return a.tr("label.keyword", ch, kw)
-	}
-	return a.tr("label.regex", ch, r.Match)
+	return ch
 }
 
 // labelFor returns the label of the rule with this config name.
@@ -506,6 +535,11 @@ func (a *AppService) labelFor(name string) string {
 type RuleRow struct {
 	Form  RouteForm `json:"form"`
 	Label string    `json:"label"`
+	// Channel is the channel's name ("#name") or ID; the list groups by it.
+	Channel string `json:"channel"`
+	// ShadowedBy is the condition of an earlier rule in the same channel that
+	// every matching post meets first, so this rule never runs.
+	ShadowedBy *Condition `json:"shadowed_by,omitempty"`
 	// Off is true when the rule is turned off (paused).
 	Off bool `json:"off"`
 	// Problem is why the rule cannot run, if anything.
@@ -540,18 +574,66 @@ func (a *AppService) ListRules() RuleList {
 		}
 	}
 	out := make([]RuleRow, 0, len(raw.Routes))
-	for _, r := range raw.Routes {
+	for i, r := range raw.Routes {
 		f := routeToForm(r)
-		row := RuleRow{Form: f, Label: a.ruleLabel(r), Off: paused[r.Name], Last: last[r.Name]}
+		row := RuleRow{Form: f, Label: a.ruleLabel(r), Channel: a.channelLabel(r.Channel), Off: paused[r.Name], Last: last[r.Name]}
 		for _, p := range a.validateForm(f, raw) {
 			if p.Field != "name" {
 				row.Problem = &p
 				break
 			}
 		}
+		if row.Problem == nil && !row.Off {
+			for j, e := range raw.Routes[:i] {
+				if !out[j].Off && out[j].Problem == nil && config.ShadowedBy(e, r) {
+					row.ShadowedBy = &Condition{Trigger: e.Kind(), Keyword: e.Pattern()}
+					break
+				}
+			}
+		}
 		out = append(out, row)
 	}
 	return RuleList{Rules: out}
+}
+
+// Condition is a rule's condition as the list shows it.
+type Condition struct {
+	Trigger string `json:"trigger"`
+	Keyword string `json:"keyword"`
+}
+
+// ReorderRules saves the rules in the given order (all rule names). Within a
+// channel, rules are tried top to bottom.
+func (a *AppService) ReorderRules(names []string) (RouteSaveResult, error) {
+	data, raw, err := a.readRaw()
+	if err != nil {
+		return RouteSaveResult{ConfigProblems: []string{err.Error()}}, nil
+	}
+	byName := map[string]*config.Route{}
+	for _, r := range raw.Routes {
+		byName[r.Name] = r
+	}
+	if len(names) != len(raw.Routes) {
+		return RouteSaveResult{}, errors.New("the rules changed; reload the list")
+	}
+	routes := make([]*config.Route, 0, len(names))
+	for _, n := range names {
+		r, ok := byName[n]
+		if !ok {
+			return RouteSaveResult{}, errors.New("the rules changed; reload the list")
+		}
+		delete(byName, n)
+		routes = append(routes, r)
+	}
+	content, err := config.ReplaceRoutes(data, routes)
+	if err != nil {
+		return RouteSaveResult{}, err
+	}
+	saved, err := a.saveConfig(string(content))
+	if err != nil {
+		return RouteSaveResult{}, err
+	}
+	return RouteSaveResult{OK: saved.OK, ConfigProblems: saved.Problems}, nil
 }
 
 // autoName returns an unused route name ("rule-1", "rule-2", …).

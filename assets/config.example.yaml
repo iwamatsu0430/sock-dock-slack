@@ -16,10 +16,11 @@ settings:
   #   error: "⚠️ Something went wrong (route: {route})."
 
 routes:
+  # Within a channel, routes are tried from the top; the first match runs.
   # A command handler: gets the event JSON on stdin, its stdout is posted to the thread.
   - name: echo
     channel: C0123456789
-    match: '^echo\s+(?P<body>.+)$'
+    starts_with: echo         # or contains: …, match: '<regex>', all_posts: true
     handler:
       type: command
       cwd: ~/sockdock-handlers
@@ -29,7 +30,7 @@ routes:
   # A Claude Code handler: each thread is one conversation, resumed on every reply.
   # - name: assistant
   #   channel: ${ASSISTANT_CHANNEL_ID}          # ${VAR} comes from env_file, then the environment
-  #   match: '^ask\s+(?P<question>.+)$'
+  #   starts_with: ask
   #   handler:
   #     type: claude
   #     cwd: ~/projects/my-project

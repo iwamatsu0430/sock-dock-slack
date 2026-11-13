@@ -44,7 +44,11 @@ export class RouteStatus {
     "name": string;
     "type": string;
     "channel": string;
-    "match": string;
+
+    /**
+     * Condition is the route's condition as written in the config.
+     */
+    "condition": string;
     "paused": boolean;
 
     /** Creates a new RouteStatus instance. */
@@ -58,8 +62,8 @@ export class RouteStatus {
         if (!("channel" in $$source)) {
             this["channel"] = "";
         }
-        if (!("match" in $$source)) {
-            this["match"] = "";
+        if (!("condition" in $$source)) {
+            this["condition"] = "";
         }
         if (!("paused" in $$source)) {
             this["paused"] = false;

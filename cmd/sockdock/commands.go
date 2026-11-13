@@ -55,9 +55,9 @@ func checkCmd(g *globals) *cobra.Command {
 			}
 			fmt.Printf("%s: OK (%d routes)\n", cfg.Path, len(cfg.Routes))
 			w := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
-			fmt.Fprintln(w, "ROUTE\tTYPE\tCHANNEL\tMATCH")
+			fmt.Fprintln(w, "ROUTE\tTYPE\tCHANNEL\tCONDITION")
 			for _, r := range cfg.Routes {
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", r.Name, r.Handler.Type, r.Channel, r.Match)
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", r.Name, r.Handler.Type, r.Channel, r.Condition())
 			}
 			w.Flush()
 			if _, _, err := secret.Tokens(cfg.Settings.SecretsFile); err != nil {

@@ -3,6 +3,7 @@
   import { App, errorText, type ChannelList, type FieldProblem, type RouteForm, type Turn } from "../lib/api";
   import { live } from "../lib/live.svelte";
   import { i18n, t } from "../lib/i18n/index.svelte";
+  import type { MessageKey } from "../lib/i18n/en";
   import Rich from "../lib/Rich.svelte";
   import { clock, elapsed, problemText, statusClass, statusLabel } from "../lib/format";
 
@@ -11,7 +12,7 @@
 
   const blank = (): RouteForm =>
     ({
-      original_name: "", name: "", channel: "", trigger: "keyword", keyword: "", regex: "", type: "claude", folder: "",
+      original_name: "", name: "", channel: "", trigger: "starts_with", keyword: "", type: "claude", folder: "",
       instructions: "", allow_web: false, allow_edit: false, commands: [], other_tools: [], model: "", prompt_file: "",
       program: "", args: "", timeout_sec: 0,
     }) as RouteForm;
@@ -28,6 +29,8 @@
   let busy = $state(false);
   let turns = $state<Turn[]>([]);
   let loadedProgram = "";
+  // The saved condition, for the "no runs yet" hint (not the one being edited).
+  let saved = $state({ trigger: "", keyword: "", channel: "" });
 
   onMount(async () => {
     const [list, chs] = await Promise.all([name ? App.ListRules() : null, App.ListChannels()]);
@@ -35,10 +38,10 @@
     const row = list?.rules?.find((r) => r.form.name === name);
     if (row) {
       f = structuredClone($state.snapshot(row.form)) as RouteForm;
-      if (f.trigger === "keyword") f.regex = "";
       title = row.label;
       commandsText = (f.commands ?? []).join("\n");
       loadedProgram = f.program;
+      saved = { trigger: f.trigger, keyword: f.keyword, channel: f.channel };
     }
     const ids = (chs.channels ?? []).map((c) => c.id);
     pasteMode = ids.length === 0 || (!!f.channel && !ids.includes(f.channel));
@@ -61,7 +64,13 @@
   });
 
   const problem = (field: string) => problemText(problems.find((p) => p.field === field));
-  const keywordShown = $derived(f.keyword.trim() || t("rule.keywordExample"));
+  const triggers = ["starts_with", "contains", "match", "all_posts"];
+  const channelShown = $derived(
+    (() => {
+      const c = channels?.channels?.find((x) => x.id === saved.channel);
+      return c ? (c.private ? "🔒" : "#") + c.name : resolved || saved.channel;
+    })(),
+  );
   const defaultTimeout = $derived(f.type === "claude" ? 600 : 300);
   const howToURL = $derived(
     i18n.locale === "ja"
@@ -81,7 +90,6 @@
   function payload(): RouteForm {
     const out = { ...$state.snapshot(f) } as RouteForm;
     out.commands = commandsText.split("\n").map((x) => x.trim()).filter(Boolean);
-    out.trigger = out.regex.trim() ? "regex" : "keyword";
     if (out.type === "command" && (!out.folder || out.program !== loadedProgram)) {
       // A new program runs in its own folder (an existing cwd is kept).
       const p = out.program.trim();
@@ -147,12 +155,19 @@
   </div>
 
   <div class="sec">
-    <h2>{t("rule.keyword")}</h2>
+    <h2>{t("rule.trigger")}</h2>
     <div class="ctl">
-      <input type="text" class="kw" bind:value={f.keyword} class:invalid={problem("keyword")} disabled={!!f.regex.trim()} />
-      {#if problem("keyword")}<p class="small bad-t">{problem("keyword")}</p>
-      {:else if f.regex.trim()}<p class="small muted">{t("rule.regexInUse")}</p>
-      {:else}<p class="small muted">{t("rule.keywordHelp", { keyword: keywordShown })}</p>{/if}
+      <div class="row">
+        <select class="trigger" bind:value={f.trigger}>
+          {#each triggers as k (k)}<option value={k}>{t(`rule.trigger.${k}` as MessageKey)}</option>{/each}
+        </select>
+        {#if f.trigger !== "all_posts"}
+          <input type="text" class="kw" class:mono={f.trigger === "match"} bind:value={f.keyword} class:invalid={problem("keyword")}
+            placeholder={f.trigger === "match" ? t("rule.regexPlaceholder") : t("rule.keywordPlaceholder")} />
+        {/if}
+      </div>
+      {#if f.trigger === "all_posts"}<p class="small muted">{t("rule.allPostsHelp")}</p>
+      {:else if problem("keyword")}<p class="small bad-t">{problem("keyword")}</p>{/if}
     </div>
   </div>
 
@@ -192,7 +207,7 @@
     </div>
   </div>
 
-  <details class="more" open={!!f.regex || !!f.model || !!f.timeout_sec}>
+  <details class="more" open={!!f.model || !!f.timeout_sec}>
     <summary>{t("rule.options")}</summary>
     {#if f.type === "claude"}
       <div class="sec first"><h2>{t("rule.model")}</h2><div class="ctl">
@@ -204,9 +219,6 @@
     {/if}
     <div class="sec" class:first={f.type !== "claude"}><h2>{t("rule.timeout")}</h2><div class="ctl">
       <div class="row"><input type="number" min="0" class="num" bind:value={f.timeout_sec} placeholder={String(defaultTimeout)} /><span class="muted">{t("rule.seconds")}</span></div></div></div>
-    <div class="sec"><h2>{t("rule.regex")}</h2><div class="ctl">
-      <input type="text" class="mono" bind:value={f.regex} placeholder={t("rule.regexPlaceholder")} class:invalid={problem("regex")} />
-      {#if problem("regex")}<p class="small bad-t">{problem("regex")}</p>{/if}</div></div>
   </details>
 
   {#if error}<p class="small bad-t">{error}</p>{/if}
@@ -217,7 +229,12 @@
     <button class="primary" disabled={busy} onclick={save}>{t("rule.save")}</button>
   </div>
 
-  {#if name && turns.length}
+  {#if name && saved.trigger && !turns.length}
+    <div class="runs">
+      <h2>{t("runs.title")}</h2>
+      <p class="small muted">{t(`runs.empty.${saved.trigger}` as MessageKey, { channel: channelShown, keyword: saved.keyword })}</p>
+    </div>
+  {:else if name}
     <div class="runs">
       <h2>{t("runs.title")}</h2>
       <div class="card">
@@ -256,7 +273,9 @@
   .sec.first { border-top: none; }
   .sec > h2 { padding-top: 5px; }
   .ctl { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-  .kw, .narrow { max-width: 200px; }
+  .narrow { max-width: 200px; }
+  .trigger { width: auto; flex: none; }
+  .kw { flex: 1; min-width: 0; max-width: 240px; }
   .num { max-width: 90px; }
   .mono { font-family: ui-monospace, Menlo, monospace; }
   .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; width: fit-content; }

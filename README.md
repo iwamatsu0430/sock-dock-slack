@@ -69,12 +69,23 @@ The config lives at `~/Library/Application Support/sockdock/config.yaml` (Linux:
 routes:
   - name: echo
     channel: C0123456789            # channel ID (channel details → bottom of the About tab)
-    match: '^echo\s+(?P<body>.+)$'  # regular expression on the top-level message
+    starts_with: echo               # posts that start with "echo"
     handler:
       type: command
       cwd: ~/sockdock-handlers
       command: ["./echo.sh"]
 ```
+
+A route reacts to top-level posts that meet one of these conditions. Within a channel, routes are tried from the top and the first match runs (routes that are off are skipped).
+
+| Key | Posts it runs on | `groups` |
+|---|---|---|
+| `starts_with: echo` | Posts starting with the keyword | `text`: what follows the keyword |
+| `contains: review` | Posts containing the keyword | `text`: the whole post |
+| `match: '^deploy (?P<env>\w+)$'` | Posts matching the regular expression (RE2) | the named groups |
+| `all_posts: true` | Every post | `text`: the whole post |
+
+Keywords ignore case, full-width vs half-width characters, repeated spaces and a leading mention of the Slack app. A keyword of letters and digits does not match inside a word (`entry` does not match `entryx`). Regular expressions are case sensitive.
 
 Check it:
 
@@ -98,10 +109,10 @@ Post `echo hello` in the channel: SockDock reacts with 👀, runs the handler an
 With the app you do not need steps 3–5 above or any YAML. `open dist/SockDock.app` (or `mise run gui`):
 
 1. **Setup** (first launch): *Open api.slack.com* opens Slack's "create an app" page with the manifest filled in. Install the app, generate an App-Level Token with `connections:write`, then paste both tokens and press **Connect to Slack**. The tokens are checked with Slack first and saved to the Keychain only if both work.
-2. **Rules → Add Rule**: pick the channel (channels the Slack app has been added to are listed; without the `channels:read`/`groups:read` scopes, enter a channel ID or link), type the keyword that starts a post, and choose what runs — an AI agent (Claude Code) in a working folder, with instructions and what it may do, or a program. Each rule shows its last run; open it for recent runs, thread links and **Stop**.
-3. Post `<keyword> …` in the channel.
+2. **Rules → Add Rule**: pick the channel (channels the Slack app has been added to are listed; without the `channels:read`/`groups:read` scopes, enter a channel ID or link), choose which posts it reacts to (starting with, containing, a regular expression, or all), and choose what runs — an AI agent (Claude Code) in a working folder, with instructions and what it may do, or a program. The list is grouped by channel and shows each rule's last run. Within a channel the rule higher up comes first; drag ⠿ to reorder. Open a rule for recent runs, thread links and **Stop**.
+3. Post something like `<keyword> …` in the channel.
 
-The app runs the gateway while it is open — there is no separate service to install. Clicking the menu bar icon shows the connection, running and recent runs; **Settings… (⌘,)** has the Slack connection, *Open at login*, notifications and the language (also used for the messages posted to Slack). **Open Config File** opens the YAML in your editor for anything the form does not cover. A rule with a problem (e.g. a missing folder) is shown in red and left out; the other rules keep running.
+The app runs the gateway while it is open — there is no separate service to install. Clicking the menu bar icon shows the connection, running and recent runs; **Settings… (⌘,)** has the Slack connection, *Open at login*, notifications and the language (also used for the messages posted to Slack). **Open Config File** opens the YAML in your editor for anything the form does not cover. A rule with a problem (e.g. a missing folder, or a rule above that always matches first) is shown in red and left out; the other rules keep running.
 
 If a `sockdock service install` service is already running, the app shows its state and does not start its own gateway.
 
@@ -116,12 +127,12 @@ Every handler receives this JSON (on stdin for command handlers):
   "channel": "C0123456789",
   "thread_ts": "1762920000.000100",
   "permalink": "https://example.slack.com/archives/C0123456789/p1762920000000100",
-  "groups": { "body": "hello" },
+  "groups": { "text": "hello" },
   "messages": [{ "ts": "1762920000.000100", "user": "U0123", "text": "echo hello" }]
 }
 ```
 
-`groups` holds the named groups of the first message's match and is passed on every turn of the thread.
+`groups` holds the values taken from the first message (see the table above) and is passed on every turn of the thread.
 
 ### command
 
