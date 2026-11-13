@@ -7,6 +7,9 @@ import { Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as config$0 from "../config/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as slackio$0 from "../slackio/models.js";
 
 /**
@@ -130,6 +133,11 @@ export class Status {
     "identity": slackio$0.Identity;
     "config_path": string;
     "routes": RouteStatus[];
+
+    /**
+     * Broken lists routes left out because of problems.
+     */
+    "broken"?: config$0.BrokenRoute[];
     "running": RunningTurn[];
     "pending": number;
 
@@ -173,6 +181,7 @@ export class Status {
         const $$createField8_0 = $$createType0;
         const $$createField10_0 = $$createType2;
         const $$createField11_0 = $$createType4;
+        const $$createField12_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("identity" in $$parsedSource) {
             $$parsedSource["identity"] = $$createField8_0($$parsedSource["identity"]);
@@ -180,8 +189,11 @@ export class Status {
         if ("routes" in $$parsedSource) {
             $$parsedSource["routes"] = $$createField10_0($$parsedSource["routes"]);
         }
+        if ("broken" in $$parsedSource) {
+            $$parsedSource["broken"] = $$createField11_0($$parsedSource["broken"]);
+        }
         if ("running" in $$parsedSource) {
-            $$parsedSource["running"] = $$createField11_0($$parsedSource["running"]);
+            $$parsedSource["running"] = $$createField12_0($$parsedSource["running"]);
         }
         return new Status($$parsedSource as Partial<Status>);
     }
@@ -191,5 +203,7 @@ export class Status {
 const $$createType0 = slackio$0.Identity.createFrom;
 const $$createType1 = RouteStatus.createFrom;
 const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = RunningTurn.createFrom;
+const $$createType3 = config$0.BrokenRoute.createFrom;
 const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = RunningTurn.createFrom;
+const $$createType6 = $Create.Array($$createType5);

@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -20,7 +22,6 @@ import (
 	"github.com/iwamatsu0430/sock-dock-slack/internal/locale"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/paths"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/secret"
-	"github.com/iwamatsu0430/sock-dock-slack/internal/service"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/slackio"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/store"
 )
@@ -32,23 +33,28 @@ type AppService struct {
 	version string
 	client  *control.Client
 
-	app     *application.App
-	popover *application.WebviewWindow
-	main    *application.WebviewWindow
+	app      *application.App
+	main     *application.WebviewWindow
+	settings *application.WebviewWindow
 
 	// onLocale is called after the UI language changes (to relabel native menus).
 	onLocale func()
 
 	// emb runs the gateway inside this app.
 	emb *embedded
+
+	// channels caches channel names (id → channel) for labels.
+	chMu     sync.Mutex
+	channels map[string]Channel
 }
 
 func newAppService(dirs paths.Dirs, version string) *AppService {
 	return &AppService{
-		dirs:    dirs,
-		version: version,
-		client:  control.NewClient(dirs.SocketPath()),
-		emb:     newEmbedded(dirs, version),
+		dirs:     dirs,
+		version:  version,
+		client:   control.NewClient(dirs.SocketPath()),
+		emb:      newEmbedded(dirs, version),
+		channels: map[string]Channel{},
 	}
 }
 
@@ -78,114 +84,65 @@ func (a *AppService) GetSnapshot() Snapshot {
 	return Snapshot{Running: true, Status: &st, Gateway: a.emb.State()}
 }
 
-// StartGateway starts the gateway inside this app.
-func (a *AppService) StartGateway() GatewayState { return a.emb.Start() }
-
-// StopGateway stops the gateway running inside this app.
-func (a *AppService) StopGateway() { a.emb.Stop(30 * time.Second) }
-
-// RestartGateway restarts the gateway running inside this app.
-func (a *AppService) RestartGateway() GatewayState { return a.emb.Restart() }
-
-// startAfterSetup (re)starts the embedded gateway after the user changed
-// something it depends on, unless they stopped it or another sockdock runs.
+// startAfterSetup (re)starts the embedded gateway after something it depends
+// on changed, unless another sockdock runs.
 func (a *AppService) startAfterSetup() {
 	switch a.emb.State().State {
 	case GatewayRunning:
-		go a.emb.Restart()
-	case GatewaySetup, GatewayError:
-		go a.emb.Start()
+		a.emb.Restart()
+	case GatewaySetup, GatewayError, GatewayStopped:
+		a.emb.Start()
 	}
 }
 
-// Turns returns recent handler runs.
-func (a *AppService) Turns(limit int) ([]store.Turn, error) {
-	c, cancel := ctx()
-	defer cancel()
-	return a.client.Turns(c, limit)
-}
-
-// Threads returns recent threads.
-func (a *AppService) Threads(limit int) ([]store.Thread, error) {
-	c, cancel := ctx()
-	defer cancel()
-	return a.client.Threads(c, limit)
-}
-
-// Logs returns the last lines of the gateway log. It reads the file directly
-// when the gateway is not running.
-func (a *AppService) Logs(limit int) ([]string, error) {
-	c, cancel := ctx()
-	defer cancel()
-	lines, err := a.client.Logs(c, limit)
-	if errors.Is(err, control.ErrNotRunning) {
-		b, ferr := os.ReadFile(a.dirs.LogFile())
-		if ferr != nil {
-			if errors.Is(ferr, os.ErrNotExist) {
-				return []string{}, nil
-			}
-			return nil, ferr
-		}
-		all := strings.Split(strings.TrimRight(string(b), "\n"), "\n")
-		return all[max(len(all)-limit, 0):], nil
-	}
-	return lines, err
-}
-
-// Reload asks the gateway to re-read its config.
-func (a *AppService) Reload() error {
-	c, cancel := ctx()
-	defer cancel()
-	return a.client.Reload(c)
-}
-
-// SetPaused pauses or resumes a route.
+// SetPaused turns a rule off (paused) or on.
 func (a *AppService) SetPaused(route string, paused bool) error {
 	c, cancel := ctx()
 	defer cancel()
 	return a.client.SetPaused(c, route, paused)
 }
 
+// RecentTurns returns recent runs of all rules.
+func (a *AppService) RecentTurns(limit int) []store.Turn {
+	c, cancel := ctx()
+	defer cancel()
+	out, err := a.client.Turns(c, limit)
+	if err != nil {
+		return []store.Turn{}
+	}
+	return out
+}
+
+// RuleTurns returns the recent runs of one rule.
+func (a *AppService) RuleTurns(route string) []store.Turn {
+	c, cancel := ctx()
+	defer cancel()
+	out, err := a.client.RouteTurns(c, route, 10)
+	if err != nil || out == nil {
+		return []store.Turn{}
+	}
+	return out
+}
+
+// StopTurn stops a running run.
+func (a *AppService) StopTurn(id int64) error {
+	c, cancel := ctx()
+	defer cancel()
+	return a.client.StopTurn(c, id)
+}
+
 // ---- config --------------------------------------------------------------
 
-// ConfigFile is the config file and its content.
-type ConfigFile struct {
-	Path    string `json:"path"`
-	Content string `json:"content"`
-	Exists  bool   `json:"exists"`
-}
-
-// GetConfig reads the config file (directly, so it works while the gateway
-// is stopped). A minimal config is created first if there is none.
-func (a *AppService) GetConfig() (ConfigFile, error) {
-	p := a.dirs.ConfigFile
-	if err := a.ensureConfig(); err != nil {
-		return ConfigFile{}, err
-	}
-	b, err := os.ReadFile(p)
-	if err != nil {
-		return ConfigFile{}, err
-	}
-	return ConfigFile{Path: p, Content: string(b), Exists: true}, nil
-}
-
-// ValidateConfig checks config content without saving it.
-func (a *AppService) ValidateConfig(content string) control.ValidateResult {
-	if _, err := config.Parse([]byte(content), a.dirs.ConfigFile); err != nil {
+// saveConfig validates and writes the config. When the gateway is running it
+// goes through the gateway (which also reloads); otherwise it writes the file.
+// A rule with problems does not block saving: the gateway leaves it out.
+func (a *AppService) saveConfig(content string) (control.ValidateResult, error) {
+	if _, err := config.ParseLenient([]byte(content), a.dirs.ConfigFile); err != nil {
 		var ve *config.ValidationError
 		if errors.As(err, &ve) {
-			return control.ValidateResult{Problems: ve.Problems}
+			return control.ValidateResult{Problems: ve.Problems}, nil
 		}
-		return control.ValidateResult{Problems: []string{err.Error()}}
-	}
-	return control.ValidateResult{OK: true}
-}
-
-// SaveConfig validates and writes the config. When the gateway is running it
-// goes through the gateway (which also reloads); otherwise it writes the file.
-func (a *AppService) SaveConfig(content string) (control.ValidateResult, error) {
-	if res := a.ValidateConfig(content); !res.OK {
-		return res, nil
+		return control.ValidateResult{Problems: []string{err.Error()}}, nil
 	}
 	c, cancel := ctx()
 	defer cancel()
@@ -209,158 +166,130 @@ func (a *AppService) SaveConfig(content string) (control.ValidateResult, error) 
 	return control.ValidateResult{OK: true}, nil
 }
 
-// MatchInContent tests which route a message would start, using unsaved config content.
-func (a *AppService) MatchInContent(content, channel, text string) (control.MatchResult, error) {
-	cfg, err := config.Parse([]byte(content), a.dirs.ConfigFile)
-	if err != nil {
-		return control.MatchResult{}, err
+// OpenConfigFile opens the config file in the user's text editor.
+func (a *AppService) OpenConfigFile() error {
+	if err := a.ensureConfig(); err != nil {
+		return err
 	}
-	return control.MatchConfig(cfg, control.MatchRequest{Channel: channel, Text: text}), nil
-}
-
-// ---- tokens --------------------------------------------------------------
-
-// TokenInfo describes where a token comes from (never the value itself).
-type TokenInfo struct {
-	Name    string `json:"name"`
-	Set     bool   `json:"set"`
-	Source  string `json:"source"`
-	Preview string `json:"preview"`
-	Error   string `json:"error,omitempty"`
+	return exec.Command("open", "-t", a.dirs.ConfigFile).Run()
 }
 
 func (a *AppService) secretsFile() string {
-	if cfg, err := config.Load(a.dirs.ConfigFile); err == nil {
+	if cfg, err := config.LoadLenient(a.dirs.ConfigFile); err == nil {
 		return cfg.Settings.SecretsFile
 	}
 	return ""
 }
 
-// TokenStatus reports both tokens.
-func (a *AppService) TokenStatus() []TokenInfo {
-	sf := a.secretsFile()
-	var out []TokenInfo
-	for _, n := range []string{secret.AppToken, secret.BotToken} {
-		v, src, err := secret.Lookup(n, sf)
-		ti := TokenInfo{Name: n, Set: v != "", Source: string(src)}
-		if err != nil {
-			ti.Error = err.Error()
-		}
-		if v != "" {
-			ti.Preview = v[:min(5, len(v))] + "…" + v[max(len(v)-4, 0):]
-		}
-		out = append(out, ti)
-	}
-	return out
-}
+// ---- Slack connection ----------------------------------------------------
 
-// SaveToken stores a token in the Keychain and (re)starts the gateway.
-func (a *AppService) SaveToken(name, value string) error {
-	value = strings.TrimSpace(value)
-	switch name {
-	case secret.AppToken:
-		if !strings.HasPrefix(value, "xapp-") {
-			return errors.New("the app-level token starts with xapp-")
-		}
-	case secret.BotToken:
-		if !strings.HasPrefix(value, "xoxb-") {
-			return errors.New("the bot token starts with xoxb-")
-		}
-	default:
-		return fmt.Errorf("unknown token %q", name)
-	}
-	if err := secret.KeychainSet(name, value); err != nil {
-		return err
-	}
-	a.startAfterSetup()
-	return nil
-}
-
-// TokenTest is the result of checking one token against Slack.
-type TokenTest struct {
-	Name   string `json:"name"`
-	Set    bool   `json:"set"`
-	OK     bool   `json:"ok"`
+// TokenProblem says what is wrong with a token. Code is "format",
+// "missing_scope", "invalid_auth" (and other Slack error codes) or
+// "network"; Detail carries Slack's text.
+type TokenProblem struct {
+	Code   string `json:"code"`
 	Detail string `json:"detail,omitempty"`
-	Error  string `json:"error,omitempty"`
 }
 
-// TestTokens checks each token that is set: the bot token with auth.test,
-// the app-level token by asking Slack for a Socket Mode connection URL.
-func (a *AppService) TestTokens() []TokenTest {
-	sf := a.secretsFile()
-	appTok, _, _ := secret.Lookup(secret.AppToken, sf)
-	botTok, _, _ := secret.Lookup(secret.BotToken, sf)
+// ConnectResult is the outcome of ConnectSlack.
+type ConnectResult struct {
+	OK   bool          `json:"ok"`
+	Team string        `json:"team,omitempty"`
+	App  *TokenProblem `json:"app,omitempty"`
+	Bot  *TokenProblem `json:"bot,omitempty"`
+}
+
+// slackCodes are Slack error codes worth showing as they are.
+var slackCodes = []string{"missing_scope", "invalid_auth", "not_authed", "token_revoked", "token_expired", "account_inactive", "not_allowed_token_type"}
+
+func tokenProblem(err error) *TokenProblem {
+	msg := err.Error()
+	for _, c := range slackCodes {
+		if strings.Contains(msg, c) {
+			return &TokenProblem{Code: c}
+		}
+	}
+	return &TokenProblem{Code: "network", Detail: msg}
+}
+
+// ConnectSlack checks both tokens with Slack and, only if both work, saves
+// them in the Keychain and (re)starts the gateway. Nothing is saved before.
+func (a *AppService) ConnectSlack(appToken, botToken string) ConnectResult {
+	appToken, botToken = strings.TrimSpace(appToken), strings.TrimSpace(botToken)
+	var res ConnectResult
+	if !strings.HasPrefix(appToken, "xapp-") {
+		res.App = &TokenProblem{Code: "format"}
+	}
+	if !strings.HasPrefix(botToken, "xoxb-") {
+		res.Bot = &TokenProblem{Code: "format"}
+	}
+	if res.App != nil || res.Bot != nil {
+		return res
+	}
 	c, cancel := ctx()
 	defer cancel()
-
-	app := TokenTest{Name: secret.AppToken, Set: appTok != ""}
-	if app.Set {
-		if err := slackio.TestAppToken(c, appTok); err != nil {
-			app.Error = err.Error()
-		} else {
-			app.OK = true
-		}
+	if err := slackio.TestAppToken(c, appToken); err != nil {
+		res.App = tokenProblem(err)
 	}
-	bot := TokenTest{Name: secret.BotToken, Set: botTok != ""}
-	if bot.Set {
-		if id, err := slackio.NewWebAPI(botTok, "").AuthTest(c); err != nil {
-			bot.Error = err.Error()
-		} else {
-			bot.OK = true
-			bot.Detail = id.Team + " · " + id.UserID
-		}
+	id, err := slackio.NewWebAPI(botToken, "").AuthTest(c)
+	if err != nil {
+		res.Bot = tokenProblem(err)
 	}
-	return []TokenTest{app, bot}
+	if res.App != nil || res.Bot != nil {
+		return res
+	}
+	if err := secret.KeychainSet(secret.AppToken, appToken); err != nil {
+		res.App = &TokenProblem{Code: "keychain", Detail: err.Error()}
+		return res
+	}
+	if err := secret.KeychainSet(secret.BotToken, botToken); err != nil {
+		res.Bot = &TokenProblem{Code: "keychain", Detail: err.Error()}
+		return res
+	}
+	a.chMu.Lock()
+	a.channels = map[string]Channel{}
+	a.chMu.Unlock()
+	a.startAfterSetup()
+	res.OK, res.Team = true, id.Team
+	return res
 }
 
-// Manifest returns the Slack app manifest.
-func (a *AppService) Manifest() string { return assets.SlackAppManifest }
-
-// CopyManifest puts the manifest on the clipboard.
-func (a *AppService) CopyManifest() bool { return a.app.Clipboard.SetText(assets.SlackAppManifest) }
-
-// ---- background service --------------------------------------------------
-
-// ServiceInfo describes a `sockdock service install` background service
-// (used without the app). When one runs, the app shows it instead of
-// starting its own gateway.
-type ServiceInfo struct {
-	Installed bool   `json:"installed"`
-	Detail    string `json:"detail"`
-}
-
-// ServiceStatus reports whether the CLI background service is installed and loaded.
-func (a *AppService) ServiceStatus() ServiceInfo {
-	detail, ok := service.Status()
-	return ServiceInfo{Installed: ok, Detail: detail}
-}
-
-// UninstallService removes the CLI background service and lets the app run
-// the gateway itself.
-func (a *AppService) UninstallService() error {
-	if err := service.Uninstall(); err != nil {
-		return err
+// DisconnectSlack removes the tokens from the Keychain and stops the gateway.
+func (a *AppService) DisconnectSlack() error {
+	a.emb.Stop(30 * time.Second)
+	_ = secret.KeychainDelete(secret.AppToken)
+	_ = secret.KeychainDelete(secret.BotToken)
+	sf := a.secretsFile()
+	app, _, _ := secret.Lookup(secret.AppToken, sf)
+	bot, _, _ := secret.Lookup(secret.BotToken, sf)
+	defer a.emb.Start() // reports "setup" without tokens
+	if app != "" || bot != "" {
+		return errors.New(a.tr("err.disconnectEnv"))
 	}
-	// Give launchd a moment to release the lock, then take over.
-	go func() {
-		time.Sleep(2 * time.Second)
-		a.emb.Start()
-	}()
 	return nil
 }
 
-// ---- Claude Code ---------------------------------------------------------
+// hasTokens reports whether both tokens are available.
+func (a *AppService) hasTokens() bool {
+	sf := a.secretsFile()
+	app, _, _ := secret.Lookup(secret.AppToken, sf)
+	bot, _, _ := secret.Lookup(secret.BotToken, sf)
+	return app != "" && bot != ""
+}
 
-// DetectClaude finds Claude Code executables worth suggesting for settings.claude_command.
-func (a *AppService) DetectClaude() []string { return detectClaude() }
+// OpenSlackAppPage opens api.slack.com's "create an app" page with the
+// manifest filled in.
+func (a *AppService) OpenSlackAppPage() error {
+	return a.app.Browser.OpenURL("https://api.slack.com/apps?new_app=1&manifest_yaml=" + url.QueryEscape(assets.SlackAppManifest))
+}
 
 // ---- app preferences -----------------------------------------------------
 
-// Prefs are GUI-only preferences.
+// Prefs are GUI preferences.
 type Prefs struct {
 	Notifications bool `json:"notifications"`
-	// Language is "auto" (follow the system), "en" or "ja".
+	// Language is "auto" (follow the system), "en" or "ja". It is used for
+	// the app and for the messages posted to Slack.
 	Language string `json:"language"`
 }
 
@@ -378,11 +307,13 @@ func (a *AppService) GetPrefs() Prefs {
 	return p
 }
 
-// SetPrefs writes GUI preferences. A language change is applied right away.
+// SetPrefs writes GUI preferences. A language change is applied right away,
+// to the app and to the messages posted to Slack (settings.language).
 func (a *AppService) SetPrefs(p Prefs) error {
 	if !locale.Valid(p.Language) {
 		return fmt.Errorf("unsupported language %q", p.Language)
 	}
+	old := a.GetPrefs()
 	before := a.Locale()
 	b, _ := json.MarshalIndent(p, "", "  ")
 	if err := os.MkdirAll(a.dirs.DataDir, 0o700); err != nil {
@@ -390,6 +321,11 @@ func (a *AppService) SetPrefs(p Prefs) error {
 	}
 	if err := os.WriteFile(a.prefsPath(), b, 0o600); err != nil {
 		return err
+	}
+	if p.Language != old.Language {
+		if err := a.syncLanguage(p.Language); err != nil {
+			return err
+		}
 	}
 	if after := a.Locale(); after != before {
 		a.app.Event.Emit(evLocale, after)
@@ -400,19 +336,37 @@ func (a *AppService) SetPrefs(p Prefs) error {
 	return nil
 }
 
+// syncLanguage writes the language into the config so canned Slack
+// messages use the same language as the app.
+func (a *AppService) syncLanguage(lang string) error {
+	data, _, err := a.readRaw()
+	if err != nil {
+		return err
+	}
+	content, err := config.SetSetting(data, "language", lang)
+	if err != nil {
+		return err
+	}
+	res, err := a.saveConfig(string(content))
+	if err != nil {
+		return err
+	}
+	if !res.OK {
+		return errors.New(strings.Join(res.Problems, "\n"))
+	}
+	return nil
+}
+
 // Locale returns the language the UI should use ("en" or "ja").
 func (a *AppService) Locale() string { return locale.Resolve(a.GetPrefs().Language) }
 
-// Languages lists the supported UI languages.
-func (a *AppService) Languages() []string { return locale.Supported }
-
-// LaunchAtLogin reports whether the GUI starts at login.
+// LaunchAtLogin reports whether the app starts at login.
 func (a *AppService) LaunchAtLogin() bool {
 	on, _ := a.app.Autostart.IsEnabled()
 	return on
 }
 
-// SetLaunchAtLogin turns starting the GUI at login on or off.
+// SetLaunchAtLogin turns starting the app at login on or off.
 func (a *AppService) SetLaunchAtLogin(on bool) error {
 	if on {
 		return a.app.Autostart.Enable()
@@ -422,42 +376,41 @@ func (a *AppService) SetLaunchAtLogin(on bool) error {
 
 // ---- windows and misc ----------------------------------------------------
 
-// AppInfo is shown in the About section.
-type AppInfo struct {
-	Version    string `json:"version"`
-	ConfigPath string `json:"config_path"`
-	DataDir    string `json:"data_dir"`
-	LogDir     string `json:"log_dir"`
-}
+// Version returns the app version.
+func (a *AppService) Version() string { return a.version }
 
-// Info returns app paths and version.
-func (a *AppService) Info() AppInfo {
-	return AppInfo{Version: a.version, ConfigPath: a.dirs.ConfigFile, DataDir: a.dirs.DataDir, LogDir: a.dirs.LogDir}
-}
-
-// OpenWindow shows the main window on a tab.
-func (a *AppService) OpenWindow(tab string) {
-	if a.popover != nil {
-		a.popover.Hide()
-	}
+// OpenMain shows the main window. view is "" (the rule list) or a rule name.
+func (a *AppService) OpenMain(view string) {
 	if a.main == nil {
 		return
 	}
-	a.app.Event.Emit(evNavigate, tab)
+	a.app.Event.Emit(evNavigate, view)
 	a.main.Show()
 	a.main.Focus()
 }
 
-// OpenURL opens a link in the default browser.
-func (a *AppService) OpenURL(url string) error {
-	if !strings.HasPrefix(url, "https://") {
-		return errors.New("only https links can be opened")
+// OpenSettings shows the settings window.
+func (a *AppService) OpenSettings() {
+	if a.settings == nil {
+		return
 	}
-	return a.app.Browser.OpenURL(url)
+	a.settings.SetTitle(a.tr("title.settings"))
+	a.settings.Show()
+	a.settings.Focus()
 }
 
-// RevealLogs opens the log folder in Finder.
-func (a *AppService) RevealLogs() error { return exec.Command("open", a.dirs.LogDir).Run() }
+// OpenURL opens a link in the default browser.
+func (a *AppService) OpenURL(link string) error {
+	if !strings.HasPrefix(link, "https://") {
+		return errors.New("only https links can be opened")
+	}
+	return a.app.Browser.OpenURL(link)
+}
 
-// Quit exits the GUI (the gateway keeps running).
-func (a *AppService) Quit() { a.app.Quit() }
+// ShowLogs opens the gateway log (in Console).
+func (a *AppService) ShowLogs() error {
+	if _, err := os.Stat(a.dirs.LogFile()); err != nil {
+		return exec.Command("open", a.dirs.LogDir).Run()
+	}
+	return exec.Command("open", a.dirs.LogFile()).Run()
+}

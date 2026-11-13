@@ -76,8 +76,9 @@ func TestControlAPI(t *testing.T) {
 		t.Error("route not paused")
 	}
 
-	// Invalid config is rejected and the file is untouched.
-	err = c.PutConfig(ctx, "routes:\n  - name: broken\n")
+	// Invalid config (a bad setting) is rejected and the file is untouched.
+	// A bad route alone is not: it is left out when loading.
+	err = c.PutConfig(ctx, "settings:\n  language: xx\n")
 	if err == nil || !strings.Contains(err.Error(), "invalid config") {
 		t.Fatalf("expected validation error, got %v", err)
 	}

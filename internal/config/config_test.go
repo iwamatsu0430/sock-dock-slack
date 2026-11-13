@@ -157,7 +157,7 @@ func TestLanguageSelectsMessages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ja.Settings.ResolvedLanguage != "ja" || !strings.Contains(ja.Settings.Messages.Timeout, "制限時間") {
+	if ja.Settings.ResolvedLanguage != "ja" || !strings.Contains(ja.Settings.Messages.Timeout, "上限時間") {
 		t.Fatalf("ja messages not applied: %+v", ja.Settings.Messages)
 	}
 	if ja.Settings.Messages.Error != "custom" {
@@ -169,5 +169,42 @@ func TestLanguageSelectsMessages(t *testing.T) {
 	}
 	if _, err := Parse([]byte("settings:\n  language: de\n"+base), "c.yaml"); err == nil || !strings.Contains(err.Error(), "settings.language") {
 		t.Fatalf("unsupported language should be rejected, got %v", err)
+	}
+}
+
+func TestParseLenientLeavesOutBrokenRoutes(t *testing.T) {
+	dir := t.TempDir()
+	content := []byte(`
+routes:
+  - name: good
+    channel: C1
+    match: '^ok'
+    handler:
+      type: command
+      cwd: ` + dir + `
+      command: [/bin/echo]
+  - name: missing-folder
+    channel: C1
+    match: '^bad'
+    handler:
+      type: command
+      cwd: ` + dir + `/nope
+      command: [/bin/echo]
+`)
+	if _, err := Parse(content, "cfg.yaml"); err == nil {
+		t.Fatal("strict Parse should fail")
+	}
+	cfg, err := ParseLenient(content, "cfg.yaml")
+	if err != nil {
+		t.Fatalf("lenient: %v", err)
+	}
+	if len(cfg.Routes) != 1 || cfg.Routes[0].Name != "good" {
+		t.Fatalf("routes = %+v", cfg.Routes)
+	}
+	if len(cfg.Broken) != 1 || cfg.Broken[0].Name != "missing-folder" || !strings.Contains(cfg.Broken[0].Problems[0], "not a directory") {
+		t.Fatalf("broken = %+v", cfg.Broken)
+	}
+	if _, err := ParseLenient([]byte("settings:\n  language: xx\n"), "cfg.yaml"); err == nil {
+		t.Fatal("settings problems should still fail")
 	}
 }

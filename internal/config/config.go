@@ -29,6 +29,14 @@ type Config struct {
 
 	// Path is the file this config was loaded from.
 	Path string `yaml:"-"`
+	// Broken lists routes left out by ParseLenient because of problems.
+	Broken []BrokenRoute `yaml:"-"`
+}
+
+// BrokenRoute is a route that could not be used, and why.
+type BrokenRoute struct {
+	Name     string   `json:"name"`
+	Problems []string `json:"problems"`
 }
 
 // Settings are gateway-wide options.
@@ -53,6 +61,7 @@ type Settings struct {
 type Messages struct {
 	Timeout      string `yaml:"timeout"`
 	Error        string `yaml:"error"`
+	Stopped      string `yaml:"stopped"`
 	Interrupted  string `yaml:"interrupted"`
 	RouteMissing string `yaml:"route_missing"`
 	RoutePaused  string `yaml:"route_paused"`
@@ -125,20 +134,22 @@ var DefaultMessages = defaultMessages["en"]
 // defaultMessages are used when a message is not set in the config, per language.
 var defaultMessages = map[string]Messages{
 	"en": {
-		Timeout:      "⏱ The handler did not finish within {timeout_sec} seconds. Try again, or split the request.",
-		Error:        "⚠️ Something went wrong while handling this (route: {route}). See the sockdock log for details.",
-		Interrupted:  "⚠️ sockdock restarted while this was being handled. Please send your message again.",
-		RouteMissing: "⚠️ The route for this thread ({route}) is no longer in the config.",
-		RoutePaused:  "⏸ The route for this thread ({route}) is paused.",
-		ResumeFailed: "ℹ️ Could not resume the previous conversation, so a new one was started.",
+		Timeout:      "⏱ Stopped because it ran past the time limit ({timeout_sec} seconds). Try sending it in smaller parts.",
+		Error:        "⚠️ This failed. The reason is shown in SockDock on the Mac.",
+		Stopped:      "⏹ Stopped.",
+		Interrupted:  "⚠️ Stopped because SockDock quit while this was running. Please send it again.",
+		RouteMissing: "⚠️ The rule for this thread has been deleted.",
+		RoutePaused:  "⏸ The rule for this thread is turned off.",
+		ResumeFailed: "ℹ️ Couldn't pick up the previous conversation, so this started a new one.",
 	},
 	"ja": {
-		Timeout:      "⏱ 制限時間（{timeout_sec} 秒）内に処理が終わりませんでした。もう一度送るか、内容を分けて送ってください。",
-		Error:        "⚠️ 処理中にエラーが起きました（ルート: {route}）。詳しくは sockdock のログを見てください。",
-		Interrupted:  "⚠️ 処理中に sockdock が再起動したため、中断しました。もう一度送ってください。",
-		RouteMissing: "⚠️ このスレッドのルート（{route}）が設定にありません。",
-		RoutePaused:  "⏸ このスレッドのルート（{route}）は一時停止中です。",
-		ResumeFailed: "ℹ️ 前の会話を再開できなかったため、新しい会話として始めました。",
+		Timeout:      "⏱ 上限時間（{timeout_sec} 秒）を超えたため停止しました。内容を分けて送ってください。",
+		Error:        "⚠️ 処理に失敗しました。理由は Mac の SockDock で確認できます。",
+		Stopped:      "⏹ 処理を停止しました。",
+		Interrupted:  "⚠️ 処理の途中で SockDock が終了したため、停止しました。もう一度送ってください。",
+		RouteMissing: "⚠️ このスレッドのルールは削除されています。",
+		RoutePaused:  "⏸ このスレッドのルールはオフになっています。",
+		ResumeFailed: "ℹ️ 前の会話を引き継げなかったため、新しい会話として始めました。",
 	},
 }
 
@@ -177,16 +188,64 @@ func Load(path string) (*Config, error) {
 // Parse is Load for in-memory content. path is used for error messages and
 // for resolving a relative secrets_file.
 func Parse(data []byte, path string) (*Config, error) {
-	var c Config
-	if err := yaml.UnmarshalWithOptions(data, &c, yaml.DisallowUnknownField()); err != nil {
-		return nil, fmt.Errorf("parse %s: %w", path, err)
+	c, global, broken, err := parse(data, path)
+	if err != nil {
+		return nil, err
+	}
+	for _, b := range broken {
+		global = append(global, b.Problems...)
+	}
+	if len(global) > 0 {
+		return nil, &ValidationError{Problems: global}
+	}
+	return c, nil
+}
+
+// LoadLenient is Load, but leaves out routes with problems (listed in
+// Config.Broken) instead of failing, so one bad route does not stop the rest.
+func LoadLenient(path string) (*Config, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return ParseLenient(data, path)
+}
+
+// ParseLenient is LoadLenient for in-memory content. It fails only on
+// problems outside routes (YAML syntax, settings).
+func ParseLenient(data []byte, path string) (*Config, error) {
+	c, global, broken, err := parse(data, path)
+	if err != nil {
+		return nil, err
+	}
+	if len(global) > 0 {
+		return nil, &ValidationError{Problems: global}
+	}
+	if len(broken) > 0 {
+		bad := map[string]bool{}
+		for _, b := range broken {
+			bad[b.Name] = true
+		}
+		kept := c.Routes[:0:0]
+		for _, r := range c.Routes {
+			if !bad[r.Name] {
+				kept = append(kept, r)
+			}
+		}
+		c.Routes, c.Broken = kept, broken
+	}
+	return c, nil
+}
+
+func parse(data []byte, path string) (c *Config, global []string, broken []BrokenRoute, err error) {
+	c = &Config{}
+	if err := yaml.UnmarshalWithOptions(data, c, yaml.DisallowUnknownField()); err != nil {
+		return nil, nil, nil, fmt.Errorf("parse %s: %w", path, err)
 	}
 	c.Path = path
 	c.applyDefaults()
-	if err := c.prepare(os.LookupEnv); err != nil {
-		return nil, err
-	}
-	return &c, nil
+	global, broken = c.prepare(os.LookupEnv)
+	return c, global, broken, nil
 }
 
 func (c *Config) applyDefaults() {
@@ -209,7 +268,7 @@ func (c *Config) applyDefaults() {
 		v   *string
 		def string
 	}{
-		{&m.Timeout, d.Timeout}, {&m.Error, d.Error}, {&m.Interrupted, d.Interrupted},
+		{&m.Timeout, d.Timeout}, {&m.Error, d.Error}, {&m.Stopped, d.Stopped}, {&m.Interrupted, d.Interrupted},
 		{&m.RouteMissing, d.RouteMissing}, {&m.RoutePaused, d.RoutePaused}, {&m.ResumeFailed, d.ResumeFailed},
 	} {
 		if *p.v == "" {
@@ -227,10 +286,10 @@ func (c *Config) applyDefaults() {
 	}
 }
 
-// prepare expands ${VAR} references and validates every route.
-func (c *Config) prepare(lookupEnv func(string) (string, bool)) error {
-	var probs []string
-	add := func(format string, a ...any) { probs = append(probs, fmt.Sprintf(format, a...)) }
+// prepare expands ${VAR} references and validates every route. It returns
+// problems outside routes and, per route, the routes with problems.
+func (c *Config) prepare(lookupEnv func(string) (string, bool)) (global []string, broken []BrokenRoute) {
+	add := func(format string, a ...any) { global = append(global, fmt.Sprintf(format, a...)) }
 
 	if !locale.Valid(c.Settings.Language) {
 		add("settings.language: %q is not supported (use auto, %s)", c.Settings.Language, strings.Join(locale.Supported, ", "))
@@ -256,6 +315,8 @@ func (c *Config) prepare(lookupEnv func(string) (string, bool)) error {
 
 	seen := map[string]bool{}
 	for i, r := range c.Routes {
+		var probs []string
+		add := func(format string, a ...any) { probs = append(probs, fmt.Sprintf(format, a...)) }
 		label := fmt.Sprintf("routes[%d]", i)
 		if r.Name != "" {
 			label = fmt.Sprintf("route %q", r.Name)
@@ -363,11 +424,27 @@ func (c *Config) prepare(lookupEnv func(string) (string, bool)) error {
 		default:
 			add("%s: unknown handler.type %q (command or claude)", label, h.Type)
 		}
+		if len(probs) > 0 {
+			name := r.Name
+			if name == "" || countName(c.Routes, name) > 1 {
+				// Unnamed or duplicate: keep it distinct so only this one is left out.
+				name = label
+				r.Name = label
+			}
+			broken = append(broken, BrokenRoute{Name: name, Problems: probs})
+		}
 	}
-	if len(probs) > 0 {
-		return &ValidationError{Problems: probs}
+	return global, broken
+}
+
+func countName(routes []*Route, name string) int {
+	n := 0
+	for _, r := range routes {
+		if r.Name == name {
+			n++
+		}
 	}
-	return nil
+	return n
 }
 
 // ClaudeCommandFor returns the command (and leading args) used to start

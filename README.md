@@ -97,13 +97,13 @@ Post `echo hello` in the channel: SockDock reacts with 👀, runs the handler an
 
 With the app you do not need steps 3–5 above or any YAML. `open dist/SockDock.app` (or `mise run gui`):
 
-1. **Overview** shows the setup until the gateway runs: copy the manifest, save and test the two tokens (each is checked separately), and turn on **Open SockDock at login**. The app creates the config file itself and runs the gateway while it is open — there is no separate service to install. Quitting the app from the menu bar stops the gateway.
-2. **Routes → Add a route**: pick the channel (channels the bot is in are listed; this needs the `channels:read`/`groups:read` scopes from the bundled manifest, otherwise paste the channel link), type the keyword that starts a message, and choose what to run — Claude Code in a project folder (with instructions and checkboxes for what it may do) or a program. Problems are shown next to each field. Claude Code's location is detected and saved automatically.
+1. **Setup** (first launch): *Open api.slack.com* opens Slack's "create an app" page with the manifest filled in. Install the app, generate an App-Level Token with `connections:write`, then paste both tokens and press **Connect to Slack**. The tokens are checked with Slack first and saved to the Keychain only if both work.
+2. **Rules → Add Rule**: pick the channel (channels the Slack app has been added to are listed; without the `channels:read`/`groups:read` scopes, enter a channel ID or link), type the keyword that starts a post, and choose what runs — an AI agent (Claude Code) in a working folder, with instructions and what it may do, or a program. Each rule shows its last run; open it for recent runs, thread links and **Stop**.
 3. Post `<keyword> …` in the channel.
 
-The config file stays editable in the **Config** tab for advanced use.
+The app runs the gateway while it is open — there is no separate service to install. Clicking the menu bar icon shows the connection, running and recent runs; **Settings… (⌘,)** has the Slack connection, *Open at login*, notifications and the language (also used for the messages posted to Slack). **Open Config File** opens the YAML in your editor for anything the form does not cover. A rule with a problem (e.g. a missing folder) is shown in red and left out; the other rules keep running.
 
-If a `sockdock service install` service is already running, the app only shows its status (the setup section offers to remove the service so the app can take over).
+If a `sockdock service install` service is already running, the app shows its state and does not start its own gateway.
 
 ## Handlers
 
@@ -117,7 +117,7 @@ Every handler receives this JSON (on stdin for command handlers):
   "thread_ts": "1762920000.000100",
   "permalink": "https://example.slack.com/archives/C0123456789/p1762920000000100",
   "groups": { "body": "hello" },
-  "messages": [{ "ts": "1762920000.000100", "user": "U0123", "text": "echo hello", "files": [] }]
+  "messages": [{ "ts": "1762920000.000100", "user": "U0123", "text": "echo hello" }]
 }
 ```
 
@@ -135,7 +135,7 @@ handler:
 ```
 
 - stdout is posted to the thread (nothing is posted if it is empty), so a handler can also post on its own.
-- Environment: `SLACK_BOT_TOKEN`, `SLACK_CHANNEL`, `SLACK_THREAD_TS`, `SOCKDOCK_ROUTE`, `SOCKDOCK_TURN`, plus `env_file`/`env`. The app-level token is never passed.
+- Environment: `SLACK_CHANNEL`, `SLACK_THREAD_TS`, `SOCKDOCK_ROUTE`, `SOCKDOCK_TURN`, plus `env_file`/`env`. Slack tokens are never passed: the reply is whatever the handler prints.
 - A non-zero exit or a timeout posts a short error; stderr goes to the log only.
 
 ### claude

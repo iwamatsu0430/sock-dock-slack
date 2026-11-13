@@ -10,6 +10,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -116,6 +117,17 @@ func (c *Client) Threads(ctx context.Context, limit int) ([]store.Thread, error)
 func (c *Client) Turns(ctx context.Context, limit int) ([]store.Turn, error) {
 	var out []store.Turn
 	return out, c.do(ctx, http.MethodGet, fmt.Sprintf("/v1/turns?limit=%d", limit), nil, &out)
+}
+
+// RouteTurns returns recent handler runs of one route.
+func (c *Client) RouteTurns(ctx context.Context, route string, limit int) ([]store.Turn, error) {
+	var out []store.Turn
+	return out, c.do(ctx, http.MethodGet, fmt.Sprintf("/v1/turns?route=%s&limit=%d", url.QueryEscape(route), limit), nil, &out)
+}
+
+// StopTurn stops a running handler run.
+func (c *Client) StopTurn(ctx context.Context, id int64) error {
+	return c.do(ctx, http.MethodPost, fmt.Sprintf("/v1/turns/%d/stop", id), nil, nil)
 }
 
 // Match asks which route a message would hit.

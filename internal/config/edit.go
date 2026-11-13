@@ -11,7 +11,7 @@ import (
 
 // MinimalConfig is written when no config exists yet (by the menu bar app):
 // a gateway with no routes is valid and connects to Slack.
-const MinimalConfig = `# SockDock for Slack config. Routes are usually edited in the app (Routes tab).
+const MinimalConfig = `# SockDock for Slack config. Rules (routes) are usually edited in the app.
 settings:
   language: auto
 

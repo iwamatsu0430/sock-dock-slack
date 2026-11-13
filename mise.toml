@@ -10,6 +10,7 @@ node = "24"
 # Point sockdock at a throwaway directory during development, e.g.:
 #   SOCKDOCK_DATA_DIR = "{{config_root}}/.dev"
 #   SOCKDOCK_CONFIG = "{{config_root}}/.dev/config.yaml"
+#   SOCKDOCK_KEYCHAIN_SERVICE = "sockdock-dev"   # keep the real tokens untouched
 
 [tasks.build]
 description = "Build the sockdock CLI (gateway + CLI) into bin/"

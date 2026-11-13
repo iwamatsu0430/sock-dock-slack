@@ -1,10 +1,11 @@
-// Command sockdock-gui is the menu bar app for SockDock for Slack. It is a thin
-// client of the sockdock gateway's control API; the gateway itself runs as a
-// separate background service.
+// Command sockdock-gui is the menu bar app for SockDock for Slack. It runs
+// the gateway in-process and talks to it through the control API.
 package main
 
 import (
+	"crypto/sha256"
 	"embed"
+	"fmt"
 	"io/fs"
 	"log"
 	"log/slog"
@@ -32,6 +33,16 @@ func init() {
 	application.RegisterEvent[string](evLocale)
 }
 
+// instanceID keeps a development copy (SOCKDOCK_DATA_DIR set) separate from
+// the installed app.
+func instanceID() string {
+	id := "io.github.iwamatsu0430.sockdock.gui"
+	if d := os.Getenv("SOCKDOCK_DATA_DIR"); d != "" {
+		id += "." + fmt.Sprintf("%x", sha256.Sum256([]byte(d)))[:12]
+	}
+	return id
+}
+
 func main() {
 	dist, err := fs.Sub(frontendFS, "frontend/dist")
 	if err != nil {
@@ -51,9 +62,9 @@ func main() {
 		// Quitting the app stops the gateway it runs.
 		OnShutdown: func() { svc.emb.Stop(15 * time.Second) },
 		SingleInstance: &application.SingleInstanceOptions{
-			UniqueID: "io.github.iwamatsu0430.sockdock.gui",
+			UniqueID: instanceID(),
 			OnSecondInstanceLaunch: func(application.SecondInstanceData) {
-				svc.OpenWindow("overview")
+				svc.OpenMain("")
 			},
 		},
 	})
@@ -63,70 +74,47 @@ func main() {
 	tray.SetTemplateIcon(brand.TrayIcon(brand.TrayDisconnected))
 	tray.SetTooltip("SockDock")
 
-	popover := app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Name:            "tray",
-		Title:           "SockDock",
-		URL:             "/#/tray",
-		Width:           380,
-		Height:          520,
-		Frameless:       true,
-		AlwaysOnTop:     true,
-		Hidden:          true,
-		DisableResize:   true,
-		HideOnEscape:    true,
-		HideOnFocusLost: true,
-		Mac: application.MacWindow{
-			Backdrop: application.MacBackdropTranslucent,
-		},
-	})
-	tray.AttachWindow(popover).WindowOffset(6)
-
+	keys := map[string]func(application.Window){
+		"CmdOrCtrl+,": func(application.Window) { svc.OpenSettings() },
+		"CmdOrCtrl+w": func(w application.Window) { w.Hide() },
+	}
 	main := app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Name:      "main",
-		Title:     "SockDock",
-		URL:       "/#/main",
-		Width:     1000,
-		Height:    700,
-		MinWidth:  760,
-		MinHeight: 520,
-		Hidden:    true,
-		Mac: application.MacWindow{
-			InvisibleTitleBarHeight: 40,
-			TitleBar:                application.MacTitleBarHiddenInset,
-		},
+		Name:        "main",
+		Title:       "SockDock",
+		URL:         "/#/main",
+		Width:       760,
+		Height:      600,
+		MinWidth:    600,
+		MinHeight:   440,
+		Hidden:      true,
+		KeyBindings: keys,
 	})
-	// Closing the window only hides it; the app lives in the menu bar.
-	main.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
-		main.Hide()
-		e.Cancel()
+	settings := app.Window.NewWithOptions(application.WebviewWindowOptions{
+		Name:          "settings",
+		Title:         svc.tr("title.settings"),
+		URL:           "/#/settings",
+		Width:         520,
+		Height:        460,
+		Hidden:        true,
+		DisableResize: true,
+		KeyBindings:   keys,
 	})
-	svc.popover, svc.main = popover, main
-
-	menu := app.NewMenu()
-	openItem := menu.Add(svc.tr("menu.open")).OnClick(func(*application.Context) { svc.OpenWindow("overview") })
-	reloadItem := menu.Add(svc.tr("menu.reload")).OnClick(func(*application.Context) { _ = svc.Reload() })
-	menu.AddSeparator()
-	quitItem := menu.Add(svc.tr("menu.quit")).OnClick(func(*application.Context) { app.Quit() })
-	// Labels depend on the language and on whether quitting stops the gateway.
-	relabel := func() {
-		openItem.SetLabel(svc.tr("menu.open"))
-		reloadItem.SetLabel(svc.tr("menu.reload"))
-		if svc.emb.State().State == GatewayRunning {
-			quitItem.SetLabel(svc.tr("menu.quitStops"))
-		} else {
-			quitItem.SetLabel(svc.tr("menu.quit"))
-		}
-		menu.Update()
+	// Closing a window only hides it; the app lives in the menu bar.
+	for _, w := range []*application.WebviewWindow{main, settings} {
+		w.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
+			w.Hide()
+			e.Cancel()
+		})
 	}
-	svc.onLocale = relabel
-	// Left click toggles the popover; right click opens this menu.
-	tray.SetMenu(menu)
+	svc.main, svc.settings = main, settings
 
+	// Clicking the menu bar icon opens the menu (built by the monitor).
 	mon := newMonitor(svc, tray)
-	svc.emb.onChange = func() {
-		relabel()
-		go mon.refresh()
+	svc.onLocale = func() {
+		settings.SetTitle(svc.tr("title.settings"))
+		go mon.relabel()
 	}
+	svc.emb.onChange = func() { go mon.refresh() }
 	go mon.run()
 
 	// Run the gateway inside the app. Apps opened from Finder get a minimal
@@ -137,11 +125,12 @@ func main() {
 		svc.emb.Start()
 	}()
 
-	if len(os.Args) > 1 && os.Args[1] == "--show" {
-		app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
-			svc.OpenWindow("overview")
-		})
-	}
+	// Show the window on first launch (setup) and when asked to.
+	app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
+		if (len(os.Args) > 1 && os.Args[1] == "--show") || !svc.hasTokens() {
+			svc.OpenMain("")
+		}
+	})
 
 	if err := app.Run(); err != nil {
 		log.Fatal(err)

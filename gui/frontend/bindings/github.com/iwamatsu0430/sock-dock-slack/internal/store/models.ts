@@ -6,60 +6,6 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
- * Thread is a Slack thread bound to a route.
- */
-export class Thread {
-    "channel": string;
-    "thread_ts": string;
-    "route": string;
-    "groups": { [_ in string]?: string };
-    "session_id"?: string;
-    "permalink"?: string;
-    "turns": number;
-    "created_at": string;
-    "last_active_at": string;
-
-    /** Creates a new Thread instance. */
-    constructor($$source: Partial<Thread> = {}) {
-        if (!("channel" in $$source)) {
-            this["channel"] = "";
-        }
-        if (!("thread_ts" in $$source)) {
-            this["thread_ts"] = "";
-        }
-        if (!("route" in $$source)) {
-            this["route"] = "";
-        }
-        if (!("groups" in $$source)) {
-            this["groups"] = {};
-        }
-        if (!("turns" in $$source)) {
-            this["turns"] = 0;
-        }
-        if (!("created_at" in $$source)) {
-            this["created_at"] = "0001-01-01T00:00:00.000Z";
-        }
-        if (!("last_active_at" in $$source)) {
-            this["last_active_at"] = "0001-01-01T00:00:00.000Z";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new Thread instance from a string or object.
-     */
-    static createFrom($$source: any = {}): Thread {
-        const $$createField3_0 = $$createType0;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("groups" in $$parsedSource) {
-            $$parsedSource["groups"] = $$createField3_0($$parsedSource["groups"]);
-        }
-        return new Thread($$parsedSource as Partial<Thread>);
-    }
-}
-
-/**
  * Turn is one handler run.
  */
 export class Turn {
@@ -73,6 +19,11 @@ export class Turn {
     "started_at": string;
     "finished_at"?: string | null;
     "cost_usd"?: number;
+
+    /**
+     * Permalink is the thread's link (from the threads table).
+     */
+    "permalink"?: string;
 
     /** Creates a new Turn instance. */
     constructor($$source: Partial<Turn> = {}) {
@@ -105,7 +56,7 @@ export class Turn {
      * Creates a new Turn instance from a string or object.
      */
     static createFrom($$source: any = {}): Turn {
-        const $$createField3_0 = $$createType1;
+        const $$createField3_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("message_ts" in $$parsedSource) {
             $$parsedSource["message_ts"] = $$createField3_0($$parsedSource["message_ts"]);
@@ -115,5 +66,4 @@ export class Turn {
 }
 
 // Private type creation functions
-const $$createType0 = $Create.Map($Create.Any, $Create.Any);
-const $$createType1 = $Create.Array($Create.Any);
+const $$createType0 = $Create.Array($Create.Any);

@@ -14,6 +14,7 @@ import (
 	"github.com/iwamatsu0430/sock-dock-slack/internal/config"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/paths"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/secret"
+	"github.com/iwamatsu0430/sock-dock-slack/internal/store"
 )
 
 // RouteForm is a route as the app's form edits it: plain choices instead of
@@ -21,7 +22,9 @@ import (
 type RouteForm struct {
 	// OriginalName is the name before editing ("" for a new route).
 	OriginalName string `json:"original_name"`
-	Name         string `json:"name"`
+	// Name is the route's name in the config. The app does not show it; a
+	// new route gets one automatically.
+	Name string `json:"name"`
 	// Channel is a channel ID or a pasted channel link.
 	Channel string `json:"channel"`
 	// Trigger is "keyword" (message starts with Keyword) or "regex".
@@ -219,16 +222,15 @@ func (a *AppService) validateForm(f RouteForm, raw *config.Config) []FieldProble
 		ps = append(ps, FieldProblem{Field: field, Code: code, Detail: detail})
 	}
 
-	name := strings.TrimSpace(f.Name)
-	switch {
-	case name == "":
-		add("name", "required", "")
-	case !nameOK.MatchString(name):
-		add("name", "bad_name", "")
-	default:
-		for _, r := range raw.Routes {
-			if r.Name == name && r.Name != f.OriginalName {
-				add("name", "duplicate", "")
+	if name := strings.TrimSpace(f.Name); name != "" {
+		switch {
+		case !nameOK.MatchString(name):
+			add("name", "bad_name", "")
+		default:
+			for _, r := range raw.Routes {
+				if r.Name == name && r.Name != f.OriginalName {
+					add("name", "duplicate", "")
+				}
 			}
 		}
 	}
@@ -301,6 +303,9 @@ func (a *AppService) SaveRoute(f RouteForm) (RouteSaveResult, error) {
 	if err != nil {
 		return RouteSaveResult{ConfigProblems: []string{err.Error()}}, nil
 	}
+	if strings.TrimSpace(f.Name) == "" {
+		f.Name = autoName(raw)
+	}
 	if ps := a.validateForm(f, raw); len(ps) > 0 {
 		return RouteSaveResult{Problems: ps}, nil
 	}
@@ -337,7 +342,7 @@ func (a *AppService) SaveRoute(f RouteForm) (RouteSaveResult, error) {
 		}
 	}
 
-	saved, err := a.SaveConfig(string(content))
+	saved, err := a.saveConfig(string(content))
 	if err != nil {
 		return RouteSaveResult{}, err
 	}
@@ -377,7 +382,7 @@ func (a *AppService) DeleteRoute(name string) (RouteSaveResult, error) {
 	if err != nil {
 		return RouteSaveResult{}, err
 	}
-	saved, err := a.SaveConfig(string(content))
+	saved, err := a.saveConfig(string(content))
 	if err != nil {
 		return RouteSaveResult{}, err
 	}
@@ -431,7 +436,135 @@ func (a *AppService) ListChannels() ChannelList {
 		cursor = next
 	}
 	slices.SortFunc(out, func(x, y Channel) int { return strings.Compare(x.Name, y.Name) })
+	a.chMu.Lock()
+	for _, ch := range out {
+		a.channels[ch.ID] = ch
+	}
+	a.chMu.Unlock()
 	return ChannelList{Channels: out}
+}
+
+// ChannelName returns "#name" (or "🔒name") for a channel ID or link, or ""
+// when it cannot be looked up (conversations.info needs channels:read).
+func (a *AppService) ChannelName(idOrLink string) string {
+	id := normalizeChannel(idOrLink)
+	if !channelID.MatchString(id) {
+		return ""
+	}
+	a.chMu.Lock()
+	ch, ok := a.channels[id]
+	a.chMu.Unlock()
+	if !ok {
+		ch = Channel{ID: id}
+		if bot, _, _ := secret.Lookup(secret.BotToken, a.secretsFile()); bot != "" {
+			c, cancel := ctx()
+			info, err := slack.New(bot).GetConversationInfoContext(c, &slack.GetConversationInfoInput{ChannelID: id})
+			cancel()
+			if err == nil {
+				ch = Channel{ID: id, Name: info.Name, Private: info.IsPrivate}
+			}
+		}
+		a.chMu.Lock()
+		a.channels[id] = ch
+		a.chMu.Unlock()
+	}
+	if ch.Name == "" {
+		return ""
+	}
+	if ch.Private {
+		return "🔒" + ch.Name
+	}
+	return "#" + ch.Name
+}
+
+// ruleLabel is how the app names a rule: #channel「keyword」.
+func (a *AppService) ruleLabel(r *config.Route) string {
+	ch := a.ChannelName(r.Channel)
+	if ch == "" {
+		ch = r.Channel
+	}
+	if kw, ok := config.KeywordFromMatch(r.Match); ok {
+		return a.tr("label.keyword", ch, kw)
+	}
+	return a.tr("label.regex", ch, r.Match)
+}
+
+// labelFor returns the label of the rule with this config name.
+func (a *AppService) labelFor(name string) string {
+	_, raw, err := a.readRaw()
+	if err == nil {
+		for _, r := range raw.Routes {
+			if r.Name == name {
+				return a.ruleLabel(r)
+			}
+		}
+	}
+	return name
+}
+
+// RuleRow is one line of the rule list.
+type RuleRow struct {
+	Form  RouteForm `json:"form"`
+	Label string    `json:"label"`
+	// Off is true when the rule is turned off (paused).
+	Off bool `json:"off"`
+	// Problem is why the rule cannot run, if anything.
+	Problem *FieldProblem `json:"problem,omitempty"`
+	// Last is the most recent run.
+	Last *store.Turn `json:"last,omitempty"`
+}
+
+// RuleList is the rule list, or why the config could not be read.
+type RuleList struct {
+	Rules []RuleRow `json:"rules"`
+	Error string    `json:"error,omitempty"`
+}
+
+// ListRules returns the rules with their state and last run.
+func (a *AppService) ListRules() RuleList {
+	_, raw, err := a.readRaw()
+	if err != nil {
+		return RuleList{Rules: []RuleRow{}, Error: err.Error()}
+	}
+	paused := map[string]bool{}
+	snap := a.GetSnapshot()
+	if snap.Status != nil {
+		for _, r := range snap.Status.Routes {
+			paused[r.Name] = r.Paused
+		}
+	}
+	last := map[string]*store.Turn{}
+	for _, t := range a.RecentTurns(200) {
+		if _, ok := last[t.Route]; !ok {
+			last[t.Route] = &t
+		}
+	}
+	out := make([]RuleRow, 0, len(raw.Routes))
+	for _, r := range raw.Routes {
+		f := routeToForm(r)
+		row := RuleRow{Form: f, Label: a.ruleLabel(r), Off: paused[r.Name], Last: last[r.Name]}
+		for _, p := range a.validateForm(f, raw) {
+			if p.Field != "name" {
+				row.Problem = &p
+				break
+			}
+		}
+		out = append(out, row)
+	}
+	return RuleList{Rules: out}
+}
+
+// autoName returns an unused route name ("rule-1", "rule-2", …).
+func autoName(raw *config.Config) string {
+	used := map[string]bool{}
+	for _, r := range raw.Routes {
+		used[r.Name] = true
+	}
+	for i := 1; ; i++ {
+		if n := fmt.Sprintf("rule-%d", i); !used[n] {
+			return n
+		}
+	}
 }
 
 // PickFolder shows a folder picker and returns the chosen path ("" if cancelled).

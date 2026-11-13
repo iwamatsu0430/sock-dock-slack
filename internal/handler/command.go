@@ -24,7 +24,6 @@ func RunCommand(ctx context.Context, r *config.Route, in Input, env Env) (Result
 		return Result{}, err
 	}
 	extra := map[string]string{
-		"SLACK_BOT_TOKEN": env.BotToken,
 		"SLACK_CHANNEL":   in.Channel,
 		"SLACK_THREAD_TS": in.ThreadTS,
 		"SOCKDOCK_ROUTE":  in.Route,
@@ -71,8 +70,9 @@ func buildEnv(pathEnv string, routeEnv, extra map[string]string) []string {
 			m[k] = v
 		}
 	}
-	// Never leak the app-level token to handlers.
+	// Never pass Slack tokens to handlers: the tokens go to Slack only.
 	delete(m, "SLACK_APP_TOKEN")
+	delete(m, "SLACK_BOT_TOKEN")
 	if pathEnv != "" {
 		m["PATH"] = pathEnv
 	}

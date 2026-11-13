@@ -109,7 +109,7 @@ routes:
 	t.Cleanup(func() { db.Close() })
 	h := &harness{api: &fakeAPI{reactions: map[string]int{}}, db: db}
 	h.gw = New(Options{
-		Store: db, API: h.api, BotToken: "xoxb-test",
+		Store: db, API: h.api,
 		RunClaude: func(_ context.Context, _ *config.Route, in handler.Input, o handler.ClaudeOptions, _ handler.Env) (handler.Result, error) {
 			h.mu.Lock()
 			h.calls = append(h.calls, in)
@@ -222,7 +222,7 @@ func TestErrorsAndTimeout(t *testing.T) {
 	if got := h.api.postsIn("3.1")[0]; !strings.Contains(got, "5 seconds") {
 		t.Errorf("timeout message = %q", got)
 	}
-	if got := h.api.postsIn("4.1")[0]; !strings.Contains(got, "route: entry") {
+	if got := h.api.postsIn("4.1")[0]; !strings.Contains(got, "failed") {
 		t.Errorf("error message = %q", got)
 	}
 	turns, _ := h.db.ListTurns(context.Background(), 10)
@@ -247,7 +247,7 @@ func TestPauseAndMissingRoute(t *testing.T) {
 	h.gw.HandleMessage(msg("6.1", "", "entry 2")) // new thread on paused route: ignored
 	h.gw.HandleMessage(msg("5.2", "5.1", "more")) // reply on paused route: notice
 	waitFor(t, "paused notice", func() bool { return len(h.api.postsIn("5.1")) == 2 })
-	if got := h.api.postsIn("5.1")[1]; !strings.Contains(got, "paused") {
+	if got := h.api.postsIn("5.1")[1]; !strings.Contains(got, "turned off") {
 		t.Errorf("notice = %q", got)
 	}
 	if len(h.api.postsIn("6.1")) != 0 {
@@ -262,7 +262,7 @@ func TestPauseAndMissingRoute(t *testing.T) {
 	_ = h.db.BindThread(ctx, store.Thread{Channel: "C1", ThreadTS: "7.1", Route: "removed"})
 	h.gw.HandleMessage(msg("7.2", "7.1", "hello?"))
 	waitFor(t, "missing route notice", func() bool { return len(h.api.postsIn("7.1")) == 1 })
-	if got := h.api.postsIn("7.1")[0]; !strings.Contains(got, "removed") {
+	if got := h.api.postsIn("7.1")[0]; !strings.Contains(got, "deleted") {
 		t.Errorf("notice = %q", got)
 	}
 }
@@ -274,7 +274,7 @@ func TestRecoverInterruptedTurns(t *testing.T) {
 	if err := h.gw.Start(ctx); err != nil { // simulates the next process start
 		t.Fatal(err)
 	}
-	if got := h.api.postsIn("8.1"); len(got) != 1 || !strings.Contains(got[0], "restarted") {
+	if got := h.api.postsIn("8.1"); len(got) != 1 || !strings.Contains(got[0], "quit") {
 		t.Fatalf("posts = %v", got)
 	}
 	turns, _ := h.db.ListTurns(ctx, 10)
@@ -282,5 +282,37 @@ func TestRecoverInterruptedTurns(t *testing.T) {
 		if tr.ID == id && tr.Status != store.StatusInterrupted {
 			t.Fatalf("status = %s", tr.Status)
 		}
+	}
+}
+
+func TestStopTurn(t *testing.T) {
+	h := newHarness(t, nil)
+	h.gw.opts.RunClaude = func(ctx context.Context, _ *config.Route, _ handler.Input, _ handler.ClaudeOptions, _ handler.Env) (handler.Result, error) {
+		<-ctx.Done()
+		return handler.Result{}, ctx.Err()
+	}
+	h.gw.HandleMessage(msg("9.1", "", "entry long"))
+	var id int64
+	waitFor(t, "turn running", func() bool {
+		st := h.gw.Status(0)
+		if len(st.Running) == 1 {
+			id = st.Running[0].TurnID
+			return true
+		}
+		return false
+	})
+	if err := h.gw.StopTurn(id); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "stopped notice", func() bool { return len(h.api.postsIn("9.1")) == 1 })
+	if got := h.api.postsIn("9.1")[0]; !strings.Contains(got, "Stopped") {
+		t.Errorf("notice = %q", got)
+	}
+	turns, _ := h.db.ListRouteTurns(context.Background(), "entry", 10)
+	if len(turns) != 1 || turns[0].Status != store.StatusStopped || turns[0].Permalink == "" {
+		t.Fatalf("turns = %+v", turns)
+	}
+	if err := h.gw.StopTurn(id); err == nil {
+		t.Error("stopping a finished turn should fail")
 	}
 }

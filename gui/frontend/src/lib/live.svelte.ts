@@ -1,69 +1,56 @@
 import { Events } from "@wailsio/runtime";
-import { App, SockdockActivity, SockdockSnapshot, type Snapshot, type Turn } from "./api";
-import { t } from "./i18n/index.svelte";
+import { App, SockdockActivity, SockdockSnapshot, type Snapshot } from "./api";
 
 /** Live gateway state shared by all components. */
 export const live = $state({
   snap: null as Snapshot | null,
-  turns: [] as Turn[],
+  /** Bumps when runs, rules or their state change, so views reload. */
+  changes: 0,
   now: Date.now(),
 });
 
 let started = false;
 
-async function loadTurns() {
-  if (!live.snap?.running) return;
-  try {
-    live.turns = (await App.Turns(30)) ?? [];
-  } catch {
-    /* gateway went away; the next snapshot says so */
-  }
-}
-
 /** Starts listening to gateway events (idempotent). */
 export function startLive() {
   if (started) return;
   started = true;
-  App.GetSnapshot().then((s) => {
-    live.snap = s;
-    loadTurns();
-  });
+  App.GetSnapshot().then((s) => (live.snap = s));
   Events.On(SockdockSnapshot, (ev) => {
-    const wasRunning = live.snap?.running;
+    const before = live.snap;
     live.snap = ev.data as Snapshot;
-    if (!wasRunning && live.snap?.running) loadTurns();
+    if (before?.running !== live.snap?.running || before?.gateway?.state !== live.snap?.gateway?.state) live.changes++;
   });
   Events.On(SockdockActivity, (ev) => {
     const t = (ev.data as { type?: string })?.type;
-    if (t === "turn_started" || t === "turn_finished") loadTurns();
+    if (t === "turn_started" || t === "turn_finished" || t === "config_reloaded" || t === "route_paused") live.changes++;
   });
   setInterval(() => (live.now = Date.now()), 1000);
 }
 
-/** Connection summary used by headers and the tray. */
-export function connection(snap: Snapshot | null): { level: "ok" | "warn" | "bad" | "idle"; text: string } {
-  if (!snap) return { level: "idle", text: t("conn.checking") };
-  if (!snap.running) return { level: "bad", text: t("conn.notRunning") };
-  const s = snap.status!;
-  if (!s.connected) return { level: "warn", text: s.last_error ? t("conn.notConnected", { error: s.last_error }) : t("conn.connecting") };
-  if ((s.running ?? []).length > 0) return { level: "ok", text: t("conn.connectedRunning", { n: s.running!.length }) };
-  return { level: "ok", text: t("conn.connected") };
+/** True until both tokens are set (the window shows setup). */
+export function needsSetup(snap: Snapshot | null): boolean {
+  return snap?.gateway?.state === "setup" && snap.gateway.missing === "tokens";
 }
 
-/** Describes where the gateway runs, or why it does not. */
-export function gatewayText(g: { state: string; error?: string; missing?: string } | undefined): string {
-  switch (g?.state) {
-    case "running":
-      return t("gw.running");
-    case "external":
-      return t("gw.external");
-    case "setup":
-      return g.missing === "config" ? t("gw.setupConfig") : t("gw.setupTokens");
-    case "stopped":
-      return t("gw.stopped");
-    case "error":
-      return t("gw.error", { error: g.error ?? "" });
-    default:
-      return t("conn.checking");
+const authError = /invalid_auth|not_authed|token_revoked|token_expired|account_inactive/;
+
+/**
+ * Which "can't connect" banner to show, if any: "bot" or "app" when a token
+ * stopped working, "retry" when Slack is unreachable for a while.
+ */
+export function banner(snap: Snapshot | null, now: number): "bot" | "app" | "retry" | null {
+  if (!snap || needsSetup(snap)) return null;
+  const g = snap.gateway;
+  if (g?.state === "error") {
+    const err = g.error ?? "";
+    if (authError.test(err)) return err.includes("auth.test") ? "bot" : "app";
+    return "retry";
   }
+  if (snap.running && snap.status && !snap.status.connected) {
+    const since = Date.parse(snap.status.last_disconnect_at ?? snap.status.started_at);
+    if (now - since < 15000) return null;
+    return authError.test(snap.status.last_error ?? "") ? "app" : "retry";
+  }
+  return null;
 }

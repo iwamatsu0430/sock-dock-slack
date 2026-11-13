@@ -154,16 +154,17 @@ func TestCommandHandler(t *testing.T) {
 	script := filepath.Join(dir, "h.sh")
 	os.WriteFile(script, []byte(`#!/bin/sh
 cat > "$PWD/stdin.json"
-echo "thread=$SLACK_THREAD_TS route=$SOCKDOCK_ROUTE token=$SLACK_BOT_TOKEN app=${SLACK_APP_TOKEN:-none} extra=$EXTRA"
+echo "thread=$SLACK_THREAD_TS route=$SOCKDOCK_ROUTE token=${SLACK_BOT_TOKEN:-none} app=${SLACK_APP_TOKEN:-none} extra=$EXTRA"
 `), 0o755)
 	t.Setenv("SLACK_APP_TOKEN", "xapp-secret")
+	t.Setenv("SLACK_BOT_TOKEN", "xoxb-secret")
 	r := &config.Route{Name: "echo", Handler: config.Handler{Type: config.TypeCommand, Cwd: dir, Command: config.StringList{"./h.sh"}, TimeoutSec: 5},
 		Env: map[string]string{"EXTRA": "yes"}}
-	res, err := RunCommand(context.Background(), r, input, Env{BotToken: "xoxb-1", Path: os.Getenv("PATH")})
+	res, err := RunCommand(context.Background(), r, input, Env{Path: os.Getenv("PATH")})
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "thread=1.0 route=r token=xoxb-1 app=none extra=yes"
+	want := "thread=1.0 route=r token=none app=none extra=yes"
 	if res.Text != want {
 		t.Fatalf("stdout = %q, want %q", res.Text, want)
 	}

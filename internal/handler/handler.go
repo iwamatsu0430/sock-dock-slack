@@ -4,8 +4,6 @@ package handler
 import (
 	"errors"
 	"fmt"
-
-	"github.com/iwamatsu0430/sock-dock-slack/internal/event"
 )
 
 // Input is what every handler receives (as JSON on stdin for command handlers).
@@ -21,10 +19,9 @@ type Input struct {
 
 // InputMessage is one Slack message handed to a handler.
 type InputMessage struct {
-	TS    string       `json:"ts"`
-	User  string       `json:"user"`
-	Text  string       `json:"text"`
-	Files []event.File `json:"files"`
+	TS   string `json:"ts"`
+	User string `json:"user"`
+	Text string `json:"text"`
 }
 
 // Result is a handler's outcome.
@@ -41,7 +38,6 @@ type Result struct {
 
 // Env is the gateway-provided environment for handlers.
 type Env struct {
-	BotToken string
 	// PATH value for the handler process.
 	Path string
 }

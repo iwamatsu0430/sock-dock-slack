@@ -13,9 +13,6 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as control$0 from "../internal/control/models.js";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
 import * as store$0 from "../internal/store/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -23,10 +20,21 @@ import * as store$0 from "../internal/store/models.js";
 import * as $models from "./models.js";
 
 /**
- * CopyManifest puts the manifest on the clipboard.
+ * ChannelName returns "#name" (or "🔒name") for a channel ID or link, or ""
+ * when it cannot be looked up (conversations.info needs channels:read).
  */
-export function CopyManifest(): $CancellablePromise<boolean> {
-    return $Call.ByID(1306024562);
+export function ChannelName(idOrLink: string): $CancellablePromise<string> {
+    return $Call.ByID(585156030, idOrLink);
+}
+
+/**
+ * ConnectSlack checks both tokens with Slack and, only if both work, saves
+ * them in the Keychain and (re)starts the gateway. Nothing is saved before.
+ */
+export function ConnectSlack(appToken: string, botToken: string): $CancellablePromise<$models.ConnectResult> {
+    return $Call.ByID(3459895432, appToken, botToken).then(($result: any) => {
+        return $$createType0($result);
+    });
 }
 
 /**
@@ -34,27 +42,15 @@ export function CopyManifest(): $CancellablePromise<boolean> {
  */
 export function DeleteRoute(name: string): $CancellablePromise<$models.RouteSaveResult> {
     return $Call.ByID(2895378542, name).then(($result: any) => {
-        return $$createType0($result);
-    });
-}
-
-/**
- * DetectClaude finds Claude Code executables worth suggesting for settings.claude_command.
- */
-export function DetectClaude(): $CancellablePromise<string[]> {
-    return $Call.ByID(2511651983).then(($result: any) => {
         return $$createType1($result);
     });
 }
 
 /**
- * GetConfig reads the config file (directly, so it works while the gateway
- * is stopped). A minimal config is created first if there is none.
+ * DisconnectSlack removes the tokens from the Keychain and stops the gateway.
  */
-export function GetConfig(): $CancellablePromise<$models.ConfigFile> {
-    return $Call.ByID(3902498144).then(($result: any) => {
-        return $$createType2($result);
-    });
+export function DisconnectSlack(): $CancellablePromise<void> {
+    return $Call.ByID(3365406220);
 }
 
 /**
@@ -62,7 +58,7 @@ export function GetConfig(): $CancellablePromise<$models.ConfigFile> {
  */
 export function GetPrefs(): $CancellablePromise<$models.Prefs> {
     return $Call.ByID(762006728).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType2($result);
     });
 }
 
@@ -71,30 +67,12 @@ export function GetPrefs(): $CancellablePromise<$models.Prefs> {
  */
 export function GetSnapshot(): $CancellablePromise<$models.Snapshot> {
     return $Call.ByID(3563637978).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType3($result);
     });
 }
 
 /**
- * Info returns app paths and version.
- */
-export function Info(): $CancellablePromise<$models.AppInfo> {
-    return $Call.ByID(3943185810).then(($result: any) => {
-        return $$createType5($result);
-    });
-}
-
-/**
- * Languages lists the supported UI languages.
- */
-export function Languages(): $CancellablePromise<string[]> {
-    return $Call.ByID(3617621873).then(($result: any) => {
-        return $$createType1($result);
-    });
-}
-
-/**
- * LaunchAtLogin reports whether the GUI starts at login.
+ * LaunchAtLogin reports whether the app starts at login.
  */
 export function LaunchAtLogin(): $CancellablePromise<boolean> {
     return $Call.ByID(1929415261);
@@ -106,7 +84,7 @@ export function LaunchAtLogin(): $CancellablePromise<boolean> {
  */
 export function ListChannels(): $CancellablePromise<$models.ChannelList> {
     return $Call.ByID(2742147414).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType4($result);
     });
 }
 
@@ -115,7 +93,16 @@ export function ListChannels(): $CancellablePromise<$models.ChannelList> {
  */
 export function ListRoutes(): $CancellablePromise<$models.RouteForm[]> {
     return $Call.ByID(123234820).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType6($result);
+    });
+}
+
+/**
+ * ListRules returns the rules with their state and last run.
+ */
+export function ListRules(): $CancellablePromise<$models.RuleList> {
+    return $Call.ByID(3471677289).then(($result: any) => {
+        return $$createType7($result);
     });
 }
 
@@ -127,43 +114,39 @@ export function Locale(): $CancellablePromise<string> {
 }
 
 /**
- * Logs returns the last lines of the gateway log. It reads the file directly
- * when the gateway is not running.
+ * OpenConfigFile opens the config file in the user's text editor.
  */
-export function Logs(limit: number): $CancellablePromise<string[]> {
-    return $Call.ByID(391321321, limit).then(($result: any) => {
-        return $$createType1($result);
-    });
+export function OpenConfigFile(): $CancellablePromise<void> {
+    return $Call.ByID(1242653386);
 }
 
 /**
- * Manifest returns the Slack app manifest.
+ * OpenMain shows the main window. view is "" (the rule list) or a rule name.
  */
-export function Manifest(): $CancellablePromise<string> {
-    return $Call.ByID(3490257211);
+export function OpenMain(view: string): $CancellablePromise<void> {
+    return $Call.ByID(3527406107, view);
 }
 
 /**
- * MatchInContent tests which route a message would start, using unsaved config content.
+ * OpenSettings shows the settings window.
  */
-export function MatchInContent(content: string, channel: string, text: string): $CancellablePromise<control$0.MatchResult> {
-    return $Call.ByID(940609677, content, channel, text).then(($result: any) => {
-        return $$createType9($result);
-    });
+export function OpenSettings(): $CancellablePromise<void> {
+    return $Call.ByID(717766711);
+}
+
+/**
+ * OpenSlackAppPage opens api.slack.com's "create an app" page with the
+ * manifest filled in.
+ */
+export function OpenSlackAppPage(): $CancellablePromise<void> {
+    return $Call.ByID(3985608826);
 }
 
 /**
  * OpenURL opens a link in the default browser.
  */
-export function OpenURL(url: string): $CancellablePromise<void> {
-    return $Call.ByID(790318107, url);
-}
-
-/**
- * OpenWindow shows the main window on a tab.
- */
-export function OpenWindow(tab: string): $CancellablePromise<void> {
-    return $Call.ByID(2604253950, tab);
+export function OpenURL(link: string): $CancellablePromise<void> {
+    return $Call.ByID(790318107, link);
 }
 
 /**
@@ -181,42 +164,20 @@ export function PickFolder(title: string): $CancellablePromise<string> {
 }
 
 /**
- * Quit exits the GUI (the gateway keeps running).
+ * RecentTurns returns recent runs of all rules.
  */
-export function Quit(): $CancellablePromise<void> {
-    return $Call.ByID(2719743713);
-}
-
-/**
- * Reload asks the gateway to re-read its config.
- */
-export function Reload(): $CancellablePromise<void> {
-    return $Call.ByID(1799551279);
-}
-
-/**
- * RestartGateway restarts the gateway running inside this app.
- */
-export function RestartGateway(): $CancellablePromise<$models.GatewayState> {
-    return $Call.ByID(677431921).then(($result: any) => {
-        return $$createType10($result);
+export function RecentTurns(limit: number): $CancellablePromise<store$0.Turn[]> {
+    return $Call.ByID(2254536103, limit).then(($result: any) => {
+        return $$createType9($result);
     });
 }
 
 /**
- * RevealLogs opens the log folder in Finder.
+ * RuleTurns returns the recent runs of one rule.
  */
-export function RevealLogs(): $CancellablePromise<void> {
-    return $Call.ByID(1011778404);
-}
-
-/**
- * SaveConfig validates and writes the config. When the gateway is running it
- * goes through the gateway (which also reloads); otherwise it writes the file.
- */
-export function SaveConfig(content: string): $CancellablePromise<control$0.ValidateResult> {
-    return $Call.ByID(2775748437, content).then(($result: any) => {
-        return $$createType11($result);
+export function RuleTurns(route: string): $CancellablePromise<store$0.Turn[]> {
+    return $Call.ByID(3105143504, route).then(($result: any) => {
+        return $$createType9($result);
     });
 }
 
@@ -225,115 +186,44 @@ export function SaveConfig(content: string): $CancellablePromise<control$0.Valid
  */
 export function SaveRoute(f: $models.RouteForm): $CancellablePromise<$models.RouteSaveResult> {
     return $Call.ByID(1716929756, f).then(($result: any) => {
-        return $$createType0($result);
+        return $$createType1($result);
     });
 }
 
 /**
- * SaveToken stores a token in the Keychain and (re)starts the gateway.
- */
-export function SaveToken(name: string, value: string): $CancellablePromise<void> {
-    return $Call.ByID(1204991788, name, value);
-}
-
-/**
- * ServiceStatus reports whether the CLI background service is installed and loaded.
- */
-export function ServiceStatus(): $CancellablePromise<$models.ServiceInfo> {
-    return $Call.ByID(644575443).then(($result: any) => {
-        return $$createType12($result);
-    });
-}
-
-/**
- * SetLaunchAtLogin turns starting the GUI at login on or off.
+ * SetLaunchAtLogin turns starting the app at login on or off.
  */
 export function SetLaunchAtLogin(on: boolean): $CancellablePromise<void> {
     return $Call.ByID(1696234941, on);
 }
 
 /**
- * SetPaused pauses or resumes a route.
+ * SetPaused turns a rule off (paused) or on.
  */
 export function SetPaused(route: string, paused: boolean): $CancellablePromise<void> {
     return $Call.ByID(2690229864, route, paused);
 }
 
 /**
- * SetPrefs writes GUI preferences. A language change is applied right away.
+ * SetPrefs writes GUI preferences. A language change is applied right away,
+ * to the app and to the messages posted to Slack (settings.language).
  */
 export function SetPrefs(p: $models.Prefs): $CancellablePromise<void> {
     return $Call.ByID(4147788612, p);
 }
 
 /**
- * StartGateway starts the gateway inside this app.
+ * ShowLogs opens the gateway log (in Console).
  */
-export function StartGateway(): $CancellablePromise<$models.GatewayState> {
-    return $Call.ByID(1973440364).then(($result: any) => {
-        return $$createType10($result);
-    });
+export function ShowLogs(): $CancellablePromise<void> {
+    return $Call.ByID(264459956);
 }
 
 /**
- * StopGateway stops the gateway running inside this app.
+ * StopTurn stops a running run.
  */
-export function StopGateway(): $CancellablePromise<void> {
-    return $Call.ByID(3490732);
-}
-
-/**
- * TestTokens checks each token that is set: the bot token with auth.test,
- * the app-level token by asking Slack for a Socket Mode connection URL.
- */
-export function TestTokens(): $CancellablePromise<$models.TokenTest[]> {
-    return $Call.ByID(3607164548).then(($result: any) => {
-        return $$createType14($result);
-    });
-}
-
-/**
- * Threads returns recent threads.
- */
-export function Threads(limit: number): $CancellablePromise<store$0.Thread[]> {
-    return $Call.ByID(3464577351, limit).then(($result: any) => {
-        return $$createType16($result);
-    });
-}
-
-/**
- * TokenStatus reports both tokens.
- */
-export function TokenStatus(): $CancellablePromise<$models.TokenInfo[]> {
-    return $Call.ByID(1399165129).then(($result: any) => {
-        return $$createType18($result);
-    });
-}
-
-/**
- * Turns returns recent handler runs.
- */
-export function Turns(limit: number): $CancellablePromise<store$0.Turn[]> {
-    return $Call.ByID(2032648206, limit).then(($result: any) => {
-        return $$createType20($result);
-    });
-}
-
-/**
- * UninstallService removes the CLI background service and lets the app run
- * the gateway itself.
- */
-export function UninstallService(): $CancellablePromise<void> {
-    return $Call.ByID(4092674991);
-}
-
-/**
- * ValidateConfig checks config content without saving it.
- */
-export function ValidateConfig(content: string): $CancellablePromise<control$0.ValidateResult> {
-    return $Call.ByID(2985580066, content).then(($result: any) => {
-        return $$createType11($result);
-    });
+export function StopTurn(id: number): $CancellablePromise<void> {
+    return $Call.ByID(2111716161, id);
 }
 
 /**
@@ -341,31 +231,27 @@ export function ValidateConfig(content: string): $CancellablePromise<control$0.V
  */
 export function ValidateRoute(f: $models.RouteForm): $CancellablePromise<$models.FieldProblem[]> {
     return $Call.ByID(2577932297, f).then(($result: any) => {
-        return $$createType22($result);
+        return $$createType11($result);
     });
 }
 
+/**
+ * Version returns the app version.
+ */
+export function Version(): $CancellablePromise<string> {
+    return $Call.ByID(1828333558);
+}
+
 // Private type creation functions
-const $$createType0 = $models.RouteSaveResult.createFrom;
-const $$createType1 = $Create.Array($Create.Any);
-const $$createType2 = $models.ConfigFile.createFrom;
-const $$createType3 = $models.Prefs.createFrom;
-const $$createType4 = $models.Snapshot.createFrom;
-const $$createType5 = $models.AppInfo.createFrom;
-const $$createType6 = $models.ChannelList.createFrom;
-const $$createType7 = $models.RouteForm.createFrom;
-const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = control$0.MatchResult.createFrom;
-const $$createType10 = $models.GatewayState.createFrom;
-const $$createType11 = control$0.ValidateResult.createFrom;
-const $$createType12 = $models.ServiceInfo.createFrom;
-const $$createType13 = $models.TokenTest.createFrom;
-const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = store$0.Thread.createFrom;
-const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = $models.TokenInfo.createFrom;
-const $$createType18 = $Create.Array($$createType17);
-const $$createType19 = store$0.Turn.createFrom;
-const $$createType20 = $Create.Array($$createType19);
-const $$createType21 = $models.FieldProblem.createFrom;
-const $$createType22 = $Create.Array($$createType21);
+const $$createType0 = $models.ConnectResult.createFrom;
+const $$createType1 = $models.RouteSaveResult.createFrom;
+const $$createType2 = $models.Prefs.createFrom;
+const $$createType3 = $models.Snapshot.createFrom;
+const $$createType4 = $models.ChannelList.createFrom;
+const $$createType5 = $models.RouteForm.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = $models.RuleList.createFrom;
+const $$createType8 = store$0.Turn.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = $models.FieldProblem.createFrom;
+const $$createType11 = $Create.Array($$createType10);

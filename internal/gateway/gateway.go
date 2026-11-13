@@ -31,7 +31,6 @@ type Options struct {
 	Store            *store.Store
 	API              slackio.API
 	Log              *slog.Logger
-	BotToken         string
 	SystemPromptFile string
 	Version          string
 
@@ -56,6 +55,9 @@ type Gateway struct {
 	mu      sync.Mutex
 	conn    connInfo
 	running map[string]RunningTurn
+	// stops cancels a running turn by id; stopped marks turns stopped by the user.
+	stops   map[int64]context.CancelFunc
+	stopped map[int64]bool
 	paused  map[string]bool
 	subs    map[chan Event]struct{}
 	started time.Time
@@ -112,6 +114,8 @@ func New(opts Options, cfg *config.Config) *Gateway {
 		runCtx:    ctx,
 		cancelRun: cancel,
 		running:   map[string]RunningTurn{},
+		stops:     map[int64]context.CancelFunc{},
+		stopped:   map[int64]bool{},
 		paused:    map[string]bool{},
 		subs:      map[chan Event]struct{}{},
 		started:   opts.Now(),
@@ -251,7 +255,7 @@ func (g *Gateway) process(key string, batch []event.Message) {
 	var inMsgs []handler.InputMessage
 	for _, m := range batch {
 		tsList = append(tsList, m.TS)
-		inMsgs = append(inMsgs, handler.InputMessage{TS: m.TS, User: m.User, Text: m.Text, Files: m.Files})
+		inMsgs = append(inMsgs, handler.InputMessage{TS: m.TS, User: m.User, Text: m.Text})
 		if err := api.AddReaction(ctx, channel, m.TS, cfg.Settings.AckReaction); err != nil {
 			g.log.Warn("could not add reaction", "err", err)
 		}
@@ -286,7 +290,12 @@ func (g *Gateway) process(key string, batch []event.Message) {
 		Route: r.Name, Turn: th.Turns + 1, Channel: channel, ThreadTS: threadTS,
 		Permalink: permalink, Groups: th.Groups, Messages: inMsgs,
 	}
-	env := handler.Env{BotToken: g.opts.BotToken, Path: cfg.SearchPath()}
+	env := handler.Env{Path: cfg.SearchPath()}
+	turnCtx, cancelTurn := context.WithCancel(g.runCtx)
+	defer cancelTurn()
+	g.mu.Lock()
+	g.stops[turnID] = cancelTurn
+	g.mu.Unlock()
 	log := g.log.With("route", r.Name, "turn", turnID, "channel", channel, "thread_ts", threadTS)
 	log.Info("handler started", "type", r.Handler.Type, "messages", len(batch))
 	start := g.opts.Now()
@@ -294,18 +303,26 @@ func (g *Gateway) process(key string, batch []event.Message) {
 	var res handler.Result
 	switch r.Handler.Type {
 	case config.TypeClaude:
-		res, err = g.opts.RunClaude(g.runCtx, r, in, handler.ClaudeOptions{
+		res, err = g.opts.RunClaude(turnCtx, r, in, handler.ClaudeOptions{
 			Command:          cfg.ClaudeCommandFor(r),
 			SystemPromptFile: g.opts.SystemPromptFile,
 			SessionID:        th.SessionID,
 			InstructionsFile: g.instructionsFile(r, log),
 		}, env)
 	default:
-		res, err = g.opts.RunCommand(g.runCtx, r, in, env)
+		res, err = g.opts.RunCommand(turnCtx, r, in, env)
 	}
+	g.mu.Lock()
+	stoppedByUser := g.stopped[turnID]
+	delete(g.stops, turnID)
+	delete(g.stopped, turnID)
+	g.mu.Unlock()
 
 	status, errMsg := store.StatusOK, ""
 	switch {
+	case stoppedByUser && g.runCtx.Err() == nil:
+		status, errMsg = store.StatusStopped, ""
+		_ = api.PostMessage(ctx, channel, threadTS, config.Render(msgs.Stopped, r.Name, r.Handler.TimeoutSec))
 	case err == nil:
 		if res.ResumeFailed {
 			_ = api.PostMessage(ctx, channel, threadTS, msgs.ResumeFailed)
@@ -363,12 +380,34 @@ func (g *Gateway) instructionsFile(r *config.Route, log *slog.Logger) string {
 	return p
 }
 
+// StopTurn stops a running turn. The thread gets the "stopped" message.
+func (g *Gateway) StopTurn(id int64) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	cancel, ok := g.stops[id]
+	if !ok {
+		return fmt.Errorf("turn %d is not running", id)
+	}
+	g.stopped[id] = true
+	cancel()
+	return nil
+}
+
+// RouteTurns lists the recent turns of one route.
+func (g *Gateway) RouteTurns(ctx context.Context, route string, limit int) ([]store.Turn, error) {
+	return g.opts.Store.ListRouteTurns(ctx, route, limit)
+}
+
 // Reload re-reads the config file. On error the current config stays active.
+// Routes with problems are left out (see Status().Broken).
 func (g *Gateway) Reload() error {
-	cfg, err := config.Load(g.opts.ConfigPath)
+	cfg, err := config.LoadLenient(g.opts.ConfigPath)
 	if err != nil {
 		g.log.Error("config reload failed; keeping the current config", "err", err)
 		return err
+	}
+	for _, b := range cfg.Broken {
+		g.log.Warn("route left out", "route", b.Name, "problems", strings.Join(b.Problems, "; "))
 	}
 	old := g.cfg.Swap(cfg)
 	if old.Settings.MaxConcurrency != cfg.Settings.MaxConcurrency {

@@ -19,6 +19,7 @@ import (
 
 	"github.com/iwamatsu0430/sock-dock-slack/internal/config"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/gateway"
+	"github.com/iwamatsu0430/sock-dock-slack/internal/store"
 )
 
 // Server is the control API server.
@@ -37,6 +38,7 @@ func NewServer(gw *gateway.Gateway, log *slog.Logger, logFile string) *Server {
 	mux.HandleFunc("GET /v1/events", s.events)
 	mux.HandleFunc("GET /v1/threads", s.threads)
 	mux.HandleFunc("GET /v1/turns", s.turns)
+	mux.HandleFunc("POST /v1/turns/{id}/stop", s.stopTurn)
 	mux.HandleFunc("GET /v1/config", s.getConfig)
 	mux.HandleFunc("PUT /v1/config", s.putConfig)
 	mux.HandleFunc("POST /v1/config/validate", s.validateConfig)
@@ -118,12 +120,33 @@ func (s *Server) threads(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) turns(w http.ResponseWriter, r *http.Request) {
-	out, err := s.gw.Turns(r.Context(), limitParam(r, 50))
+	var (
+		out []store.Turn
+		err error
+	)
+	if route := r.URL.Query().Get("route"); route != "" {
+		out, err = s.gw.RouteTurns(r.Context(), route, limitParam(r, 50))
+	} else {
+		out, err = s.gw.Turns(r.Context(), limitParam(r, 50))
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+func (s *Server) stopTurn(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if err := s.gw.StopTurn(id); err != nil {
+		writeError(w, http.StatusNotFound, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
 // ConfigBody is the payload of GET/PUT /v1/config.
@@ -148,8 +171,10 @@ type ValidateResult struct {
 	Problems []string `json:"problems,omitempty"`
 }
 
+// validate checks content the way the gateway loads it: a route with
+// problems is left out rather than rejecting the whole file.
 func validate(path string, content []byte) ValidateResult {
-	if _, err := config.Parse(content, path); err != nil {
+	if _, err := config.ParseLenient(content, path); err != nil {
 		var ve *config.ValidationError
 		if errors.As(err, &ve) {
 			return ValidateResult{Problems: ve.Problems}

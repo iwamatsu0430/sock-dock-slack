@@ -98,7 +98,7 @@ func Start(o Options) (*Daemon, error) {
 	}
 	cleanups = append(cleanups, func() { lock.Release() })
 
-	cfg, err := config.Load(d.ConfigFile)
+	cfg, err := config.LoadLenient(d.ConfigFile)
 	if errors.Is(err, os.ErrNotExist) {
 		return fail(fmt.Errorf("%w at %s (create one with `sockdock init`)", ErrNoConfig, d.ConfigFile))
 	}
@@ -130,7 +130,6 @@ func Start(o Options) (*Daemon, error) {
 		Store:            db,
 		API:              api,
 		Log:              log,
-		BotToken:         botToken,
 		SystemPromptFile: promptFile,
 		Version:          o.Version,
 	}, cfg)

@@ -20,7 +20,16 @@ const (
 )
 
 // KeychainService is the Keychain service name sockdock uses.
-const KeychainService = "sockdock"
+// SOCKDOCK_KEYCHAIN_SERVICE overrides it (for development, so a test copy
+// does not touch the real tokens).
+var KeychainService = keychainService()
+
+func keychainService() string {
+	if v := os.Getenv("SOCKDOCK_KEYCHAIN_SERVICE"); v != "" {
+		return v
+	}
+	return "sockdock"
+}
 
 // Source says where a token was found.
 type Source string

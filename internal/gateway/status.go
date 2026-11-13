@@ -5,6 +5,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/iwamatsu0430/sock-dock-slack/internal/config"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/slackio"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/store"
 )
@@ -22,8 +23,10 @@ type Status struct {
 	Identity         slackio.Identity `json:"identity"`
 	ConfigPath       string           `json:"config_path"`
 	Routes           []RouteStatus    `json:"routes"`
-	Running          []RunningTurn    `json:"running"`
-	Pending          int              `json:"pending"`
+	// Broken lists routes left out because of problems.
+	Broken  []config.BrokenRoute `json:"broken,omitempty"`
+	Running []RunningTurn        `json:"running"`
+	Pending int                  `json:"pending"`
 }
 
 // RouteStatus summarizes a route.
@@ -58,6 +61,7 @@ func (g *Gateway) Status(pid int) Status {
 			Name: r.Name, Type: r.Handler.Type, Channel: r.Channel, Match: r.Match, Paused: g.paused[r.Name],
 		})
 	}
+	s.Broken = cfg.Broken
 	for _, rt := range g.running {
 		s.Running = append(s.Running, rt)
 	}

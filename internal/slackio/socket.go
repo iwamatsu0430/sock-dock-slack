@@ -158,13 +158,8 @@ func convert(m *slackevents.MessageEvent) event.Message {
 		SubType:  m.SubType,
 		Text:     m.Text,
 	}
-	if m.Message != nil {
-		if out.Text == "" {
-			out.Text = m.Message.Text
-		}
-		for _, f := range m.Message.Files {
-			out.Files = append(out.Files, event.File{Name: f.Name, Mimetype: f.Mimetype, URLPrivate: f.URLPrivate})
-		}
+	if m.Message != nil && out.Text == "" {
+		out.Text = m.Message.Text
 	}
 	return out
 }

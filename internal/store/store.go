@@ -20,6 +20,7 @@ const (
 	StatusError       = "error"
 	StatusTimeout     = "timeout"
 	StatusInterrupted = "interrupted"
+	StatusStopped     = "stopped"
 )
 
 // Store wraps the database.
@@ -53,6 +54,8 @@ type Turn struct {
 	StartedAt  time.Time  `json:"started_at"`
 	FinishedAt *time.Time `json:"finished_at,omitempty"`
 	CostUSD    float64    `json:"cost_usd,omitempty"`
+	// Permalink is the thread's link (from the threads table).
+	Permalink string `json:"permalink,omitempty"`
 }
 
 const schema = `
@@ -202,9 +205,15 @@ func (s *Store) ListTurns(ctx context.Context, limit int) ([]Turn, error) {
 	return s.queryTurns(ctx, `ORDER BY id DESC LIMIT ?`, limit)
 }
 
+// ListRouteTurns returns the most recent turns of one route.
+func (s *Store) ListRouteTurns(ctx context.Context, route string, limit int) ([]Turn, error) {
+	return s.queryTurns(ctx, `WHERE route = ? ORDER BY id DESC LIMIT ?`, route, limit)
+}
+
 func (s *Store) queryTurns(ctx context.Context, tail string, args ...any) ([]Turn, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id, channel, thread_ts, message_ts, route, status, error,
-		started_at, finished_at, cost_usd FROM turns `+tail, args...)
+		started_at, finished_at, cost_usd, COALESCE((SELECT permalink FROM threads th
+		WHERE th.channel = turns.channel AND th.thread_ts = turns.thread_ts), '') FROM turns `+tail, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +227,7 @@ func (s *Store) queryTurns(ctx context.Context, tail string, args ...any) ([]Tur
 			finished sql.NullInt64
 		)
 		if err := rows.Scan(&t.ID, &t.Channel, &t.ThreadTS, &msgTS, &t.Route, &t.Status, &t.Error,
-			&started, &finished, &t.CostUSD); err != nil {
+			&started, &finished, &t.CostUSD, &t.Permalink); err != nil {
 			return nil, err
 		}
 		_ = json.Unmarshal([]byte(msgTS), &t.MessageTS)

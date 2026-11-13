@@ -8,42 +8,9 @@ import { Create as $Create } from "@wailsio/runtime";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as gateway$0 from "../internal/gateway/models.js";
-
-/**
- * AppInfo is shown in the About section.
- */
-export class AppInfo {
-    "version": string;
-    "config_path": string;
-    "data_dir": string;
-    "log_dir": string;
-
-    /** Creates a new AppInfo instance. */
-    constructor($$source: Partial<AppInfo> = {}) {
-        if (!("version" in $$source)) {
-            this["version"] = "";
-        }
-        if (!("config_path" in $$source)) {
-            this["config_path"] = "";
-        }
-        if (!("data_dir" in $$source)) {
-            this["data_dir"] = "";
-        }
-        if (!("log_dir" in $$source)) {
-            this["log_dir"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new AppInfo instance from a string or object.
-     */
-    static createFrom($$source: any = {}): AppInfo {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new AppInfo($$parsedSource as Partial<AppInfo>);
-    }
-}
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as store$0 from "../internal/store/models.js";
 
 /**
  * Channel is a Slack channel the bot is in.
@@ -112,34 +79,37 @@ export class ChannelList {
 }
 
 /**
- * ConfigFile is the config file and its content.
+ * ConnectResult is the outcome of ConnectSlack.
  */
-export class ConfigFile {
-    "path": string;
-    "content": string;
-    "exists": boolean;
+export class ConnectResult {
+    "ok": boolean;
+    "team"?: string;
+    "app"?: TokenProblem | null;
+    "bot"?: TokenProblem | null;
 
-    /** Creates a new ConfigFile instance. */
-    constructor($$source: Partial<ConfigFile> = {}) {
-        if (!("path" in $$source)) {
-            this["path"] = "";
-        }
-        if (!("content" in $$source)) {
-            this["content"] = "";
-        }
-        if (!("exists" in $$source)) {
-            this["exists"] = false;
+    /** Creates a new ConnectResult instance. */
+    constructor($$source: Partial<ConnectResult> = {}) {
+        if (!("ok" in $$source)) {
+            this["ok"] = false;
         }
 
         Object.assign(this, $$source);
     }
 
     /**
-     * Creates a new ConfigFile instance from a string or object.
+     * Creates a new ConnectResult instance from a string or object.
      */
-    static createFrom($$source: any = {}): ConfigFile {
+    static createFrom($$source: any = {}): ConnectResult {
+        const $$createField2_0 = $$createType3;
+        const $$createField3_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ConfigFile($$parsedSource as Partial<ConfigFile>);
+        if ("app" in $$parsedSource) {
+            $$parsedSource["app"] = $$createField2_0($$parsedSource["app"]);
+        }
+        if ("bot" in $$parsedSource) {
+            $$parsedSource["bot"] = $$createField3_0($$parsedSource["bot"]);
+        }
+        return new ConnectResult($$parsedSource as Partial<ConnectResult>);
     }
 }
 
@@ -204,13 +174,14 @@ export class GatewayState {
 }
 
 /**
- * Prefs are GUI-only preferences.
+ * Prefs are GUI preferences.
  */
 export class Prefs {
     "notifications": boolean;
 
     /**
-     * Language is "auto" (follow the system), "en" or "ja".
+     * Language is "auto" (follow the system), "en" or "ja". It is used for
+     * the app and for the messages posted to Slack.
      */
     "language": string;
 
@@ -244,6 +215,11 @@ export class RouteForm {
      * OriginalName is the name before editing ("" for a new route).
      */
     "original_name": string;
+
+    /**
+     * Name is the route's name in the config. The app does not show it; a
+     * new route gets one automatically.
+     */
     "name": string;
 
     /**
@@ -358,8 +334,8 @@ export class RouteForm {
      * Creates a new RouteForm instance from a string or object.
      */
     static createFrom($$source: any = {}): RouteForm {
-        const $$createField11_0 = $$createType2;
-        const $$createField12_0 = $$createType2;
+        const $$createField11_0 = $$createType4;
+        const $$createField12_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("commands" in $$parsedSource) {
             $$parsedSource["commands"] = $$createField11_0($$parsedSource["commands"]);
@@ -402,8 +378,8 @@ export class RouteSaveResult {
      * Creates a new RouteSaveResult instance from a string or object.
      */
     static createFrom($$source: any = {}): RouteSaveResult {
-        const $$createField1_0 = $$createType4;
-        const $$createField2_0 = $$createType2;
+        const $$createField1_0 = $$createType6;
+        const $$createField2_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("problems" in $$parsedSource) {
             $$parsedSource["problems"] = $$createField1_0($$parsedSource["problems"]);
@@ -416,32 +392,89 @@ export class RouteSaveResult {
 }
 
 /**
- * ServiceInfo describes a `sockdock service install` background service
- * (used without the app). When one runs, the app shows it instead of
- * starting its own gateway.
+ * RuleList is the rule list, or why the config could not be read.
  */
-export class ServiceInfo {
-    "installed": boolean;
-    "detail": string;
+export class RuleList {
+    "rules": RuleRow[];
+    "error"?: string;
 
-    /** Creates a new ServiceInfo instance. */
-    constructor($$source: Partial<ServiceInfo> = {}) {
-        if (!("installed" in $$source)) {
-            this["installed"] = false;
-        }
-        if (!("detail" in $$source)) {
-            this["detail"] = "";
+    /** Creates a new RuleList instance. */
+    constructor($$source: Partial<RuleList> = {}) {
+        if (!("rules" in $$source)) {
+            this["rules"] = [];
         }
 
         Object.assign(this, $$source);
     }
 
     /**
-     * Creates a new ServiceInfo instance from a string or object.
+     * Creates a new RuleList instance from a string or object.
      */
-    static createFrom($$source: any = {}): ServiceInfo {
+    static createFrom($$source: any = {}): RuleList {
+        const $$createField0_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ServiceInfo($$parsedSource as Partial<ServiceInfo>);
+        if ("rules" in $$parsedSource) {
+            $$parsedSource["rules"] = $$createField0_0($$parsedSource["rules"]);
+        }
+        return new RuleList($$parsedSource as Partial<RuleList>);
+    }
+}
+
+/**
+ * RuleRow is one line of the rule list.
+ */
+export class RuleRow {
+    "form": RouteForm;
+    "label": string;
+
+    /**
+     * Off is true when the rule is turned off (paused).
+     */
+    "off": boolean;
+
+    /**
+     * Problem is why the rule cannot run, if anything.
+     */
+    "problem"?: FieldProblem | null;
+
+    /**
+     * Last is the most recent run.
+     */
+    "last"?: store$0.Turn | null;
+
+    /** Creates a new RuleRow instance. */
+    constructor($$source: Partial<RuleRow> = {}) {
+        if (!("form" in $$source)) {
+            this["form"] = (new RouteForm());
+        }
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+        if (!("off" in $$source)) {
+            this["off"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RuleRow instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RuleRow {
+        const $$createField0_0 = $$createType9;
+        const $$createField3_0 = $$createType10;
+        const $$createField4_0 = $$createType12;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("form" in $$parsedSource) {
+            $$parsedSource["form"] = $$createField0_0($$parsedSource["form"]);
+        }
+        if ("problem" in $$parsedSource) {
+            $$parsedSource["problem"] = $$createField3_0($$parsedSource["problem"]);
+        }
+        if ("last" in $$parsedSource) {
+            $$parsedSource["last"] = $$createField4_0($$parsedSource["last"]);
+        }
+        return new RuleRow($$parsedSource as Partial<RuleRow>);
     }
 }
 
@@ -474,8 +507,8 @@ export class Snapshot {
      * Creates a new Snapshot instance from a string or object.
      */
     static createFrom($$source: any = {}): Snapshot {
-        const $$createField2_0 = $$createType6;
-        const $$createField3_0 = $$createType7;
+        const $$createField2_0 = $$createType14;
+        const $$createField3_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("status" in $$parsedSource) {
             $$parsedSource["status"] = $$createField2_0($$parsedSource["status"]);
@@ -488,82 +521,46 @@ export class Snapshot {
 }
 
 /**
- * TokenInfo describes where a token comes from (never the value itself).
+ * TokenProblem says what is wrong with a token. Code is "format",
+ * "missing_scope", "invalid_auth" (and other Slack error codes) or
+ * "network"; Detail carries Slack's text.
  */
-export class TokenInfo {
-    "name": string;
-    "set": boolean;
-    "source": string;
-    "preview": string;
-    "error"?: string;
-
-    /** Creates a new TokenInfo instance. */
-    constructor($$source: Partial<TokenInfo> = {}) {
-        if (!("name" in $$source)) {
-            this["name"] = "";
-        }
-        if (!("set" in $$source)) {
-            this["set"] = false;
-        }
-        if (!("source" in $$source)) {
-            this["source"] = "";
-        }
-        if (!("preview" in $$source)) {
-            this["preview"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new TokenInfo instance from a string or object.
-     */
-    static createFrom($$source: any = {}): TokenInfo {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new TokenInfo($$parsedSource as Partial<TokenInfo>);
-    }
-}
-
-/**
- * TokenTest is the result of checking one token against Slack.
- */
-export class TokenTest {
-    "name": string;
-    "set": boolean;
-    "ok": boolean;
+export class TokenProblem {
+    "code": string;
     "detail"?: string;
-    "error"?: string;
 
-    /** Creates a new TokenTest instance. */
-    constructor($$source: Partial<TokenTest> = {}) {
-        if (!("name" in $$source)) {
-            this["name"] = "";
-        }
-        if (!("set" in $$source)) {
-            this["set"] = false;
-        }
-        if (!("ok" in $$source)) {
-            this["ok"] = false;
+    /** Creates a new TokenProblem instance. */
+    constructor($$source: Partial<TokenProblem> = {}) {
+        if (!("code" in $$source)) {
+            this["code"] = "";
         }
 
         Object.assign(this, $$source);
     }
 
     /**
-     * Creates a new TokenTest instance from a string or object.
+     * Creates a new TokenProblem instance from a string or object.
      */
-    static createFrom($$source: any = {}): TokenTest {
+    static createFrom($$source: any = {}): TokenProblem {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new TokenTest($$parsedSource as Partial<TokenTest>);
+        return new TokenProblem($$parsedSource as Partial<TokenProblem>);
     }
 }
 
 // Private type creation functions
 const $$createType0 = Channel.createFrom;
 const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $Create.Array($Create.Any);
-const $$createType3 = FieldProblem.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = gateway$0.Status.createFrom;
-const $$createType6 = $Create.Nullable($$createType5);
-const $$createType7 = GatewayState.createFrom;
+const $$createType2 = TokenProblem.createFrom;
+const $$createType3 = $Create.Nullable($$createType2);
+const $$createType4 = $Create.Array($Create.Any);
+const $$createType5 = FieldProblem.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = RuleRow.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = RouteForm.createFrom;
+const $$createType10 = $Create.Nullable($$createType5);
+const $$createType11 = store$0.Turn.createFrom;
+const $$createType12 = $Create.Nullable($$createType11);
+const $$createType13 = gateway$0.Status.createFrom;
+const $$createType14 = $Create.Nullable($$createType13);
+const $$createType15 = GatewayState.createFrom;

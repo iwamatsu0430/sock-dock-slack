@@ -167,9 +167,6 @@ func ClaudePrompt(in Input) string {
 	}
 	for _, m := range in.Messages {
 		fmt.Fprintf(&b, "<slack_message ts=%q user=%q>\n%s\n", m.TS, m.User, escapeTag(m.Text))
-		for _, f := range m.Files {
-			fmt.Fprintf(&b, "[attached file: %s (%s)]\n", f.Name, f.Mimetype)
-		}
 		b.WriteString("</slack_message>\n")
 	}
 	return b.String()
