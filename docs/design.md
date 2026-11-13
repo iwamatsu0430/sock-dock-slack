@@ -100,15 +100,15 @@ settings:
     error: "⚠️ 処理中にエラーが起きました（ルート: {route}）。"
 
 routes:
-  - name: web-app-entry
-    channel: ${SLACK_ENTRY_CHANNEL_ID}
-    match: '^\s*entry\s+(?P<code>[0-9A-Za-z０-９Ａ-Ｚａ-ｚ]{4,5})(?P<rest>.*)$'
+  - name: code-review
+    channel: ${SLACK_DEV_CHANNEL_ID}
+    match: '^\s*review\s+(?P<path>\S+)(?P<rest>.*)$'
     handler:
       type: claude
       cwd: ~/projects/web-app
       env_file: .env                # cwd からの相対パス
-      prompt: prompts/entry.md
-      allowed_tools: ["Bash(npm test *)", "Write(data/tmp/**)", "WebSearch", "WebFetch"]
+      prompt: prompts/review_slack.md
+      allowed_tools: ["Bash(npm test *)", "Write(tmp/**)", "WebSearch", "WebFetch"]
       model: opus                   # 省略時は Claude Code の既定
       timeout_sec: 600
 
@@ -134,14 +134,14 @@ routes:
 
 ```json
 {
-  "route": "web-app-entry",
+  "route": "code-review",
   "turn": 1,
   "channel": "C0123456789",
   "thread_ts": "1762920000.000100",
   "permalink": "https://example.slack.com/archives/C0123456789/p1762920000000100",
-  "groups": {"code": "AB12", "rest": " 100件を確認して"},
+  "groups": {"path": "src/api.ts", "rest": " のエラー処理"},
   "messages": [
-    {"ts": "1762920000.000100", "user": "U0123", "text": "entry AB12 100件を確認して"}
+    {"ts": "1762920000.000100", "user": "U0123", "text": "review src/api.ts のエラー処理"}
   ]
 }
 ```

@@ -108,11 +108,11 @@ Post `echo hello` in the channel: SockDock reacts with 👀, runs the handler an
 
 With the app you do not need steps 3–5 above or any YAML. `open dist/SockDock.app` (or `mise run gui`):
 
-1. **Setup** (first launch): *Open api.slack.com* opens Slack's "create an app" page with the manifest filled in. Install the app, generate an App-Level Token with `connections:write`, then paste both tokens and press **Connect to Slack**. The tokens are checked with Slack first and saved to the Keychain only if both work.
+1. **Setup** (first launch): *Open api.slack.com* opens Slack's "create an app" page with the manifest filled in. Install the app, generate an App-Level Token with `connections:write`, then paste both tokens and press **Connect to Slack**. The tokens are checked with Slack first and saved to the Keychain only if both work. If you use a Slack app you created earlier, add the Bot Token scopes setup lists (with what each is for; `channels:read` and `groups:read` are optional).
 2. **Rules → Add Rule**: pick the channel (channels the Slack app has been added to are listed; without the `channels:read`/`groups:read` scopes, enter a channel ID or link), choose which posts it reacts to (starting with, containing, a regular expression, or all), and choose what runs — an AI agent (Claude Code) in a working folder, with instructions and what it may do, or a program. The list is grouped by channel and shows each rule's last run. Within a channel the rule higher up comes first; drag ⠿ to reorder. Open a rule for recent runs, thread links and **Stop**.
 3. Post something like `<keyword> …` in the channel.
 
-The app runs the gateway while it is open — there is no separate service to install. Clicking the menu bar icon shows the connection, running and recent runs; **Settings… (⌘,)** has the Slack connection, *Open at login*, notifications and the language (also used for the messages posted to Slack). **Open Config File** opens the YAML in your editor for anything the form does not cover. A rule with a problem (e.g. a missing folder, or a rule above that always matches first) is shown in red and left out; the other rules keep running.
+The app runs the gateway while it is open — there is no separate service to install. Clicking the menu bar icon shows the connection, running and recent runs; There is one window: switch between **Rules** and **Settings** at the top. **Settings** (⌘,) has the Slack connection, *Open at login*, notifications, the language (also used for the messages posted to Slack), MCP and **Reset SockDock…**, which removes the tokens, rules, run history and app settings and starts over from setup (the config file goes to the Trash; logs are kept). **Open Config File** opens the YAML in your editor for anything the form does not cover. A rule with a problem (e.g. a missing folder, or a rule above that always matches first) is shown in red and left out; the other rules keep running.
 
 If a `sockdock service install` service is already running, the app shows its state and does not start its own gateway.
 
@@ -207,7 +207,7 @@ Files: data and the control socket are in `~/Library/Application Support/sockdoc
 
 While SockDock runs (the app or `sockdock run`), MCP clients such as Claude Code and Codex can control it — e.g. "add a rule that runs Claude Code in ~/app for posts in #ask".
 
-The easiest way to register it is **Settings… → MCP** in the app: pick your client and copy. To register by hand (`<sockdock>` is the CLI's absolute path; in the app, `SockDock.app/Contents/MacOS/sockdock`):
+The easiest way to register it is **Settings → MCP** in the app: pick your client and copy. To register by hand (`<sockdock>` is the CLI's absolute path; in the app, `SockDock.app/Contents/MacOS/sockdock`):
 
 | Client | Register with |
 |---|---|

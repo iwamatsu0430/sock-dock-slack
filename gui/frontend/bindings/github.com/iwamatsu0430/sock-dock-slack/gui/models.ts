@@ -90,6 +90,12 @@ export class ConnectResult {
     "app"?: TokenProblem | null;
     "bot"?: TokenProblem | null;
 
+    /**
+     * Start is set when the tokens worked and were saved, but SockDock did not
+     * get connected to Slack in time (Detail says why, when known).
+     */
+    "start"?: TokenProblem | null;
+
     /** Creates a new ConnectResult instance. */
     constructor($$source: Partial<ConnectResult> = {}) {
         if (!("ok" in $$source)) {
@@ -105,12 +111,16 @@ export class ConnectResult {
     static createFrom($$source: any = {}): ConnectResult {
         const $$createField2_0 = $$createType3;
         const $$createField3_0 = $$createType3;
+        const $$createField4_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("app" in $$parsedSource) {
             $$parsedSource["app"] = $$createField2_0($$parsedSource["app"]);
         }
         if ("bot" in $$parsedSource) {
             $$parsedSource["bot"] = $$createField3_0($$parsedSource["bot"]);
+        }
+        if ("start" in $$parsedSource) {
+            $$parsedSource["start"] = $$createField4_0($$parsedSource["start"]);
         }
         return new ConnectResult($$parsedSource as Partial<ConnectResult>);
     }

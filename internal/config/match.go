@@ -214,7 +214,7 @@ func fold(s string) folded {
 }
 
 // isWord reports ASCII letters and digits: a keyword of them does not match
-// in the middle of a word ("entry" is not in "entryx"). Japanese has no word
+// in the middle of a word ("review" is not in "reviewer"). Japanese has no word
 // breaks, so "相談" matches "相談したい".
 func isWord(c rune) bool {
 	return c < utf8.RuneSelf && (unicode.IsLetter(c) || unicode.IsDigit(c))

@@ -34,9 +34,8 @@ type AppService struct {
 	version string
 	client  *control.Client
 
-	app      *application.App
-	main     *application.WebviewWindow
-	settings *application.WebviewWindow
+	app  *application.App
+	main *application.WebviewWindow
 
 	// onLocale is called after the UI language changes (to relabel native menus).
 	onLocale func()
@@ -198,7 +197,13 @@ type ConnectResult struct {
 	Team string        `json:"team,omitempty"`
 	App  *TokenProblem `json:"app,omitempty"`
 	Bot  *TokenProblem `json:"bot,omitempty"`
+	// Start is set when the tokens worked and were saved, but SockDock did not
+	// get connected to Slack in time (Detail says why, when known).
+	Start *TokenProblem `json:"start,omitempty"`
 }
+
+// connectWait is how long ConnectSlack waits for the gateway to connect.
+const connectWait = 20 * time.Second
 
 // slackCodes are Slack error codes worth showing as they are.
 var slackCodes = []string{"missing_scope", "invalid_auth", "not_authed", "token_revoked", "token_expired", "account_inactive", "not_allowed_token_type"}
@@ -251,8 +256,39 @@ func (a *AppService) ConnectSlack(appToken, botToken string) ConnectResult {
 	a.channels = map[string]Channel{}
 	a.chMu.Unlock()
 	a.startAfterSetup()
+	// Report success only once SockDock is really connected, so setup does
+	// not move on while nothing works.
+	if p := a.waitConnected(connectWait); p != nil {
+		res.Start = p
+		return res
+	}
 	res.OK, res.Team = true, id.Team
 	return res
+}
+
+// waitConnected waits until the gateway is connected to Slack, or says why not.
+func (a *AppService) waitConnected(timeout time.Duration) *TokenProblem {
+	deadline := time.Now().Add(timeout)
+	for {
+		snap := a.GetSnapshot()
+		if snap.Running && snap.Status != nil && snap.Status.Connected {
+			return nil
+		}
+		switch st := snap.Gateway; st.State {
+		case GatewayError, GatewaySetup:
+			return &TokenProblem{Code: "start", Detail: st.Error}
+		case GatewayExternal:
+			return &TokenProblem{Code: "external"}
+		}
+		if time.Now().After(deadline) {
+			detail := ""
+			if snap.Status != nil {
+				detail = snap.Status.LastError
+			}
+			return &TokenProblem{Code: "timeout", Detail: detail}
+		}
+		time.Sleep(300 * time.Millisecond)
+	}
 }
 
 // DisconnectSlack removes the tokens from the Keychain and stops the gateway.
@@ -385,7 +421,8 @@ func (a *AppService) SetLaunchAtLogin(on bool) error {
 // Version returns the app version.
 func (a *AppService) Version() string { return a.version }
 
-// OpenMain shows the main window. view is "" (the rule list) or a rule name.
+// OpenMain shows the window. view is "" (the rule list), a rule name or
+// viewSettings.
 func (a *AppService) OpenMain(view string) {
 	if a.main == nil {
 		return
@@ -395,15 +432,12 @@ func (a *AppService) OpenMain(view string) {
 	a.main.Focus()
 }
 
-// OpenSettings shows the settings window.
-func (a *AppService) OpenSettings() {
-	if a.settings == nil {
-		return
-	}
-	a.settings.SetTitle(a.tr("title.settings"))
-	a.settings.Show()
-	a.settings.Focus()
-}
+// viewSettings is the navigate target for the settings view. Rule names
+// cannot start with ':', so it never names a rule.
+const viewSettings = ":settings"
+
+// OpenSettings shows the window on the settings view.
+func (a *AppService) OpenSettings() { a.OpenMain(viewSettings) }
 
 // OpenURL opens a link in the default browser.
 func (a *AppService) OpenURL(link string) error {

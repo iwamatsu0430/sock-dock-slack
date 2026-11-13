@@ -6,7 +6,7 @@
   import TokenFields from "../lib/TokenFields.svelte";
   import Rich from "../lib/Rich.svelte";
 
-  // The settings window (⌘,): Slack, General and MCP (docs/ia.md「設定ウィンドウ」).
+  // The settings view of the window (⌘,): Slack, General, MCP and reset (docs/ia.md「設定」).
   let prefs = $state<Prefs | null>(null);
   let atLogin = $state(false);
   let version = $state("");
@@ -14,6 +14,8 @@
   let error = $state("");
   let mcp = $state<MCPSetup | null>(null);
   let copied = $state(false);
+  let confirmReset = $state(false);
+  let resetting = $state(false);
 
   // MCP clients, in the order of docs/mcp.md §2.1.
   const mcpClients: [string, string][] = [
@@ -62,6 +64,19 @@
       atLogin = !atLogin;
     } catch (e) {
       error = errorText(e);
+    }
+  }
+  async function reset() {
+    resetting = true;
+    error = "";
+    try {
+      await App.ResetAll();
+      confirmReset = false;
+    } catch (e) {
+      error = errorText(e);
+      confirmReset = false;
+    } finally {
+      resetting = false;
     }
   }
   async function disconnect() {
@@ -141,12 +156,32 @@
     </div>
   </div>
 
+  <div><button class="small danger" onclick={() => (confirmReset = true)}>{t("settings.resetAll")}</button></div>
+
   {#if error}<p class="small bad-t">{error}</p>{/if}
   <p class="small muted">SockDock {version} · <button class="link small" onclick={() => App.ShowLogs()}>{t("settings.showLogs")}</button></p>
 </div>
 
+{#if confirmReset}
+  <div class="overlay" role="presentation">
+    <div class="dialog" role="alertdialog" aria-labelledby="reset-title">
+      <p class="big" id="reset-title">{t("reset.title")}</p>
+      <p>{t("reset.text")}</p>
+      <div class="row"><span class="spacer"></span>
+        <button disabled={resetting} onclick={() => (confirmReset = false)}>{t("reset.cancel")}</button>
+        <button class="danger-fill" disabled={resetting} onclick={reset}>{t("reset.confirm")}</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <style>
-  .set { padding: 18px 24px 22px; display: flex; flex-direction: column; gap: 18px; }
+  .set { max-width: 560px; margin: 4px auto 0; display: flex; flex-direction: column; gap: 18px; }
+  .overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, .28); display: flex; align-items: flex-start; justify-content: center; padding-top: 80px; z-index: 10; }
+  .dialog { width: 380px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px;
+    display: flex; flex-direction: column; gap: 10px; box-shadow: 0 16px 40px rgba(0, 0, 0, .3); }
+  .dialog .big { font-size: 15px; font-weight: 600; }
+  .danger-fill, .danger-fill:hover:not(:disabled) { background: var(--bad); border-color: var(--bad); color: #fff; }
   .set h2 { color: var(--muted); font-weight: 500; margin-bottom: 6px; }
   .item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; }
   .item + .item { border-top: 1px solid var(--border); }

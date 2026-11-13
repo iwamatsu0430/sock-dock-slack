@@ -15,15 +15,17 @@
   let botToken = $state("");
   let appProblem = $state<TokenProblem | null>(null);
   let botProblem = $state<TokenProblem | null>(null);
+  let startProblem = $state<TokenProblem | null>(null);
   let busy = $state(false);
 
   async function connect() {
     busy = true;
-    appProblem = botProblem = null;
+    appProblem = botProblem = startProblem = null;
     try {
       const res = await App.ConnectSlack(appToken, botToken);
       appProblem = res.app ?? null;
       botProblem = res.bot ?? null;
+      startProblem = res.start ?? null;
       if (res.ok) {
         appToken = botToken = "";
         onconnected(res.team ?? "");
@@ -57,6 +59,13 @@
   {#if botProblem}{@render problem(botProblem, "bot")}{:else}<p class="small muted hint">{t("token.botHint")}</p>{/if}
 </div>
 <p class="small muted">{t("token.keychain")}</p>
+{#if startProblem}
+  <p class="small bad-t">
+    {#if startProblem.code === "external"}{t("token.external")}
+    {:else if startProblem.code === "timeout"}{t("token.timeout")}
+    {:else}{t("token.startFailed", { detail: startProblem.detail ?? "" })}{/if}
+  </p>
+{/if}
 <div class="row nav">
   <button onclick={onback}>{backLabel}</button>
   <span class="spacer"></span>

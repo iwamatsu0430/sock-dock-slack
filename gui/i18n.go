@@ -24,11 +24,12 @@ var nativeText = map[string]map[string]string{
 		"status.stopped":     "Stopped",
 		"status.interrupted": "Stopped",
 		"status.running":     "Running",
-		"title.settings":     "Settings",
 		"notify.failed":      "%s failed",
 		"notify.down":        "Can't connect to Slack",
 		"notify.mcp":         "%s was changed through MCP",
 		"err.disconnectEnv":  "The tokens are set in an environment variable or secrets_file, so SockDock can't remove them.",
+		"err.resetEnv":       "The tokens are set in an environment variable or secrets_file, so SockDock can't reset itself.",
+		"err.resetService":   "SockDock is running as a service, so it can't be reset. Stop the service first.",
 	},
 	"ja": {
 		"label.keyword":      "%s「%s」",
@@ -49,11 +50,12 @@ var nativeText = map[string]map[string]string{
 		"status.stopped":     "停止",
 		"status.interrupted": "停止",
 		"status.running":     "処理中",
-		"title.settings":     "設定",
 		"notify.failed":      "%s の処理が失敗しました",
 		"notify.down":        "Slack に接続できません",
 		"notify.mcp":         "MCP から %s を変更しました",
 		"err.disconnectEnv":  "トークンが環境変数か secrets_file に書かれているため、SockDock からは解除できません。",
+		"err.resetEnv":       "トークンが環境変数か secrets_file に書かれているため、SockDock からは初期状態に戻せません。",
+		"err.resetService":   "サービスで動いているため、初期状態に戻せません。先にサービスを止めてください。",
 	},
 }
 

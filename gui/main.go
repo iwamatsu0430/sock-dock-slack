@@ -79,6 +79,7 @@ func main() {
 		"CmdOrCtrl+,": func(application.Window) { svc.OpenSettings() },
 		"CmdOrCtrl+w": func(w application.Window) { w.Hide() },
 	}
+	// One window: the rule list and settings are two views of it (docs/ia.md §4).
 	main := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:        "main",
 		Title:       "SockDock",
@@ -90,29 +91,16 @@ func main() {
 		Hidden:      true,
 		KeyBindings: keys,
 	})
-	settings := app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Name:          "settings",
-		Title:         svc.tr("title.settings"),
-		URL:           "/#/settings",
-		Width:         520,
-		Height:        460,
-		Hidden:        true,
-		DisableResize: true,
-		KeyBindings:   keys,
+	// Closing the window only hides it; the app lives in the menu bar.
+	main.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
+		main.Hide()
+		e.Cancel()
 	})
-	// Closing a window only hides it; the app lives in the menu bar.
-	for _, w := range []*application.WebviewWindow{main, settings} {
-		w.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
-			w.Hide()
-			e.Cancel()
-		})
-	}
-	svc.main, svc.settings = main, settings
+	svc.main = main
 
 	// Clicking the menu bar icon opens the menu (built by the monitor).
 	mon := newMonitor(svc, tray)
 	svc.onLocale = func() {
-		settings.SetTitle(svc.tr("title.settings"))
 		go mon.relabel()
 	}
 	svc.emb.onChange = func() { go mon.refresh() }

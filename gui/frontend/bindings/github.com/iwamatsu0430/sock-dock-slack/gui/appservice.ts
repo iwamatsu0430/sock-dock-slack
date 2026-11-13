@@ -132,14 +132,15 @@ export function OpenConfigFile(): $CancellablePromise<void> {
 }
 
 /**
- * OpenMain shows the main window. view is "" (the rule list) or a rule name.
+ * OpenMain shows the window. view is "" (the rule list), a rule name or
+ * viewSettings.
  */
 export function OpenMain(view: string): $CancellablePromise<void> {
     return $Call.ByID(3527406107, view);
 }
 
 /**
- * OpenSettings shows the settings window.
+ * OpenSettings shows the window on the settings view.
  */
 export function OpenSettings(): $CancellablePromise<void> {
     return $Call.ByID(717766711);
@@ -191,6 +192,17 @@ export function ReorderRules(names: string[]): $CancellablePromise<$models.Route
     return $Call.ByID(157335092, names).then(($result: any) => {
         return $$createType1($result);
     });
+}
+
+/**
+ * ResetAll returns SockDock to its first-launch state (docs/ia.md
+ * 「初期状態に戻す」): it stops runs and the gateway, removes the Keychain
+ * tokens, moves the config file to the Trash and writes a minimal one,
+ * deletes the run history, resets the app's preferences and turns off
+ * starting at login. Logs are kept. The window then shows setup.
+ */
+export function ResetAll(): $CancellablePromise<void> {
+    return $Call.ByID(1394988924);
 }
 
 /**
