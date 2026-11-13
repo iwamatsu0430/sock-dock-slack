@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SockDock モック</title>
+<style>
+:root {
+  --bg: #f6f6f8; --panel: #fff; --panel-2: #f0f0f4; --text: #1c1c22; --muted: #6b6b78;
+  --border: #e2e2e8; --accent: #4f46e5; --accent-text: #fff; --ok: #16a34a;
+  --bad: #dc2626; --code-bg: #f3f3f7; --desk: #d9dbe3; --menu: rgba(246,246,248,.96);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1b1b20; --panel: #24242b; --panel-2: #2c2c35; --text: #ececf1; --muted: #9a9aa8;
+    --border: #3a3a44; --accent: #818cf8; --accent-text: #11111a; --ok: #4ade80;
+    --bad: #f87171; --code-bg: #1e1e24; --desk: #111114; --menu: rgba(40,40,48,.96);
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--desk); color: var(--text);
+  font: 13px/1.55 -apple-system, BlinkMacSystemFont, "Hiragino Sans", system-ui, sans-serif; }
+h1, h2, p { margin: 0; }
+h1 { font-size: 20px; font-weight: 600; } h2 { font-size: 13px; font-weight: 600; }
+code { font: 12px ui-monospace, Menlo, monospace; background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
+button { font: inherit; border: 1px solid var(--border); background: var(--panel); color: var(--text);
+  border-radius: 6px; padding: 4px 12px; cursor: pointer; white-space: nowrap; }
+button:hover { background: var(--panel-2); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+button.danger { color: var(--bad); }
+button.small { padding: 1px 8px; font-size: 12px; }
+button.link { border: none; background: none; padding: 0; color: var(--accent); }
+button.link:hover { text-decoration: underline; }
+input[type=text], input[type=password], select, textarea { font: inherit; width: 100%; border: 1px solid var(--border);
+  background: var(--panel); color: var(--text); border-radius: 6px; padding: 5px 8px; }
+input.invalid { border-color: var(--bad); }
+label.f { display: block; font-weight: 500; margin-bottom: 4px; }
+.muted { color: var(--muted); } .small { font-size: 12px; }
+.ok-t { color: var(--ok); } .bad-t { color: var(--bad); }
+.row { display: flex; align-items: center; gap: 8px; } .spacer { flex: 1; }
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
+.check { display: flex; gap: 8px; align-items: center; }
+.switch { width: 30px; height: 18px; border-radius: 9px; background: var(--border); position: relative; flex: none; cursor: pointer; }
+.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left .15s; }
+.switch.on { background: var(--ok); } .switch.on::after { left: 14px; }
+[hidden] { display: none !important; }
+
+/* mock chrome */
+.picker { position: sticky; top: 0; z-index: 10; background: var(--panel); border-bottom: 1px solid var(--border);
+  padding: 8px 16px; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.picker strong { margin-right: 6px; }
+.picker .grp { font-size: 11px; color: var(--muted); margin-left: 8px; }
+.picker button { font-size: 12px; padding: 1px 9px; }
+.picker button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.stage { padding: 24px 16px 48px; display: flex; justify-content: center; align-items: flex-start; }
+
+/* window */
+.win { width: 720px; max-width: 100%; height: 560px; background: var(--bg); border-radius: 10px; overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0,0,0,.25); border: 1px solid var(--border); display: flex; flex-direction: column; }
+.win.narrow { width: 520px; height: auto; min-height: 0; }
+.titlebar { height: 34px; flex: none; display: flex; align-items: center; gap: 7px; padding: 0 14px; position: relative; }
+.titlebar i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; }
+.titlebar i:nth-child(2) { background: #febc2e; } .titlebar i:nth-child(3) { background: #28c840; }
+.titlebar span { position: absolute; left: 0; right: 0; text-align: center; font-size: 12px; font-weight: 600; color: var(--muted); pointer-events: none; }
+.content { flex: 1; overflow-y: auto; padding: 8px 28px 24px; }
+.banner { display: flex; gap: 10px; align-items: center; padding: 9px 12px; border-radius: 8px; margin-bottom: 14px;
+  background: color-mix(in srgb, var(--bad) 10%, var(--panel)); border: 1px solid color-mix(in srgb, var(--bad) 40%, var(--border)); }
+
+/* setup */
+.setup { padding: 28px 44px 24px; display: flex; flex-direction: column; gap: 16px; }
+.setup .stepno { font-size: 12px; color: var(--muted); }
+.setup .big { font-size: 20px; font-weight: 600; }
+.setupnav { display: flex; gap: 8px; margin-top: 8px; }
+.todo { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+.todo li > div { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+
+/* routes */
+.list { overflow: hidden; }
+.route { display: flex; align-items: center; gap: 12px; padding: 11px 14px; cursor: pointer; }
+.route + .route { border-top: 1px solid var(--border); }
+.route:hover { background: color-mix(in srgb, var(--text) 3%, transparent); }
+.route .what { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.route.off .what { opacity: .45; }
+.last { font-size: 12px; white-space: nowrap; }
+.empty { text-align: center; padding: 48px 24px; display: flex; flex-direction: column; gap: 14px; align-items: center; }
+.foot { margin-top: 14px; font-size: 12px; }
+
+/* route page */
+.back { border: none; background: none; padding: 0; color: var(--accent); }
+.sec { padding: 14px 0; border-top: 1px solid var(--border); display: grid; grid-template-columns: 110px 1fr; gap: 6px 16px; }
+.sec.first { border-top: none; }
+.sec > h2 { padding-top: 5px; }
+.ctl { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; width: fit-content; }
+.seg button { border: none; border-radius: 0; padding: 4px 14px; }
+.seg button + button { border-left: 1px solid var(--border); }
+.seg button.on { background: var(--accent); color: var(--accent-text); }
+details.more summary { cursor: pointer; color: var(--muted); font-size: 12px; padding: 10px 0; }
+.formfoot { display: flex; gap: 8px; padding: 14px 0; border-top: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th { text-align: left; font-weight: 500; color: var(--muted); padding: 6px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+td { padding: 7px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+
+/* settings */
+.set { padding: 18px 24px 22px; display: flex; flex-direction: column; gap: 18px; }
+.set h2 { color: var(--muted); font-weight: 500; margin-bottom: 6px; }
+.item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; }
+.item + .item { border-top: 1px solid var(--border); }
+.item .lbl { flex: 1; }
+
+/* menu */
+.menuwrap { width: 300px; }
+.menubar { height: 24px; display: flex; justify-content: flex-end; align-items: center; gap: 14px; font-size: 12px; padding-right: 6px; }
+.menubar .ico { padding: 0 5px; border-radius: 4px; background: color-mix(in srgb, var(--text) 16%, transparent); }
+.menu { margin-top: 2px; background: var(--menu); border: 1px solid var(--border); border-radius: 8px; padding: 5px;
+  box-shadow: 0 12px 32px rgba(0,0,0,.22); font-size: 13px; }
+.menu .mi { padding: 3px 10px; border-radius: 4px; display: flex; gap: 8px; }
+.menu .mi:hover { background: var(--accent); color: var(--accent-text); }
+.menu .mi.dis { color: var(--muted); } .menu .mi.dis:hover { background: none; color: var(--muted); }
+.menu .mi .r { margin-left: auto; color: var(--muted); }
+.menu .mi:hover .r { color: inherit; }
+.menu hr { border: none; border-top: 1px solid var(--border); margin: 5px 8px; }
+.menu .hd { padding: 3px 10px; font-size: 11px; color: var(--muted); }
+/* slack */
+.slack { width: 560px; max-width: 100%; background: var(--panel); border-radius: 10px; overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0,0,0,.25); border: 1px solid var(--border); }
+.slack .ch { padding: 10px 16px; font-weight: 600; border-bottom: 1px solid var(--border); }
+.thread { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+.thread + .thread { border-top: 1px solid var(--border); }
+.thread .cap { font-size: 11px; color: var(--muted); }
+.msg { display: flex; gap: 10px; }
+.msg .av { width: 32px; height: 32px; border-radius: 6px; flex: none; background: var(--panel-2); display: grid; place-items: center; font-size: 13px; }
+.msg .who { font-weight: 600; } .msg .who .app { font-size: 10px; font-weight: 500; color: var(--muted); border: 1px solid var(--border); border-radius: 3px; padding: 0 3px; margin-left: 4px; }
+.msg .who .tm { font-weight: 400; font-size: 11px; color: var(--muted); margin-left: 6px; }
+.reply { margin-left: 42px; padding-left: 10px; border-left: 2px solid var(--border); }
+.react { display: inline-block; margin-top: 4px; font-size: 12px; padding: 0 7px; border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel)); border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border)); }
+</style>
+</head>
+<body>
+
+<div class="picker">
+  <strong>SockDock モック</strong>
+  <span class="grp">セットアップ</span>
+  <button data-go="s1">1 Slack アプリ</button>
+  <button data-go="s2">2 接続</button>
+  <button data-go="s2-error">2 失敗</button>
+  <button data-go="s2-scope">2 スコープ不足</button>
+  <span class="grp">メインウィンドウ</span>
+  <button data-go="empty">ルールなし</button>
+  <button data-go="routes">一覧</button>
+  <button data-go="route">ルール</button>
+  <button data-go="route-new">新しいルール</button>
+  <button data-go="route-noscope">チャンネル一覧なし</button>
+  <button data-go="banner">接続できない</button>
+  <span class="grp">Slack</span>
+  <button data-go="slack">スレッド</button>
+  <span class="grp">ほか</span>
+  <button data-go="settings">設定</button>
+  <button data-go="menu">メニューバー</button>
+</div>
+
+<div class="stage">
+
+  <!-- ============ セットアップ ============ -->
+  <div class="win narrow" data-screen="s1 s2 s2-error s2-scope">
+    <div class="titlebar"><i></i><i></i><i></i></div>
+
+    <div class="setup" data-only="s1">
+      <p class="stepno">1 / 2</p>
+      <p class="big">Slack アプリを作成</p>
+      <p>SockDock を使うには、専用の Slack アプリが必要です。Slack の管理画面で、次の 3 つを行ってください。</p>
+      <ol class="todo">
+        <li><div><span>アプリを作成（設定は入力済みです）</span><button class="small">api.slack.com を開く ↗</button></div></li>
+        <li><div><span>ワークスペースにインストール → Bot Token（<code>xoxb-</code>）が発行されます</span></div></li>
+        <li><div><span>App-Level Token を発行（スコープ: <code>connections:write</code>）→ <code>xapp-</code> で始まるトークン</span></div></li>
+      </ol>
+      <div class="setupnav"><span class="spacer"></span><button class="primary" data-go="s2">次へ</button></div>
+    </div>
+
+    <div class="setup" data-only="s2 s2-error s2-scope">
+      <p class="stepno">2 / 2</p>
+      <p class="big">Slack に接続</p>
+      <div>
+        <label class="f">App-Level Token</label>
+        <input type="password" placeholder="xapp-…" id="tApp">
+        <p class="small muted" style="margin-top:3px" data-only="s2 s2-error">投稿の受信に使います</p>
+        <p class="small bad-t" style="margin-top:3px" data-only="s2-scope">このトークンには <code>connections:write</code> のスコープがありません</p>
+      </div>
+      <div>
+        <label class="f">Bot Token</label>
+        <input type="password" placeholder="xoxb-…" id="tBot">
+        <p class="small muted" style="margin-top:3px" data-only="s2 s2-scope">返信の投稿に使います</p>
+        <p class="small bad-t" style="margin-top:3px" data-only="s2-error">接続できませんでした。トークンを確認してください（invalid_auth）</p>
+      </div>
+      <p class="small muted">トークンはこの Mac のキーチェーンに保存します。送信先は Slack だけです。</p>
+      <div class="setupnav"><button data-go="s1">戻る</button><span class="spacer"></span><button class="primary" data-go="empty">Slack に接続</button></div>
+    </div>
+  </div>
+
+  <!-- ============ メインウィンドウ ============ -->
+  <div class="win" data-screen="empty routes route route-new route-noscope banner">
+    <div class="titlebar"><i></i><i></i><i></i><span>SockDock</span></div>
+    <div class="content">
+      <div class="banner" data-only="banner">
+        <span>Slack に接続できません。Bot Token が無効になっています。</span><span class="spacer"></span>
+        <button class="small" data-go="settings">トークンを再設定</button>
+      </div>
+
+      <!-- 一覧 -->
+      <div data-only="empty routes banner">
+        <div class="row" style="min-height:40px;margin-bottom:12px"><h1>ルール</h1><span class="spacer"></span>
+          <button class="primary" data-go="route-new" data-only="routes banner">ルールを追加</button></div>
+
+        <div class="card empty" data-only="empty">
+          <h2 style="font-size:15px">ルールはまだありません</h2>
+          <p class="muted">ルールを追加すると、Slack に投稿するだけで AI エージェントやプログラムを動かせます。</p>
+          <button class="primary" data-go="route-new">ルールを追加</button>
+        </div>
+
+        <div class="card list" data-only="routes banner">
+          <div class="route" data-go="route">
+            <div class="what"><strong>#dev-help「entry」</strong> <span class="muted">→ Claude Code（~/projects/web-app）</span></div>
+            <span class="last"><span class="ok-t">成功</span> · 3分前</span>
+            <span class="switch on" data-toggle></span>
+          </div>
+          <div class="route" data-go="route">
+            <div class="what"><strong>🔒ops「deploy」</strong> <span class="muted">→ ~/bin/deploy.sh</span></div>
+            <span class="last"><span class="bad-t">失敗</span> · 1時間前</span>
+            <span class="switch on" data-toggle></span>
+          </div>
+          <div class="route" data-go="route">
+            <div class="what"><strong>#reports「report」</strong> <span class="muted">→ Claude Code（~/old-project）</span></div>
+            <span class="last bad-t">作業フォルダが見つかりません</span>
+            <span class="switch on" data-toggle></span>
+          </div>
+          <div class="route off" data-go="route">
+            <div class="what"><strong>#notes「memo」</strong> <span class="muted">→ Claude Code（~/notes）</span></div>
+            <span class="last muted">オフ</span>
+            <span class="switch" data-toggle></span>
+          </div>
+        </div>
+        <p class="foot" data-only="routes banner"><button class="link small">設定ファイルを開く</button></p>
+      </div>
+
+      <!-- ルール -->
+      <div data-only="route route-new route-noscope">
+        <div style="min-height:28px"><button class="back" data-go="routes">← ルール</button></div>
+        <h1 id="title" style="margin-bottom:6px">#dev-help「entry」</h1>
+
+        <div class="sec first">
+          <h2>チャンネル</h2>
+          <div class="ctl">
+            <div data-only="route route-new">
+              <select id="ch"><option value="">選んでください</option><option>#dev-help</option><option>#general</option><option>🔒ops</option></select>
+              <p class="small muted" style="margin-top:6px">一覧に出るのは、Slack アプリを追加したチャンネルです。</p>
+            </div>
+            <div data-only="route-noscope">
+              <input type="text" value="C0ABCDEF12">
+              <p class="small muted" style="margin-top:6px">チャンネル一覧を取得できません。チャンネル ID かリンクを入力してください。一覧を使うには、Slack アプリに <code>channels:read</code> と <code>groups:read</code> のスコープを追加してください。</p>
+            </div>
+            <p class="small">このチャンネルのメンバーなら誰でも実行できます。</p>
+          </div>
+        </div>
+        <div class="sec">
+          <h2>キーワード</h2>
+          <div class="ctl">
+            <input type="text" id="kw" style="max-width:200px">
+            <p class="small muted">「<span id="kwEx">entry</span> 〜」で始まる投稿で動きます</p>
+          </div>
+        </div>
+        <div class="sec">
+          <h2>実行するもの</h2>
+          <div class="ctl">
+            <div class="seg"><button class="on" data-kind="claude">AI エージェント</button><button data-kind="program">プログラム</button></div>
+            <div data-kind-body="claude" class="stack" style="gap:10px;margin-top:4px">
+              <div><label class="f small">エージェント</label><select style="max-width:200px"><option>Claude Code</option></select></div>
+              <div><label class="f small">作業フォルダ</label><div class="row"><input type="text" id="folder"><button>選ぶ…</button></div></div>
+              <div><label class="f small">指示（省略可）</label><textarea rows="2" id="inst"></textarea></div>
+              <div><label class="f small">エージェントに許可する操作</label>
+                <label class="check"><input type="checkbox" id="web"> Web 検索</label>
+                <label class="check"><input type="checkbox"> フォルダ内のファイル編集</label>
+                <label class="f small" style="margin-top:8px;font-weight:normal">実行してよいコマンド</label>
+                <input type="text" id="cmd" placeholder="例: npm test">
+                <p class="small muted" style="margin-top:4px">許可した操作だけを実行します。</p>
+              </div>
+            </div>
+            <div data-kind-body="program" class="stack" style="gap:10px;margin-top:4px" hidden>
+              <div><label class="f small">ファイル</label><div class="row"><input type="text" placeholder="~/bin/handler.sh"><button>選ぶ…</button></div></div>
+              <div><label class="f small">引数（省略可）</label><input type="text"></div>
+              <p class="small muted">投稿の内容を JSON で標準入力に渡します。標準出力がそのまま返信になります。<button class="link small">書き方 ↗</button></p>
+            </div>
+          </div>
+        </div>
+        <details class="more">
+          <summary>オプション</summary>
+          <div class="sec first"><h2>モデル</h2><div class="ctl"><select style="max-width:200px"><option>既定</option><option>opus</option><option>sonnet</option></select></div></div>
+          <div class="sec"><h2>上限時間</h2><div class="ctl"><div class="row"><input type="text" value="600" style="max-width:80px"><span class="muted">秒</span></div></div></div>
+          <div class="sec"><h2>正規表現</h2><div class="ctl"><input type="text" placeholder="キーワードの代わりに使う"></div></div>
+        </details>
+        <div class="formfoot">
+          <button class="danger" data-only="route route-noscope">削除</button><span class="spacer"></span>
+          <button data-go="routes">キャンセル</button><button class="primary" data-go="routes">保存</button>
+        </div>
+
+        <div data-only="route route-noscope" style="margin-top:6px">
+          <h2 style="margin-bottom:8px">最近の処理</h2>
+          <div class="card">
+            <table>
+              <thead><tr><th>時刻</th><th>結果</th><th></th></tr></thead>
+              <tbody>
+                <tr><td>14:02</td><td>処理中 · 42秒</td><td><button class="small">停止</button> <button class="link small">スレッド ↗</button></td></tr>
+                <tr><td>13:58</td><td class="ok-t">成功</td><td><button class="link small">スレッド ↗</button></td></tr>
+                <tr><td>昨日 18:20</td><td><span class="bad-t">時間切れ</span><div class="muted">上限時間（600 秒）を超えたため停止しました</div></td><td><button class="link small">スレッド ↗</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 設定ウィンドウ ============ -->
+  <div class="win narrow" data-screen="settings">
+    <div class="titlebar"><i></i><i></i><i></i><span>設定</span></div>
+    <div class="set">
+      <div>
+        <h2>Slack</h2>
+        <div class="card">
+          <div class="item"><span class="lbl"><span class="ok-t">●</span> my-workspace に接続済み</span>
+            <button class="small" data-reveal>トークンを再設定</button><button class="small danger">接続を解除</button></div>
+          <div class="item stack" id="replace" hidden style="align-items:stretch;gap:8px">
+            <input type="password" placeholder="App-Level Token（xapp-…）">
+            <input type="password" placeholder="Bot Token（xoxb-…）">
+            <p class="small muted">トークンはこの Mac のキーチェーンに保存します。送信先は Slack だけです。</p>
+            <div class="row"><span class="spacer"></span><button data-reveal>キャンセル</button><button class="primary">Slack に接続</button></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <h2>一般</h2>
+        <div class="card">
+          <div class="item"><span class="lbl">ログイン時に起動</span><span class="switch" data-toggle></span></div>
+          <div class="item"><span class="lbl">問題が発生したら通知</span><span class="switch on" data-toggle></span></div>
+          <div class="item"><span class="lbl">言語</span><select style="width:180px"><option>システムに合わせる</option><option>English</option><option>日本語</option></select></div>
+        </div>
+      </div>
+      <p class="small muted">SockDock 0.1.0 · <button class="link small">ログを表示</button></p>
+    </div>
+  </div>
+
+  <!-- ============ Slack ============ -->
+  <div class="slack" data-screen="slack">
+    <div class="ch"># dev-help</div>
+    <div class="thread">
+      <div class="cap">処理中</div>
+      <div class="msg"><div class="av">me</div><div><div class="who">me<span class="tm">14:03</span></div>
+        <div>entry AB12 100件を確認して</div><span class="react">👀 1</span></div></div>
+    </div>
+    <div class="thread">
+      <div class="cap">終わった</div>
+      <div class="msg"><div class="av">me</div><div><div class="who">me<span class="tm">13:58</span></div>
+        <div>entry 5678 200件</div></div></div>
+      <div class="msg reply"><div class="av">🤖</div><div><div class="who">dev-bot<span class="app">アプリ</span><span class="tm">13:59</span></div>
+        <div>5678 を 200 件登録します。よければ「OK」と返信してください。</div></div></div>
+    </div>
+    <div class="thread">
+      <div class="cap">失敗した</div>
+      <div class="msg"><div class="av">me</div><div><div class="who">me<span class="tm">12:40</span></div>
+        <div>entry 9012 50件</div></div></div>
+      <div class="msg reply"><div class="av">🤖</div><div><div class="who">dev-bot<span class="app">アプリ</span><span class="tm">12:41</span></div>
+        <div>⚠️ 処理に失敗しました。理由は Mac の SockDock で確認できます。</div></div></div>
+    </div>
+  </div>
+
+  <!-- ============ メニューバー ============ -->
+  <div class="menuwrap" data-screen="menu">
+    <div class="menubar"><span class="ico">⎔</span><span>14:03</span></div>
+    <div class="menu">
+      <div class="mi dis"><span class="ok-t">●</span> Slack に接続済み</div>
+      <hr>
+      <div class="hd">処理中</div>
+      <div class="mi">#dev-help「entry」<span class="r">42秒</span></div>
+      <hr>
+      <div class="hd">最近の処理</div>
+      <div class="mi">#dev-help「entry」<span class="r">成功 · 13:58</span></div>
+      <div class="mi">🔒ops「deploy」<span class="r">失敗 · 12:40</span></div>
+      <hr>
+      <div class="mi" data-go="routes">SockDock を開く</div>
+      <div class="mi" data-go="settings">設定…<span class="r">⌘,</span></div>
+      <hr>
+      <div class="mi">SockDock を終了<span class="r">⌘Q</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (q) => document.querySelector(q);
+const $$ = (q) => [...document.querySelectorAll(q)];
+const has = (list, id) => list.split(" ").includes(id);
+
+function go(id) {
+  $$("[data-screen]").forEach((el) => (el.hidden = !has(el.dataset.screen, id)));
+  $$("[data-only]").forEach((el) => (el.hidden = !has(el.dataset.only, id)));
+  $$(".picker [data-go]").forEach((b) => b.classList.toggle("on", b.dataset.go === id));
+
+  const blank = id === "route-new";
+  const noscope = id === "route-noscope";
+  $("#title").textContent = blank ? "新しいルール" : noscope ? "C0ABCDEF12「entry」" : "#dev-help「entry」";
+  $("#ch").selectedIndex = blank ? 0 : 1;
+  $("#kw").value = blank ? "" : "entry";
+  $("#folder").value = blank ? "" : "~/projects/web-app";
+  $("#inst").value = blank ? "" : "prompts/entry.md の手順に従ってください。";
+  $("#cmd").value = blank ? "" : "npm test";
+  $("#web").checked = !blank;
+  kwEx();
+
+  const filled = id === "s2-error" || id === "s2-scope";
+  $("#tApp").value = filled ? "xapp-1-A0000000000-0000-aaaa" : "";
+  $("#tBot").value = filled ? "xoxb-0000000000-0000-bbbb" : "";
+  $("#tBot").classList.toggle("invalid", id === "s2-error");
+  $("#tApp").classList.toggle("invalid", id === "s2-scope");
+  $("#replace").hidden = true;
+  try { history.replaceState(null, "", "#" + id); } catch {}
+}
+function kwEx() { $("#kwEx").textContent = $("#kw").value.trim() || "キーワード"; }
+$("#kw").addEventListener("input", kwEx);
+
+document.addEventListener("click", (e) => {
+  const t = e.target;
+  const sw = t.closest("[data-toggle]");
+  if (sw) {
+    sw.classList.toggle("on");
+    const row = sw.closest(".route");
+    if (row) row.classList.toggle("off", !sw.classList.contains("on"));
+    e.stopPropagation(); return;
+  }
+  if (t.closest("[data-reveal]")) { $("#replace").hidden = !$("#replace").hidden; return; }
+  const kind = t.closest("[data-kind]");
+  if (kind) {
+    $$("[data-kind]").forEach((b) => b.classList.toggle("on", b === kind));
+    $$("[data-kind-body]").forEach((b) => (b.hidden = b.dataset.kindBody !== kind.dataset.kind));
+    return;
+  }
+  const g = t.closest("[data-go]");
+  if (g && !t.closest("select, input, textarea")) go(g.dataset.go);
+});
+
+go(location.hash.slice(1) || "s1");
+</script>
+</body>
+</html>
