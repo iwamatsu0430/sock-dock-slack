@@ -229,10 +229,10 @@ routes:
 
 SockDock can also send its notices to you as Slack DMs, not only as Mac notifications. Register who you are in Slack once:
 
-1. In the app, **Settings → Slack → Register Yourself** (or `sockdock owner register`). A six-digit code appears; it changes every 30 seconds.
+1. In the app, **Settings → Slack → Register Yourself** (or `sockdock owner register`). A six-digit code appears; it changes every 30 seconds. **Copy** copies it.
 2. Send that code to the Slack app as a DM. If it matches, the sender is registered and gets "✅ You're registered."
 
-Codes are accepted for 10 minutes after you start, and five wrong codes end it. If the wrong person got registered, press **Remove** and register again.
+Codes are accepted for 10 minutes after you start, and five wrong codes end it. If the wrong person got registered, press **Remove** and register again. Settings shows your name when the Slack app has `users:read`; without it, your member ID.
 
 **Settings → Notifications** has a switch for the Mac and one for Slack DMs. By DM you get: Claude Code being signed out (once, until it is signed in again) and rules changed through MCP. Turn on *Also send failed runs* to get a DM for every failed run too (there can be many). In the config these are `settings.owner`, `settings.notify_dm` and `settings.notify_dm_failures`.
 
