@@ -11,6 +11,11 @@ SockDock (`sockdock`) is a small gateway that runs on your Mac. It receives mess
 
 Think of it as a power strip: Slack apps allow one socket, and SockDock lets you plug many things into it. A top-level message that matches a route (a channel, or DMs to the app, plus a condition) starts a thread; every reply in that thread goes to the same handler.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/architecture-dark.svg">
+  <img alt="Posts in Slack channels and DMs reach SockDock on your local Mac over one Socket Mode connection. SockDock runs Claude Code or a program for the rule each post matches." src="assets/architecture-light.svg">
+</picture>
+
 It comes with a CLI and an optional menu bar app.
 
 > SockDock is not affiliated with, created by, or supported by Slack Technologies, LLC.

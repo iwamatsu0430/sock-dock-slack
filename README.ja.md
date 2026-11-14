@@ -11,6 +11,11 @@ SockDock（コマンド名 `sockdock`）は、Mac で動く小さなゲートウ
 
 電源タップのようなものです。Slack アプリの差込口は 1 つですが、SockDock を挟めばいくつでも差し込めます。トップレベルの投稿がルート（チャンネルか Slack アプリへの DM と、条件）に一致するとスレッドが始まり、そのスレッドへの返信はすべて同じハンドラに渡ります。
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/architecture-dark.ja.svg">
+  <img alt="Slack のチャンネルや DM への投稿は、1 本の Socket Mode 接続でローカル環境の Mac の SockDock に届きます。SockDock は、投稿に合うルールの Claude Code かプログラムを実行します。" src="assets/architecture-light.ja.svg">
+</picture>
+
 CLI と、必要ならメニューバーのアプリで操作します。
 
 > SockDock は Slack Technologies, LLC が作成・提携・サポートするものではありません。
