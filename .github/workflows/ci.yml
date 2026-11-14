@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    # macOS only: the gui package needs WebKitGTK headers on Linux.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: jdx/mise-action@v3
+      - name: Frontend dependencies
+        run: npm ci --no-audit --no-fund
+        working-directory: gui/frontend
+      - name: vet, test, frontend type check
+        run: mise run ci

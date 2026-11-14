@@ -27,8 +27,22 @@ echo "==> go build ($VERSION)"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 LDFLAGS="-s -w -X main.version=$VERSION"
-go build -trimpath -ldflags "$LDFLAGS" -o "$APP/Contents/MacOS/sockdock" ./cmd/sockdock
-go build -trimpath -tags production -ldflags "$LDFLAGS" -o "$APP/Contents/MacOS/sockdock-gui" ./gui
+# ARCHS="arm64 amd64" builds a universal app (for releases); default: this Mac's arch.
+ARCHS="${ARCHS:-$(go env GOARCH)}"
+if [ "$(echo $ARCHS | wc -w)" -eq 1 ]; then
+  GOARCH="$ARCHS" go build -trimpath -ldflags "$LDFLAGS" -o "$APP/Contents/MacOS/sockdock" ./cmd/sockdock
+  GOARCH="$ARCHS" CGO_ENABLED=1 go build -trimpath -tags production -ldflags "$LDFLAGS" -o "$APP/Contents/MacOS/sockdock-gui" ./gui
+else
+  TMP="$(mktemp -d)"
+  for arch in $ARCHS; do
+    echo "    $arch"
+    GOARCH="$arch" go build -trimpath -ldflags "$LDFLAGS" -o "$TMP/sockdock-$arch" ./cmd/sockdock
+    GOARCH="$arch" CGO_ENABLED=1 go build -trimpath -tags production -ldflags "$LDFLAGS" -o "$TMP/sockdock-gui-$arch" ./gui
+  done
+  lipo -create -output "$APP/Contents/MacOS/sockdock" $(for a in $ARCHS; do echo "$TMP/sockdock-$a"; done)
+  lipo -create -output "$APP/Contents/MacOS/sockdock-gui" $(for a in $ARCHS; do echo "$TMP/sockdock-gui-$a"; done)
+  rm -rf "$TMP"
+fi
 
 echo "==> icon"
 ICONSET="$(mktemp -d)/icon.iconset"

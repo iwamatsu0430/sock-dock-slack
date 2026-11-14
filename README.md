@@ -15,13 +15,22 @@ It comes with a CLI and an optional menu bar app.
 
 > SockDock is not affiliated with, created by, or supported by Slack Technologies, LLC.
 
-**Status:** early development. macOS 13+ is the main target (the CLI also builds on Linux). No release yet; build from source.
+**Status:** early development. macOS 13+ is the main target (the CLI also works on Linux).
 
 ## Quick start
 
-### 1. Build
+### 1. Install
 
-Tools are managed with [mise](https://mise.jdx.dev/).
+With [Homebrew](https://brew.sh/):
+
+```bash
+brew install --cask iwamatsu0430/tap/sockdock   # menu bar app
+brew install iwamatsu0430/tap/sockdock          # CLI (macOS, Linux)
+```
+
+The app is not notarized by Apple: the first time you open it, macOS blocks it. Open **System Settings → Privacy & Security** and click **Open Anyway**.
+
+Or build from source. Tools are managed with [mise](https://mise.jdx.dev/).
 
 ```bash
 git clone https://github.com/iwamatsu0430/sock-dock-slack.git
@@ -31,7 +40,7 @@ mise run build        # -> bin/sockdock
 mise run app          # optional: -> dist/SockDock.app (menu bar app, CLI bundled)
 ```
 
-Put `bin/sockdock` somewhere on your `PATH` (the examples below assume `sockdock` is on it).
+If you built it, put `bin/sockdock` somewhere on your `PATH` (the examples below assume `sockdock` is on it).
 
 ### 2. Create the Slack app
 
@@ -108,7 +117,7 @@ Post `echo hello` in the channel: SockDock reacts with 👀, runs the handler an
 
 ### Or use the menu bar app
 
-With the app you do not need steps 3–5 above or any YAML. `open dist/SockDock.app` (or `mise run gui`):
+With the app you do not need steps 3–5 above or any YAML. Open SockDock from Applications (built from source: `open dist/SockDock.app` or `mise run gui`):
 
 1. **Setup** (first launch): *Open api.slack.com* opens Slack's "create an app" page with the manifest filled in. Install the app, generate an App-Level Token with `connections:write`, then paste both tokens and press **Connect to Slack**. The tokens are checked with Slack first and saved to the Keychain only if both work. To use a Slack app you already have, open **Use a Slack app you already have** in setup: it lists the settings (Socket Mode, the `message.channels`/`message.groups` events, Bot Token scopes) and copies the part to add to its App Manifest. With Socket Mode on, that app's events go only to SockDock. If required scopes are missing, **Connect to Slack** names them.
 2. **Rules → Add Rule**: pick the channel (channels the Slack app has been added to are listed; without the `channels:read`/`groups:read` scopes, enter a channel ID or link), choose which posts it reacts to (starting with, containing, a regular expression, or all), and choose what runs — an AI agent (Claude Code) in a working folder, with instructions and what it may do, or a program. The list is grouped by channel and shows each rule's last run. Within a channel the rule higher up comes first; drag ⠿ to reorder. Open a rule for recent runs, thread links and **Stop**.

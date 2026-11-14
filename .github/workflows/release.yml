@@ -1,0 +1,65 @@
+# Push a tag like v0.1.0 to publish a release:
+#   - SockDock-0.1.0.zip: the menu bar app (universal, ad-hoc signed)
+#   - the Homebrew tap gets Formula/sockdock.rb (CLI, built from source) and
+#     Casks/sockdock.rb (the app), if the HOMEBREW_TAP_TOKEN secret is set
+#     (a fine-grained token with Contents: read and write on
+#     iwamatsu0430/homebrew-tap).
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    env:
+      TAG: ${{ github.ref_name }}
+      HAS_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: jdx/mise-action@v3
+
+      - name: Test
+        run: |
+          (cd gui/frontend && npm ci --no-audit --no-fund)
+          mise run ci
+
+      - name: Build SockDock.app
+        run: ARCHS="arm64 amd64" VERSION="$TAG" ./scripts/build-app.sh
+
+      - name: Package
+        run: |
+          V="${TAG#v}"
+          ditto -c -k --keepParent dist/SockDock.app "dist/SockDock-$V.zip"
+          (cd dist && shasum -a 256 "SockDock-$V.zip" > checksums.txt)
+          lipo -archs dist/SockDock.app/Contents/MacOS/sockdock-gui
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$TAG" --verify-tag --generate-notes \
+            "dist/SockDock-${TAG#v}.zip" dist/checksums.txt
+
+      - name: Check out the tap
+        if: ${{ env.HAS_TAP_TOKEN == 'true' }}
+        uses: actions/checkout@v5
+        with:
+          repository: iwamatsu0430/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: Update the tap
+        if: ${{ env.HAS_TAP_TOKEN == 'true' }}
+        run: |
+          APP_ZIP="dist/SockDock-${TAG#v}.zip" ./scripts/homebrew-tap.sh "$TAG" homebrew-tap
+          cd homebrew-tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula Casks
+          git commit -m "sockdock ${TAG#v}"
+          git push

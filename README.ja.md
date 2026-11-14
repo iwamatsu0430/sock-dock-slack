@@ -15,13 +15,22 @@ CLI と、必要ならメニューバーのアプリで操作します。
 
 > SockDock は Slack Technologies, LLC が作成・提携・サポートするものではありません。
 
-**状況:** 開発の初期段階です。主な対象は macOS 13 以降です（CLI は Linux でもビルドできます）。リリースはまだないので、ソースからビルドしてください。
+**状況:** 開発の初期段階です。主な対象は macOS 13 以降です（CLI は Linux でも動きます）。
 
 ## はじめかた
 
-### 1. ビルド
+### 1. インストール
 
-ツールは [mise](https://mise.jdx.dev/) で管理しています。
+[Homebrew](https://brew.sh/) で入れます。
+
+```bash
+brew install --cask iwamatsu0430/tap/sockdock   # メニューバーのアプリ
+brew install iwamatsu0430/tap/sockdock          # CLI（macOS、Linux）
+```
+
+アプリは Apple の公証を受けていないため、初めて開くときは macOS に止められます。**システム設定 → プライバシーとセキュリティ** で **このまま開く** を押してください。
+
+ソースからビルドすることもできます。ツールは [mise](https://mise.jdx.dev/) で管理しています。
 
 ```bash
 git clone https://github.com/iwamatsu0430/sock-dock-slack.git
@@ -31,7 +40,7 @@ mise run build        # -> bin/sockdock
 mise run app          # 任意: -> dist/SockDock.app（メニューバーのアプリ。CLI も同梱）
 ```
 
-`bin/sockdock` を `PATH` の通った場所に置いてください（以下の例は `sockdock` が `PATH` にある前提です）。
+ビルドした場合は `bin/sockdock` を `PATH` の通った場所に置いてください（以下の例は `sockdock` が `PATH` にある前提です）。
 
 ### 2. Slack アプリを作る
 
@@ -108,7 +117,7 @@ sockdock status
 
 ### メニューバーのアプリを使う場合
 
-アプリを使えば、上の手順 3〜5 も YAML の編集も要りません。`open dist/SockDock.app`（または `mise run gui`）で開きます。
+アプリを使えば、上の手順 3〜5 も YAML の編集も要りません。アプリケーションフォルダの SockDock を開きます（ソースからビルドした場合は `open dist/SockDock.app` または `mise run gui`）。
 
 1. 初回はセットアップが出ます。「api.slack.com を開く」で、マニフェストが入った状態の作成ページが開きます。アプリをインストールし、`connections:write` のスコープで App-Level Token を発行したら、2 つのトークンを貼って「Slack に接続」を押します。トークンは Slack で確かめてから、2 つとも使えるときだけキーチェーンに保存します。すでにある Slack アプリを使うなら、セットアップの「すでにある Slack アプリを使う」を開いてください。必要な設定（Socket Mode、イベント `message.channels`・`message.groups`、Bot Token のスコープ）と、App Manifest に足す部分のコピーがあります。Socket Mode をオンにすると、そのアプリのイベントは SockDock にだけ届くようになるので気をつけてください。必須のスコープが足りなければ、「Slack に接続」で足りないものの名前が出ます。
 2. 「ルール」→「ルールを追加」で、チャンネルを選び（Slack アプリを追加したチャンネルが一覧に出ます。`channels:read`・`groups:read` のスコープがなければ、チャンネル ID かリンクを入力します）、反応する投稿（〜で始まる・〜を含む・正規表現・すべて）を選び、実行するもの（作業フォルダで動く AI エージェント〈Claude Code〉と、その指示・許可する操作／またはプログラム）を選びます。一覧はチャンネルごとにまとまり、各ルールの最後の処理が出ます。同じチャンネルでは上のルールが優先され、⠿ をドラッグして並べ替えます。ルールを開くと、最近の処理、スレッドへのリンク、「停止」があります。
