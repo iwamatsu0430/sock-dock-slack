@@ -25,7 +25,7 @@ With [Homebrew](https://brew.sh/):
 
 ```bash
 brew install --cask iwamatsu0430/tap/sockdock   # menu bar app
-brew install iwamatsu0430/tap/sockdock          # CLI (macOS, Linux)
+brew install --formula iwamatsu0430/tap/sockdock # CLI (macOS, Linux)
 ```
 
 The app is not notarized by Apple: the first time you open it, macOS blocks it. Open **System Settings → Privacy & Security** and click **Open Anyway**.

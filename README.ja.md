@@ -25,7 +25,7 @@ CLI と、必要ならメニューバーのアプリで操作します。
 
 ```bash
 brew install --cask iwamatsu0430/tap/sockdock   # メニューバーのアプリ
-brew install iwamatsu0430/tap/sockdock          # CLI（macOS、Linux）
+brew install --formula iwamatsu0430/tap/sockdock # CLI（macOS、Linux）
 ```
 
 アプリは Apple の公証を受けていないため、初めて開くときは macOS に止められます。**システム設定 → プライバシーとセキュリティ** で **このまま開く** を押してください。

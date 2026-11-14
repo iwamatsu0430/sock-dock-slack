@@ -4,6 +4,8 @@
 #     Casks/sockdock.rb (the app), if the HOMEBREW_TAP_TOKEN secret is set
 #     (a fine-grained token with Contents: read and write on
 #     iwamatsu0430/homebrew-tap).
+# If a step fails, "Re-run failed jobs" finishes the release without
+# replacing files it already published.
 name: Release
 
 on:
@@ -38,12 +40,20 @@ jobs:
           (cd dist && shasum -a 256 "SockDock-$V.zip" > checksums.txt)
           lipo -archs dist/SockDock.app/Contents/MacOS/sockdock-gui
 
+      # On a re-run the release may already exist: keep the files it has (people
+      # may have installed them) and upload only the missing ones.
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$TAG" --verify-tag --generate-notes \
-            "dist/SockDock-${TAG#v}.zip" dist/checksums.txt
+          files=("dist/SockDock-${TAG#v}.zip" dist/checksums.txt)
+          if have="$(gh release view "$TAG" --json assets --jq '.assets[].name' 2>/dev/null)"; then
+            for f in "${files[@]}"; do
+              grep -qxF "$(basename "$f")" <<<"$have" || gh release upload "$TAG" "$f"
+            done
+          else
+            gh release create "$TAG" --verify-tag --generate-notes "${files[@]}"
+          fi
 
       - name: Check out the tap
         if: ${{ env.HAS_TAP_TOKEN == 'true' }}
@@ -55,11 +65,17 @@ jobs:
 
       - name: Update the tap
         if: ${{ env.HAS_TAP_TOKEN == 'true' }}
+        # Hashes the zip the release serves (not the one built in this run), and
+        # commits only when the tap changes, so a re-run is safe.
         run: |
-          APP_ZIP="dist/SockDock-${TAG#v}.zip" ./scripts/homebrew-tap.sh "$TAG" homebrew-tap
+          ./scripts/homebrew-tap.sh "$TAG" homebrew-tap
           cd homebrew-tap
+          git add Formula Casks
+          if git diff --cached --quiet; then
+            echo "the tap already has sockdock ${TAG#v}"
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Formula Casks
           git commit -m "sockdock ${TAG#v}"
           git push

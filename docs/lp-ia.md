@@ -213,7 +213,7 @@ SockDock は家で使うためのもの（ホームユース）です。会社�
 ## 8. 決めること
 
 - **公開する時期:** Homebrew での配布ができてから公開する。2026-11-14 時点で、tap（`iwamatsu0430/homebrew-tap`）はあるが、リリースはまだない。リリースがないと LP の `brew install` は失敗する。
-- **brew のコマンド:** Homebrew の配布（コミット 81434b2）に合わせて、メニューバーのアプリの `brew install --cask iwamatsu0430/tap/sockdock` にした。CLI（`brew install iwamatsu0430/tap/sockdock`）は README に任せる。
+- **brew のコマンド:** Homebrew の配布（コミット 81434b2）に合わせて、メニューバーのアプリの `brew install --cask iwamatsu0430/tap/sockdock` にした。CLI（`brew install --formula iwamatsu0430/tap/sockdock`）は README に任せる。
 
 ## 9. 読み手による評価
 
