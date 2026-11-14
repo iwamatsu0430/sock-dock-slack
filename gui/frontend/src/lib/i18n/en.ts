@@ -214,6 +214,7 @@ export const en = {
   "settings.ownerRegister": "Register Yourself",
   "settings.ownerCode": "Send this code to the Slack app as a DM.",
   "settings.ownerCancel": "Cancel",
+  "settings.ownerCopy": "Copy",
   "settings.ownerRemove": "Remove",
   "settings.ownerNoScope": "The Slack app doesn't have the `im:history` scope, so you can't register yourself.",
   "settings.notifications": "Notifications",

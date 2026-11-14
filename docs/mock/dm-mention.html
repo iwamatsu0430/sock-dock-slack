@@ -484,7 +484,7 @@ function renderSettings(id) {
   const done = id === "set-done";
   const html = {
     "set-none": `<div class="row"><span class="small">通知を Slack の DM で受け取れます。</span><span class="spacer"></span><button class="small" id="start">本人を登録</button></div>`,
-    "set-code": `<div class="code"><b id="codeNum">482 913</b><span class="ring" id="ring"></span></div>
+    "set-code": `<div class="code"><b id="codeNum">482 913</b><span class="ring" id="ring"></span><button class="small" id="copyCode">コピー</button></div>
       <span class="small">このコードを、Slack アプリに DM で送ってください。</span><div><button class="small" id="cancel">キャンセル</button></div>`,
     "set-done": `<div class="row"><span>田中 太郎</span><span class="spacer"></span><button class="small" id="unreg">解除</button></div>`,
     "set-noscope": `<span class="small bad-t">Slack アプリに <code>im:history</code> のスコープがないため、本人を登録できません。</span>`,
@@ -498,6 +498,7 @@ function renderSettings(id) {
   const on = (q, f) => { const el = $(q); if (el) el.onclick = f; };
   on("#start", () => go("set-code"));
   on("#cancel", () => go("set-none"));
+  on("#copyCode", () => { const b = $("#copyCode"); b.textContent = "コピーしました"; setTimeout(() => (b.textContent = "コピー"), 2000); });
   on("#unreg", () => go("set-none"));
   clearInterval(tick);
   if (id === "set-code") {

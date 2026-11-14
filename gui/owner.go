@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+
 	"github.com/iwamatsu0430/sock-dock-slack/internal/control"
 )
 
@@ -45,6 +47,14 @@ func (a *AppService) ClearOwner() OwnerState {
 	c, cancel := ctx()
 	defer cancel()
 	return ownerState(a.client.ClearOwner(c))
+}
+
+// CopyText copies text to the clipboard (the owner code, to paste into the DM).
+func (a *AppService) CopyText(text string) error {
+	if !a.app.Clipboard.SetText(text) {
+		return errors.New("could not copy to the clipboard")
+	}
+	return nil
 }
 
 // SetNotifyDM turns DM notices ("notify_dm") or DM notices of failed runs

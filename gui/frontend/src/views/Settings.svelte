@@ -110,6 +110,18 @@
   const codeLeft = $derived(
     reg?.next_change ? Math.max(0, Math.min(1, (new Date(reg.next_change).getTime() - live.now) / ((reg.step_sec || 30) * 1000))) : 0,
   );
+  // The code can be pasted into the DM instead of typed.
+  let codeCopied = $state(false);
+  async function copyCode() {
+    if (!reg?.code) return;
+    try {
+      await App.CopyText(reg.code);
+      codeCopied = true;
+      setTimeout(() => (codeCopied = false), 2000);
+    } catch (e) {
+      error = errorText(e);
+    }
+  }
   async function ownerAction(f: () => Promise<OwnerState>) {
     error = "";
     try {
@@ -158,7 +170,8 @@
             <span class="lbl small bad-t"><Rich key="settings.ownerNoScope" /></span>
           {:else if reg}
             <div class="lbl ostack">
-              <div class="code"><b>{(reg.code ?? "").slice(0, 3)} {(reg.code ?? "").slice(3)}</b><span class="ring" style="--left: {codeLeft * 100}%"></span></div>
+              <div class="code"><b>{(reg.code ?? "").slice(0, 3)} {(reg.code ?? "").slice(3)}</b><span class="ring" style="--left: {codeLeft * 100}%"></span>
+                <button class="small" onclick={copyCode}>{codeCopied ? t("settings.mcpCopied") : t("settings.ownerCopy")}</button></div>
               <span class="small">{t("settings.ownerCode")}</span>
               <div><button class="small" onclick={() => ownerAction(App.CancelOwnerRegistration)}>{t("settings.ownerCancel")}</button></div>
             </div>

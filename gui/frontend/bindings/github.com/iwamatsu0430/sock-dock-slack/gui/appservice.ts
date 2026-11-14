@@ -84,6 +84,13 @@ export function CopySlackSettings(): $CancellablePromise<void> {
 }
 
 /**
+ * CopyText copies text to the clipboard (the owner code, to paste into the DM).
+ */
+export function CopyText(text: string): $CancellablePromise<void> {
+    return $Call.ByID(2203545872, text);
+}
+
+/**
  * DeleteRoute removes a route and saves the config.
  */
 export function DeleteRoute(name: string): $CancellablePromise<$models.RouteSaveResult> {

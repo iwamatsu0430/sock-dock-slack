@@ -215,6 +215,7 @@ export const ja: Record<MessageKey, string> = {
   "settings.ownerRegister": "本人を登録",
   "settings.ownerCode": "このコードを、Slack アプリに DM で送ってください。",
   "settings.ownerCancel": "キャンセル",
+  "settings.ownerCopy": "コピー",
   "settings.ownerRemove": "解除",
   "settings.ownerNoScope": "Slack アプリに `im:history` のスコープがないため、本人を登録できません。",
   "settings.notifications": "通知",
