@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SockDock for Slack</title>
+<meta name="description" content="Slack に「ask」と投稿されたら AI エージェントを動かし、「遊ぼう」と投稿されたらゲームを起動する。どの投稿で何を実行するかを、Mac のルールで決めておけます。">
+<link rel="canonical" href="https://iwamatsu0430.github.io/sock-dock-slack/ja/">
+<link rel="alternate" hreflang="en" href="https://iwamatsu0430.github.io/sock-dock-slack/">
+<link rel="alternate" hreflang="ja" href="https://iwamatsu0430.github.io/sock-dock-slack/ja/">
+<link rel="alternate" hreflang="x-default" href="https://iwamatsu0430.github.io/sock-dock-slack/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="SockDock for Slack">
+<meta property="og:description" content="Slack に「ask」と投稿されたら AI エージェントを動かし、「遊ぼう」と投稿されたらゲームを起動する。どの投稿で何を実行するかを、Mac のルールで決めておけます。">
+<meta property="og:url" content="https://iwamatsu0430.github.io/sock-dock-slack/ja/">
+<meta property="og:image" content="https://iwamatsu0430.github.io/sock-dock-slack/assets/icon.png">
+<meta name="twitter:card" content="summary">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" type="image/png" href="../assets/icon.png">
+<link rel="apple-touch-icon" href="../assets/icon.png">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="mark" href="./"><img src="../assets/icon.png" alt="">SockDock for Slack</a>
+    <div class="spacer"></div>
+    <nav class="lang" aria-label="Language"><a href="../" hreflang="en" lang="en">English</a> · <a href="./" class="on" aria-current="page">日本語</a></nav>
+  </div>
+</header>
+
+<main>
+<section class="hero">
+  <div class="wrap">
+    <h1 class="pair">
+      <span>Slack に<em>「ask」</em>と投稿されたら、<em>AI エージェント</em>を動かす。</span>
+      <span>Slack に<em>「遊ぼう」</em>と投稿されたら、<em>ゲーム</em>を起動する。</span>
+    </h1>
+    <div class="body">
+      <p class="lead">ルールでは、次の 3 つを決めます。</p>
+      <ol class="rule">
+        <li><strong>どのチャンネルの投稿に反応するか</strong><span>例: <code>#個人開発</code>。このチャンネルに投稿できる人なら誰でも、このルールを動かせます。</span></li>
+        <li><strong>どんな投稿に反応するか</strong><span>例: 「ask」で始まる投稿。当てはまらない投稿では、何も起きません。</span></li>
+        <li><strong>Mac で何を実行するか</strong><span>例: <code>~/app</code> フォルダで AI エージェント。ファイルの読み取りだけを許可します。</span></li>
+      </ol>
+      <div class="ctas">
+        <div class="install"><code>brew install --cask iwamatsu0430/tap/sockdock</code><button type="button" class="copy">コピー</button></div>
+        <a class="btn" href="https://github.com/iwamatsu0430/sock-dock-slack">GitHub で見る</a>
+      </div>
+      <p class="note">アプリは Apple の公証を受けていないため、初めて開くときは、システム設定の「プライバシーとセキュリティ」で「このまま開く」を押してください。</p>
+      <p class="meta">macOS 13 以降 · 無料・オープンソース（MIT）</p>
+    </div>
+
+    <div class="threads">
+      <div class="thread" aria-label="Slack のスレッドの例">
+        <div class="channel"># 個人開発</div>
+        <div class="msg">
+          <div class="av person"></div>
+          <div>
+            <div class="who">Aki <span>10:42</span></div>
+            <div>ask ログインのテストが落ちるのはなぜ？</div>
+          <div class="reaction">👀 1</div>
+          </div>
+        </div>
+        <div class="replies">
+        <div class="msg">
+          <img class="av" src="../assets/icon.png" alt="">
+          <div>
+            <div class="who">SockDock <span>10:43</span></div>
+            <div><code>test/login.spec.ts</code> は 302 を期待していますが、ハンドラは 303 を返すようになっています。</div>
+          </div>
+        </div>
+        <div class="msg">
+          <div class="av person"></div>
+          <div>
+            <div class="who">Aki <span>10:44</span></div>
+            <div>どこを直せばいい？</div>
+          </div>
+        </div>
+        <div class="msg">
+          <img class="av" src="../assets/icon.png" alt="">
+          <div>
+            <div class="who">SockDock <span>10:44</span></div>
+            <div><code>test/login.spec.ts</code> の 12 行目で、302 を 303 に変えれば通ります。</div>
+          </div>
+        </div>
+        </div>
+      </div>
+      <div class="thread" aria-label="Slack のスレッドの例">
+        <div class="channel"># 家族</div>
+        <div class="msg">
+          <div class="av person kid"></div>
+          <div>
+            <div class="who">Hana <span>19:05</span></div>
+            <div>遊ぼう</div>
+          <div class="reaction">👀 1</div>
+          </div>
+        </div>
+        <div class="replies">
+        <div class="msg">
+          <img class="av" src="../assets/icon.png" alt="">
+          <div>
+            <div class="who">SockDock <span>19:05</span></div>
+            <div>ゲームを起動しました。</div>
+          </div>
+        </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap pad">
+    <h2>自分の Mac で動きます</h2>
+    <ul class="points">
+      <li><strong>手元のファイルをそのまま使う</strong><span>AI エージェントは Mac のフォルダで動くので、コミット前の変更も、Mac に入れたツールも使えます。</span></li>
+      <li><strong>いつもの AI エージェント</strong><span>自分のログインで動き、<code>CLAUDE.md</code> などの指示や設定もそのまま効きます。API キーは要りません。</span></li>
+      <li><strong>サーバーは要りません</strong><span>Mac から Slack へつなぐので、ポートを開けたり、公開 URL を用意したりしなくて済みます。</span></li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap pad">
+    <h2>3 つの手順で始める</h2>
+    <ol class="steps">
+      <li><strong>Slack アプリを作成</strong><span>SockDock のボタンから、必要な権限を入れた作成ページが開きます。作ったアプリを、使うチャンネルに追加します。</span></li>
+      <li><strong>トークンを 2 つ貼る</strong><span>投稿を受け取る App-Level Token（<code>xapp-</code>）と、返信する Bot Token（<code>xoxb-</code>）です。どちらも Mac のキーチェーンに保存します。</span></li>
+      <li><strong>ルールを作る</strong><span>メニューバーのアプリで、チャンネル・反応する投稿・実行するものを選びます。</span>
+        <ul class="kinds">
+          <li><b>AI エージェント（いまは Claude Code）</b><span>選んだフォルダで動きます。ファイルの読み取りは常に、編集・Web 検索・コマンドは許可したときだけできます。</span></li>
+          <li><b>プログラム</b><span>自分で書いたスクリプトなど。標準出力がスレッドへの返信になります。</span></li>
+        </ul>
+      </li>
+    </ol>
+    <h3 class="behave-h">Slack での動き</h3>
+    <ul class="behave">
+      <li>投稿がルールに合うと 👀 が付き、終わると外れて、スレッドに返信が付きます。</li>
+      <li>スレッドに返信すると、同じルールで続きます。キーワードは要りません。AI エージェントは前のやりとりを覚えています。</li>
+    </ul>
+    <div class="final">
+      <a class="btn" href="https://github.com/iwamatsu0430/sock-dock-slack#readme">README を読む</a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <nav>
+      <a href="https://github.com/iwamatsu0430/sock-dock-slack">GitHub</a>
+      <a href="https://github.com/iwamatsu0430/sock-dock-slack#readme">README</a>
+      <a href="https://github.com/iwamatsu0430/sock-dock-slack/blob/main/LICENSE">MIT License</a>
+      <a href="https://github.com/iwamatsu0430/sock-dock-slack/blob/main/SECURITY.md">Security</a>
+    </nav>
+    <p>SockDock is not affiliated with, created by, or supported by Slack Technologies, LLC.</p>
+  </div>
+</footer>
+
+<script>
+document.querySelectorAll('.copy').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var text = b.previousElementSibling.textContent;
+    var done = function () { var t = b.textContent; b.textContent = '✓'; setTimeout(function () { b.textContent = t; }, 1200); };
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, function () {});
+  });
+});
+</script>
+</body>
+</html>

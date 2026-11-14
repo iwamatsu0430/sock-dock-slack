@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SockDock for Slack</title>
+<meta name="description" content="Post “ask” in Slack, run your AI agent. Post “play”, launch a game. Rules on your Mac decide what each Slack post runs.">
+<link rel="canonical" href="https://iwamatsu0430.github.io/sock-dock-slack/">
+<link rel="alternate" hreflang="en" href="https://iwamatsu0430.github.io/sock-dock-slack/">
+<link rel="alternate" hreflang="ja" href="https://iwamatsu0430.github.io/sock-dock-slack/ja/">
+<link rel="alternate" hreflang="x-default" href="https://iwamatsu0430.github.io/sock-dock-slack/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="SockDock for Slack">
+<meta property="og:description" content="Post “ask” in Slack, run your AI agent. Post “play”, launch a game. Rules on your Mac decide what each Slack post runs.">
+<meta property="og:url" content="https://iwamatsu0430.github.io/sock-dock-slack/">
+<meta property="og:image" content="https://iwamatsu0430.github.io/sock-dock-slack/assets/icon.png">
+<meta name="twitter:card" content="summary">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" type="image/png" href="assets/icon.png">
+<link rel="apple-touch-icon" href="assets/icon.png">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="mark" href="./"><img src="assets/icon.png" alt="">SockDock for Slack</a>
+    <div class="spacer"></div>
+    <nav class="lang" aria-label="Language"><a href="./" class="on" aria-current="page">English</a> · <a href="ja/" hreflang="ja" lang="ja">日本語</a></nav>
+  </div>
+</header>
+
+<main>
+<section class="hero">
+  <div class="wrap">
+    <h1 class="pair">
+      <span>Post <em>“ask”</em> in Slack, run <em>your AI agent</em>.</span>
+      <span>Post <em>“play”</em>, launch <em>a game</em>.</span>
+    </h1>
+    <div class="body">
+      <p class="lead">A rule sets three things.</p>
+      <ol class="rule">
+        <li><strong>Which channel</strong><span>e.g. <code>#side-project</code>. Anyone who can post there can trigger the rule.</span></li>
+        <li><strong>Which posts</strong><span>e.g. posts that start with “ask”. Any other post does nothing.</span></li>
+        <li><strong>What runs on your Mac</strong><span>e.g. an AI agent in <code>~/app</code>, allowed only to read files.</span></li>
+      </ol>
+      <div class="ctas">
+        <div class="install"><code>brew install --cask iwamatsu0430/tap/sockdock</code><button type="button" class="copy">Copy</button></div>
+        <a class="btn" href="https://github.com/iwamatsu0430/sock-dock-slack">View on GitHub</a>
+      </div>
+      <p class="note">The app is not notarized by Apple. The first time you open it, click Open Anyway in System Settings → Privacy &amp; Security.</p>
+      <p class="meta">macOS 13+ · Free and open source (MIT)</p>
+    </div>
+
+    <div class="threads">
+      <div class="thread" aria-label="Example Slack thread">
+        <div class="channel"># side-project</div>
+        <div class="msg">
+          <div class="av person"></div>
+          <div>
+            <div class="who">Aki <span>10:42</span></div>
+            <div>ask why does the login test fail?</div>
+          <div class="reaction">👀 1</div>
+          </div>
+        </div>
+        <div class="replies">
+        <div class="msg">
+          <img class="av" src="assets/icon.png" alt="">
+          <div>
+            <div class="who">SockDock <span>10:43</span></div>
+            <div><code>test/login.spec.ts</code> expects a 302, but the handler now returns 303.</div>
+          </div>
+        </div>
+        <div class="msg">
+          <div class="av person"></div>
+          <div>
+            <div class="who">Aki <span>10:44</span></div>
+            <div>where should I fix it?</div>
+          </div>
+        </div>
+        <div class="msg">
+          <img class="av" src="assets/icon.png" alt="">
+          <div>
+            <div class="who">SockDock <span>10:44</span></div>
+            <div>Change 302 to 303 on line 12 of <code>test/login.spec.ts</code>.</div>
+          </div>
+        </div>
+        </div>
+      </div>
+      <div class="thread" aria-label="Example Slack thread">
+        <div class="channel"># family</div>
+        <div class="msg">
+          <div class="av person kid"></div>
+          <div>
+            <div class="who">Hana <span>19:05</span></div>
+            <div>play</div>
+          <div class="reaction">👀 1</div>
+          </div>
+        </div>
+        <div class="replies">
+        <div class="msg">
+          <img class="av" src="assets/icon.png" alt="">
+          <div>
+            <div class="who">SockDock <span>19:05</span></div>
+            <div>Game launched.</div>
+          </div>
+        </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap pad">
+    <h2>It runs on your own Mac</h2>
+    <ul class="points">
+      <li><strong>Your files and tools, as they are</strong><span>The AI agent works in a folder on your Mac, so it sees uncommitted changes and the tools you installed.</span></li>
+      <li><strong>Your own AI agent</strong><span>It runs with your login, your instructions (like <code>CLAUDE.md</code>) and settings. No API key.</span></li>
+      <li><strong>No server to set up</strong><span>SockDock connects from your Mac to Slack. No open ports, no public URL.</span></li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap pad">
+    <h2>Set up in three steps</h2>
+    <ol class="steps">
+      <li><strong>Create a Slack app</strong><span>A button in SockDock opens Slack's create page with the permissions filled in. Then add the app to the channels you'll use.</span></li>
+      <li><strong>Paste its two tokens</strong><span>An App-Level Token (<code>xapp-</code>) to receive posts and a Bot Token (<code>xoxb-</code>) to reply. Both are kept in your Mac's Keychain.</span></li>
+      <li><strong>Add a rule</strong><span>In the menu bar app, choose a channel, which posts, and what runs.</span>
+        <ul class="kinds">
+          <li><b>AI agent (Claude Code for now)</b><span>Runs in the folder you pick. It can always read files; editing, web search and commands only if you allow them.</span></li>
+          <li><b>Program</b><span>Any script you write. What it prints becomes the reply.</span></li>
+        </ul>
+      </li>
+    </ol>
+    <h3 class="behave-h">In Slack</h3>
+    <ul class="behave">
+      <li>When a post matches a rule, 👀 appears; when it's done, 👀 goes away and the reply shows up in the thread.</li>
+      <li>Reply in the thread to continue with the same rule — no keyword needed. The AI agent remembers the conversation.</li>
+    </ul>
+    <div class="final">
+      <a class="btn" href="https://github.com/iwamatsu0430/sock-dock-slack#readme">Read the README</a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <nav>
+      <a href="https://github.com/iwamatsu0430/sock-dock-slack">GitHub</a>
+      <a href="https://github.com/iwamatsu0430/sock-dock-slack#readme">README</a>
+      <a href="https://github.com/iwamatsu0430/sock-dock-slack/blob/main/LICENSE">MIT License</a>
+      <a href="https://github.com/iwamatsu0430/sock-dock-slack/blob/main/SECURITY.md">Security</a>
+    </nav>
+    <p>SockDock is not affiliated with, created by, or supported by Slack Technologies, LLC.</p>
+  </div>
+</footer>
+
+<script>
+document.querySelectorAll('.copy').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var text = b.previousElementSibling.textContent;
+    var done = function () { var t = b.textContent; b.textContent = '✓'; setTimeout(function () { b.textContent = t; }, 1200); };
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, function () {});
+  });
+});
+</script>
+</body>
+</html>
