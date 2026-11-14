@@ -69,20 +69,27 @@ func checkCmd(g *globals) *cobra.Command {
 }
 
 func matchCmd(g *globals) *cobra.Command {
-	return &cobra.Command{
+	var user string
+	cmd := &cobra.Command{
 		Use:   "match <channel-id> <text>",
 		Short: "Show which route a top-level message would start",
-		Args:  cobra.MinimumNArgs(2),
+		Long: "Show which route a top-level message would start.\n\n" +
+			"With --user, routes that member may not run (allowed_users) are passed over, as for a real post. " +
+			"Without it, who posted is not considered and the route's allowed users are shown.",
+		Args: cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.Load(g.dirs.ConfigFile)
 			if err != nil {
 				return err
 			}
-			res := control.MatchConfig(cfg, control.MatchRequest{Channel: args[0], Text: strings.Join(args[1:], " ")})
+			res := control.MatchConfig(cfg, control.MatchRequest{Channel: args[0], Text: strings.Join(args[1:], " "), User: user})
 			if !res.Matched {
 				return &exitError{code: 1, msg: "no route matches"}
 			}
 			fmt.Println("route:", res.Route)
+			if len(res.AllowedUsers) > 0 {
+				fmt.Println("allowed users:", strings.Join(res.AllowedUsers, ", "))
+			}
 			keys := make([]string, 0, len(res.Groups))
 			for k := range res.Groups {
 				keys = append(keys, k)
@@ -94,6 +101,8 @@ func matchCmd(g *globals) *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&user, "user", "", "the poster's Slack member ID (U…)")
+	return cmd
 }
 
 func statusCmd(g *globals) *cobra.Command {

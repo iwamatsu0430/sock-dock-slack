@@ -40,3 +40,41 @@ export class Identity {
         return new Identity($$parsedSource as Partial<Identity>);
     }
 }
+
+/**
+ * Member is a person in the workspace, for choosing who may run a rule
+ * (docs/design.md §3.4). It needs the users:read scope.
+ */
+export class Member {
+    "id": string;
+
+    /**
+     * Name is the display name, or the real name when there is none.
+     */
+    "name": string;
+
+    /**
+     * RealName is the full name ("" when it is the same as Name).
+     */
+    "real_name"?: string;
+
+    /** Creates a new Member instance. */
+    constructor($$source: Partial<Member> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Member instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Member {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Member($$parsedSource as Partial<Member>);
+    }
+}

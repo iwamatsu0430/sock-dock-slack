@@ -90,6 +90,17 @@ export class Form {
     "keyword": string;
 
     /**
+     * Restricted is true when only AllowedUsers may run the rule ("実行できる
+     * 人": 選んだ人); false means everyone in the channel (全員).
+     */
+    "restricted": boolean;
+
+    /**
+     * AllowedUsers are Slack member IDs, in the order they were added.
+     */
+    "allowed_users": string[];
+
+    /**
      * Type is "claude" or "command".
      */
     "type": string;
@@ -142,6 +153,12 @@ export class Form {
         if (!("keyword" in $$source)) {
             this["keyword"] = "";
         }
+        if (!("restricted" in $$source)) {
+            this["restricted"] = false;
+        }
+        if (!("allowed_users" in $$source)) {
+            this["allowed_users"] = [];
+        }
         if (!("type" in $$source)) {
             this["type"] = "";
         }
@@ -186,14 +203,18 @@ export class Form {
      * Creates a new Form instance from a string or object.
      */
     static createFrom($$source: any = {}): Form {
-        const $$createField10_0 = $$createType0;
-        const $$createField11_0 = $$createType0;
+        const $$createField6_0 = $$createType0;
+        const $$createField12_0 = $$createType0;
+        const $$createField13_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("allowed_users" in $$parsedSource) {
+            $$parsedSource["allowed_users"] = $$createField6_0($$parsedSource["allowed_users"]);
+        }
         if ("commands" in $$parsedSource) {
-            $$parsedSource["commands"] = $$createField10_0($$parsedSource["commands"]);
+            $$parsedSource["commands"] = $$createField12_0($$parsedSource["commands"]);
         }
         if ("other_tools" in $$parsedSource) {
-            $$parsedSource["other_tools"] = $$createField11_0($$parsedSource["other_tools"]);
+            $$parsedSource["other_tools"] = $$createField13_0($$parsedSource["other_tools"]);
         }
         return new Form($$parsedSource as Partial<Form>);
     }

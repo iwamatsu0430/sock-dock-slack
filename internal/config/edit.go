@@ -33,13 +33,15 @@ func ParseRaw(data []byte) (*Config, error) {
 
 // routeOut and handlerOut control how routes are written: empty fields are left out.
 type routeOut struct {
-	Name       string     `yaml:"name"`
-	Channel    string     `yaml:"channel"`
-	StartsWith string     `yaml:"starts_with,omitempty"`
-	Contains   string     `yaml:"contains,omitempty"`
-	Match      string     `yaml:"match,omitempty"`
-	AllPosts   bool       `yaml:"all_posts,omitempty"`
-	Handler    handlerOut `yaml:"handler"`
+	Name       string `yaml:"name"`
+	Channel    string `yaml:"channel"`
+	StartsWith string `yaml:"starts_with,omitempty"`
+	Contains   string `yaml:"contains,omitempty"`
+	Match      string `yaml:"match,omitempty"`
+	AllPosts   bool   `yaml:"all_posts,omitempty"`
+	// AllowedUsers is written in flow style: allowed_users: [U0123ABCD].
+	AllowedUsers []string   `yaml:"allowed_users,omitempty,flow"`
+	Handler      handlerOut `yaml:"handler"`
 }
 
 type handlerOut struct {
@@ -68,6 +70,7 @@ func RenderRoutes(routes []*Route) ([]byte, error) {
 		h := r.Handler
 		out = append(out, routeOut{
 			Name: r.Name, Channel: r.Channel, StartsWith: r.StartsWith, Contains: r.Contains, Match: r.Match, AllPosts: r.AllPosts,
+			AllowedUsers: r.AllowedUsers,
 			Handler: handlerOut{
 				Type: h.Type, Cwd: h.Cwd, EnvFile: h.EnvFile, Env: h.Env, Command: h.Command,
 				Prompt: h.Prompt, Instructions: h.Instructions, AllowedTools: h.AllowedTools, Tools: h.Tools,

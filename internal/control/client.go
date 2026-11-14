@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -201,6 +202,14 @@ func (c *Client) Channels(ctx context.Context) (ChannelsResult, error) {
 }
 
 // Config returns the config file content.
+// Users searches the workspace's people by name (needs users:read).
+func (c *Client) Users(ctx context.Context, q string, limit int) (UsersResult, error) {
+	var out UsersResult
+	v := url.Values{"q": {q}, "limit": {strconv.Itoa(limit)}}
+	err := c.do(ctx, http.MethodGet, "/v1/users?"+v.Encode(), nil, &out)
+	return out, err
+}
+
 func (c *Client) Config(ctx context.Context) (ConfigBody, error) {
 	var out ConfigBody
 	return out, c.do(ctx, http.MethodGet, "/v1/config", nil, &out)

@@ -27,6 +27,11 @@ type Form struct {
 	// regex) or "all_posts". Keyword is the keyword or the regex.
 	Trigger string `json:"trigger"`
 	Keyword string `json:"keyword"`
+	// Restricted is true when only AllowedUsers may run the rule ("実行できる
+	// 人": 選んだ人); false means everyone in the channel (全員).
+	Restricted bool `json:"restricted"`
+	// AllowedUsers are Slack member IDs, in the order they were added.
+	AllowedUsers []string `json:"allowed_users"`
 	// Type is "claude" or "command".
 	Type string `json:"type"`
 	// Folder is the working directory (claude: the project folder).
@@ -75,6 +80,7 @@ func ToForm(r *config.Route) Form {
 		OriginalName: r.Name, Name: r.Name, Channel: r.Channel, Type: h.Type, Folder: h.Cwd,
 		Instructions: h.Instructions, Model: h.Model, PromptFile: h.Prompt, TimeoutSec: h.TimeoutSec,
 		Commands: []string{}, OtherTools: []string{},
+		Restricted: r.Restricted(), AllowedUsers: append([]string{}, r.AllowedUsers...),
 	}
 	f.Trigger, f.Keyword = r.Kind(), r.Pattern()
 	if f.Trigger == "" {
@@ -125,6 +131,10 @@ func FromForm(f Form, base *config.Route) *config.Route {
 		r.Match = strings.TrimSpace(f.Keyword)
 	case config.KindAllPosts:
 		r.AllPosts = true
+	}
+	r.AllowedUsers = nil
+	if f.Restricted {
+		r.AllowedUsers = cleanUsers(f.AllowedUsers)
 	}
 	h := &r.Handler
 	h.Type = f.Type
@@ -203,6 +213,19 @@ func Validate(f Form, raw *config.Config) []FieldProblem {
 		add("trigger", "required", "")
 	}
 
+	if f.Restricted {
+		users := cleanUsers(f.AllowedUsers)
+		if len(users) == 0 {
+			add("allowed_users", "required", "")
+		}
+		for _, u := range users {
+			if !config.IsMemberID(u) {
+				add("allowed_users", "bad_user", u)
+				break
+			}
+		}
+	}
+
 	folder := paths.ExpandHome(strings.TrimSpace(f.Folder))
 	if folder == "" {
 		add("folder", "required", "")
@@ -245,6 +268,35 @@ func Validate(f Form, raw *config.Config) []FieldProblem {
 		add("type", "required", "")
 	}
 	return ps
+}
+
+// cleanUsers trims member IDs and drops blanks and repeats, keeping the order.
+func cleanUsers(ids []string) []string {
+	out := []string{}
+	for _, id := range ids {
+		if id = strings.TrimSpace(id); id != "" && !slices.Contains(out, id) {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
+// OpenToAll reports whether everyone in the channel can make an agent run
+// commands or edit files with this rule ("risk": the rule page and
+// sockdock_save_rule warn about it). It returns "commands", "edit" or "".
+func OpenToAll(f Form) string {
+	if f.Restricted || f.Type != config.TypeClaude {
+		return ""
+	}
+	for _, c := range f.Commands {
+		if strings.TrimSpace(c) != "" {
+			return "commands"
+		}
+	}
+	if f.AllowEdit {
+		return "edit"
+	}
+	return ""
 }
 
 // AutoName returns an unused rule name ("rule-1", "rule-2", …).

@@ -13,6 +13,7 @@ export {
     FieldProblem,
     GatewayState,
     MCPSetup,
+    MemberList,
     Prefs,
     RouteForm,
     RouteSaveResult,

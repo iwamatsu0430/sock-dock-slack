@@ -216,8 +216,11 @@ func (g *Gateway) HandleMessage(m event.Message) {
 	cfg := g.cfg.Load()
 	var r *config.Route
 	if m.IsTopLevel() {
-		// Rules are tried top to bottom; a rule that is off is passed over.
-		route, groups := cfg.MatchWith(m.Channel, m.Text, config.MatchOptions{BotUserID: self.UserID, Skip: g.isPaused})
+		// Rules are tried top to bottom; a rule that is off, or that the
+		// poster may not run, is passed over.
+		route, groups := cfg.MatchWith(m.Channel, m.Text, config.MatchOptions{
+			BotUserID: self.UserID, Skip: g.isPaused, ByUser: true, User: m.User,
+		})
 		if route == nil {
 			return
 		}
@@ -243,6 +246,12 @@ func (g *Gateway) HandleMessage(m event.Message) {
 			return
 		}
 		r = cfg.Route(th.Route)
+		// Replies from people who may not run the rule are dropped: they
+		// neither start a run nor reach a later one (docs/design.md §3.4).
+		if r != nil && !r.Allows(m.User) {
+			g.log.Debug("reply from someone the rule does not allow", "route", r.Name, "channel", m.Channel, "ts", m.TS)
+			return
+		}
 	}
 	coalesce := r != nil && r.Handler.Type == config.TypeClaude
 	g.disp.Submit(router.ThreadKey(m.Channel, m.ThreadRoot()), m, coalesce)

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { App, errorText, type ChannelList, type FieldProblem, type RouteForm, type Turn } from "../lib/api";
+  import { App, errorText, type ChannelList, type FieldProblem, type Member, type RouteForm, type Turn } from "../lib/api";
   import { live, reasonSignedOut, signInClaude } from "../lib/live.svelte";
   import { i18n, t } from "../lib/i18n/index.svelte";
   import type { MessageKey } from "../lib/i18n/en";
@@ -12,7 +12,8 @@
 
   const blank = (): RouteForm =>
     ({
-      original_name: "", name: "", channel: "", trigger: "starts_with", keyword: "", type: "claude", folder: "",
+      original_name: "", name: "", channel: "", trigger: "starts_with", keyword: "", restricted: false, allowed_users: [],
+      type: "claude", folder: "",
       instructions: "", allow_web: false, allow_edit: false, commands: [], other_tools: [], model: "", prompt_file: "",
       program: "", args: "", timeout_sec: 0,
     }) as RouteForm;
@@ -28,6 +29,15 @@
   let error = $state("");
   let busy = $state(false);
   let turns = $state<Turn[]>([]);
+  // 実行できる人 (docs/ia.md「実行できる人」): the chosen people, in order.
+  let people = $state<Member[]>([]);
+  let personQuery = $state("");
+  let suggestions = $state<Member[]>([]);
+  // Why names cannot be listed ("missing_scope", "error", "no_token"); then
+  // the field takes member IDs instead.
+  let memberProblem = $state("");
+  let memberError = $state("");
+  let membersChecked = false;
   let loadedProgram = "";
   // The saved condition, for the "no runs yet" hint (not the one being edited).
   let saved = $state({ trigger: "", keyword: "", channel: "" });
@@ -40,6 +50,7 @@
       f = structuredClone($state.snapshot(row.form)) as RouteForm;
       title = row.label;
       commandsText = (f.commands ?? []).join("\n");
+      people = (row.users ?? []).map((u) => ({ ...u }));
       loadedProgram = f.program;
       saved = { trigger: f.trigger, keyword: f.keyword, channel: f.channel };
     }
@@ -80,6 +91,54 @@
     rtimer = setTimeout(async () => (resolved = v ? await App.ChannelName(v) : ""), 400);
   });
 
+  // Ask once whether names can be listed, when the field first needs them.
+  $effect(() => {
+    if (!f.restricted || membersChecked) return;
+    membersChecked = true;
+    App.ListMembers("").then((r) => {
+      memberProblem = r.problem ?? "";
+      memberError = r.error ?? "";
+    });
+  });
+  let ptimer: ReturnType<typeof setTimeout> | undefined;
+  function searchPeople() {
+    clearTimeout(ptimer);
+    const q = personQuery.trim();
+    if (!q || memberProblem) {
+      suggestions = [];
+      return;
+    }
+    ptimer = setTimeout(async () => {
+      const r = await App.ListMembers(q);
+      if (r.problem) {
+        memberProblem = r.problem;
+        memberError = r.error ?? "";
+      }
+      const chosen = new Set(people.map((p) => p.id));
+      suggestions = (r.members ?? []).filter((m) => !chosen.has(m.id));
+    }, 200);
+  }
+  function addPerson(m: Member) {
+    if (!people.some((p) => p.id === m.id)) people = [...people, m];
+    personQuery = "";
+    suggestions = [];
+  }
+  function personKey(e: KeyboardEvent) {
+    const v = personQuery.trim();
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (suggestions.length) addPerson(suggestions[0]);
+      else if (/^[UW][A-Z0-9]{2,}$/i.test(v)) addPerson({ id: v.toUpperCase(), name: "" } as Member);
+    } else if (e.key === "Escape") {
+      suggestions = [];
+    } else if (e.key === "Backspace" && !v && people.length) {
+      people = people.slice(0, -1);
+    }
+  }
+  // Everyone in the channel can make the agent run commands or edit files.
+  const openToAll = $derived(
+    f.restricted || f.type !== "claude" ? "" : commandsText.trim() ? "commands" : f.allow_edit ? "edit" : "",
+  );
   const problem = (field: string) => problemText(problems.find((p) => p.field === field));
   // SockDock knows which channels' posts reached it since it connected; when
   // this rule's channel has none, the problem is delivery, not the condition.
@@ -112,6 +171,7 @@
   function payload(): RouteForm {
     const out = { ...$state.snapshot(f) } as RouteForm;
     out.commands = commandsText.split("\n").map((x) => x.trim()).filter(Boolean);
+    out.allowed_users = people.map((p) => p.id);
     if (out.type === "command" && (!out.folder || out.program !== loadedProgram)) {
       // A new program runs in its own folder (an existing cwd is kept).
       const p = out.program.trim();
@@ -173,7 +233,40 @@
           <button class="link small" disabled={reloading} onclick={reloadChannels}>{t("rule.reloadChannels")}</button></p>{/if}
       {/if}
       {#if problem("channel")}<p class="small bad-t">{problem("channel")}</p>{/if}
-      <p class="small">{t("rule.channelMembers")}</p>
+    </div>
+  </div>
+  <div class="sec">
+    <h2>{t("rule.who")}</h2>
+    <div class="ctl">
+      <div class="seg">
+        <button class:on={!f.restricted} onclick={() => (f.restricted = false)}>{t("rule.whoAll")}</button>
+        <button class:on={f.restricted} onclick={() => (f.restricted = true)}>{t("rule.whoPicked")}</button>
+      </div>
+      {#if !f.restricted}
+        {#if openToAll === "commands"}<p class="small bad-t">{t("rule.openCommands")}</p>
+        {:else if openToAll === "edit"}<p class="small bad-t">{t("rule.openEdit")}</p>
+        {:else}<p class="small">{t("rule.channelMembers")}</p>{/if}
+      {:else}
+        <div class="chips" class:invalid={problem("allowed_users")}>
+          {#each people as p (p.id)}
+            <span class="chip" class:id={!p.name}>{p.name || p.id}<button title={t("rule.removePerson")} aria-label={t("rule.removePerson")}
+              onclick={() => (people = people.filter((x) => x.id !== p.id))}>×</button></span>
+          {/each}
+          <input type="text" bind:value={personQuery} oninput={searchPeople} onkeydown={personKey}
+            onblur={() => setTimeout(() => (suggestions = []), 150)} autocomplete="off"
+            placeholder={memberProblem ? t("rule.memberId") : t("rule.addPerson")} />
+          {#if suggestions.length}
+            <div class="sugg">
+              {#each suggestions as m (m.id)}
+                <button class="opt" onmousedown={(e) => { e.preventDefault(); addPerson(m); }}>{m.name}{#if m.real_name} <span class="muted small">{m.real_name}</span>{/if}</button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+        {#if problem("allowed_users")}<p class="small bad-t">{problem("allowed_users")}</p>{/if}
+        {#if memberProblem === "missing_scope"}<p class="small muted"><Rich key="rule.usersNoScope" /></p>
+        {:else if memberProblem === "error"}<p class="small muted">{t("rule.usersError", { error: memberError })}</p>{/if}
+      {/if}
     </div>
   </div>
 
@@ -339,5 +432,18 @@
   details.hint summary { cursor: pointer; color: var(--muted); }
   details.hint ul { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
   .signin { margin-top: 6px; gap: 8px; }
+  .chips { position: relative; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 6px; background: var(--panel); }
+  .chips.invalid { border-color: var(--bad); }
+  .chip { display: inline-flex; align-items: center; background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px; padding: 0 0 0 8px; font-size: 12px; }
+  .chip.id { font-family: ui-monospace, Menlo, monospace; }
+  .chip button { border: none; background: none; padding: 0 6px; color: var(--muted); font-size: 12px; }
+  .chips input { border: none; flex: 1; min-width: 140px; padding: 2px; background: transparent; box-shadow: none; }
+  .chips input:focus { outline: none; }
+  .sugg { position: absolute; left: -1px; right: -1px; top: calc(100% + 4px); z-index: 5; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 6px; box-shadow: 0 8px 24px rgba(0, 0, 0, .15); padding: 4px; display: flex; flex-direction: column; }
+  .sugg .opt { border: none; background: none; text-align: left; padding: 4px 8px; border-radius: 4px; }
+  .sugg .opt:hover { background: var(--accent); color: var(--accent-text); }
+  .sugg .opt:hover .muted { color: inherit; }
   .reason { white-space: pre-wrap; word-break: break-word; max-height: 4.5em; overflow: hidden; }
 </style>

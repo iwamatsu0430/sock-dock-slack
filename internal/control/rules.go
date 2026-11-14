@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -28,6 +29,9 @@ type RuleInfo struct {
 	// ChannelName is "#name" (or "🔒name") when Slack tells us, else "".
 	ChannelName string      `json:"channel_name,omitempty"`
 	Last        *store.Turn `json:"last,omitempty"`
+	// Users are the people in Form.AllowedUsers, in the same order. Name is
+	// "" for an ID Slack does not know or when users:read is missing.
+	Users []slackio.Member `json:"users,omitempty"`
 }
 
 // RuleSaveResult is the outcome of saving a rule.
@@ -38,6 +42,17 @@ type RuleSaveResult struct {
 	Problems []rules.FieldProblem `json:"problems,omitempty"`
 	// ConfigProblems are problems in the whole config after the change.
 	ConfigProblems []string `json:"config_problems,omitempty"`
+	// OpenToAll is "commands" or "edit" when everyone in the channel can now
+	// make the agent run commands or edit files (rules.OpenToAll).
+	OpenToAll string `json:"open_to_all,omitempty"`
+}
+
+// UsersResult lists people in the workspace, or why it cannot.
+type UsersResult struct {
+	Members []slackio.Member `json:"members"`
+	// Problem is "missing_scope", "unavailable" or "error" (see Error).
+	Problem string `json:"problem,omitempty"`
+	Error   string `json:"error,omitempty"`
 }
 
 // OrderRequest orders one channel's rules.
@@ -73,6 +88,41 @@ type ruleState struct {
 	chMu     sync.Mutex
 	chNames  map[string]string
 	chExpiry time.Time
+
+	membersOnce sync.Once
+	members     *slackio.MemberDirectory
+}
+
+// memberDir returns the kept list of the workspace's people.
+func (s *Server) memberDir() *slackio.MemberDirectory {
+	s.rules.membersOnce.Do(func() {
+		s.rules.members = &slackio.MemberDirectory{Fetch: func(ctx context.Context) ([]slackio.Member, error) {
+			l, ok := s.gw.API().(slackio.MemberLister)
+			if !ok {
+				return nil, errUnavailable
+			}
+			return l.Members(ctx)
+		}}
+	})
+	return s.rules.members
+}
+
+var errUnavailable = errors.New("not connected to Slack")
+
+// usersOf names the member IDs of a rule, keeping their order.
+func usersOf(ids []string, names map[string]slackio.Member) []slackio.Member {
+	if len(ids) == 0 {
+		return nil
+	}
+	out := make([]slackio.Member, 0, len(ids))
+	for _, id := range ids {
+		m, ok := names[id]
+		if !ok {
+			m = slackio.Member{ID: id}
+		}
+		out = append(out, m)
+	}
+	return out
 }
 
 func (s *Server) configPath() string { return s.gw.Config().Path }
@@ -130,9 +180,14 @@ func (s *Server) ruleInfos(ctx context.Context) ([]RuleInfo, error) {
 		}
 	}
 	names := s.channelNames(ctx)
+	var ids []string
+	for _, r := range raw.Routes {
+		ids = append(ids, r.AllowedUsers...)
+	}
+	people := s.memberDir().Names(ctx, ids)
 	out := []RuleInfo{}
 	for _, row := range rules.List(raw, func(n string) bool { return off[n] }) {
-		out = append(out, RuleInfo{Row: row, ChannelName: names[row.Form.Channel], Last: last[row.Form.Name]})
+		out = append(out, RuleInfo{Row: row, ChannelName: names[row.Form.Channel], Last: last[row.Form.Name], Users: usersOf(row.Form.AllowedUsers, people)})
 	}
 	return out, nil
 }
@@ -224,7 +279,7 @@ func (s *Server) saveRule(w http.ResponseWriter, r *http.Request) {
 		c.Action = "added"
 	}
 	s.announce(r, c)
-	writeJSON(w, http.StatusOK, RuleSaveResult{OK: true, Name: saved.Name})
+	writeJSON(w, http.StatusOK, RuleSaveResult{OK: true, Name: saved.Name, OpenToAll: rules.OpenToAll(f)})
 }
 
 func (s *Server) deleteRule(w http.ResponseWriter, r *http.Request) {
@@ -310,6 +365,26 @@ func (s *Server) channels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, ChannelsResult{Channels: chs})
+}
+
+func (s *Server) users(w http.ResponseWriter, r *http.Request) {
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	if limit <= 0 || limit > 200 {
+		limit = 20
+	}
+	found, err := s.memberDir().Search(r.Context(), r.URL.Query().Get("q"), limit)
+	switch {
+	case errors.Is(err, context.Canceled):
+		return
+	case errors.Is(err, errUnavailable):
+		writeJSON(w, http.StatusOK, UsersResult{Members: []slackio.Member{}, Problem: "unavailable"})
+	case slackio.IsMissingScope(err):
+		writeJSON(w, http.StatusOK, UsersResult{Members: []slackio.Member{}, Problem: "missing_scope", Error: err.Error()})
+	case err != nil:
+		writeJSON(w, http.StatusOK, UsersResult{Members: []slackio.Member{}, Problem: "error", Error: err.Error()})
+	default:
+		writeJSON(w, http.StatusOK, UsersResult{Members: found})
+	}
 }
 
 // pauseChange describes a pause/resume for the rule_changed event.

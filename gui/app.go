@@ -46,16 +46,21 @@ type AppService struct {
 	// channels caches channel names (id → channel) for labels.
 	chMu     sync.Mutex
 	channels map[string]Channel
+
+	// members keeps the workspace's people for the "実行できる人" field.
+	members *slackio.MemberDirectory
 }
 
 func newAppService(dirs paths.Dirs, version string) *AppService {
-	return &AppService{
+	a := &AppService{
 		dirs:     dirs,
 		version:  version,
 		client:   control.NewClient(dirs.SocketPath()),
 		emb:      newEmbedded(dirs, version),
 		channels: map[string]Channel{},
 	}
+	a.members = &slackio.MemberDirectory{Fetch: a.fetchMembers}
+	return a
 }
 
 func ctx() (context.Context, context.CancelFunc) {
@@ -262,6 +267,7 @@ func (a *AppService) ConnectSlack(appToken, botToken string) ConnectResult {
 	a.chMu.Lock()
 	a.channels = map[string]Channel{}
 	a.chMu.Unlock()
+	a.members.Refresh()
 	a.startAfterSetup()
 	// Report success only once SockDock is really connected, so setup does
 	// not move on while nothing works.
@@ -303,6 +309,7 @@ func (a *AppService) DisconnectSlack() error {
 	a.emb.Stop(30 * time.Second)
 	_ = secret.KeychainDelete(secret.AppToken)
 	_ = secret.KeychainDelete(secret.BotToken)
+	a.members.Refresh()
 	sf := a.secretsFile()
 	app, _, _ := secret.Lookup(secret.AppToken, sf)
 	bot, _, _ := secret.Lookup(secret.BotToken, sf)
@@ -332,6 +339,7 @@ const slackSettingsSnippet = `oauth_config:
       - reactions:write
       - channels:read
       - groups:read
+      - users:read
 settings:
   event_subscriptions:
     bot_events:

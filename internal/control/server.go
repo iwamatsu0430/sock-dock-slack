@@ -56,6 +56,7 @@ func NewServer(gw *gateway.Gateway, log *slog.Logger, logFile string) *Server {
 	mux.HandleFunc("GET /v1/rules/{name}", s.getRule)
 	mux.HandleFunc("DELETE /v1/rules/{name}", s.deleteRule)
 	mux.HandleFunc("GET /v1/channels", s.channels)
+	mux.HandleFunc("GET /v1/users", s.users)
 	mux.HandleFunc("POST /v1/claude/check", s.checkClaude)
 	s.srv = &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	s.closing = make(chan struct{})
@@ -263,6 +264,9 @@ func (s *Server) reload(w http.ResponseWriter, _ *http.Request) {
 type MatchRequest struct {
 	Channel string `json:"channel"`
 	Text    string `json:"text"`
+	// User is the poster's member ID. When it is empty, who posted is not
+	// considered, and AllowedUsers tells whether the rule is restricted.
+	User string `json:"user,omitempty"`
 }
 
 // MatchResult is the answer to MatchRequest.
@@ -270,15 +274,21 @@ type MatchResult struct {
 	Matched bool              `json:"matched"`
 	Route   string            `json:"route,omitempty"`
 	Groups  map[string]string `json:"groups,omitempty"`
+	// AllowedUsers are the member IDs who may run the rule (empty: everyone).
+	AllowedUsers []string `json:"allowed_users,omitempty"`
 }
 
 // MatchConfig evaluates a message against a config.
 func MatchConfig(cfg *config.Config, req MatchRequest) MatchResult {
-	r, groups := cfg.Match(req.Channel, req.Text)
+	r, groups := cfg.MatchWith(req.Channel, req.Text, config.MatchOptions{ByUser: req.User != "", User: req.User})
+	return matchResult(r, groups)
+}
+
+func matchResult(r *config.Route, groups map[string]string) MatchResult {
 	if r == nil {
 		return MatchResult{}
 	}
-	return MatchResult{Matched: true, Route: r.Name, Groups: groups}
+	return MatchResult{Matched: true, Route: r.Name, Groups: groups, AllowedUsers: r.AllowedUsers}
 }
 
 func (s *Server) match(w http.ResponseWriter, r *http.Request) {
@@ -296,12 +306,9 @@ func (s *Server) match(w http.ResponseWriter, r *http.Request) {
 	}
 	route, groups := s.gw.Config().MatchWith(req.Channel, req.Text, config.MatchOptions{
 		BotUserID: st.Identity.UserID, Skip: func(n string) bool { return off[n] },
+		ByUser: req.User != "", User: req.User,
 	})
-	if route == nil {
-		writeJSON(w, http.StatusOK, MatchResult{})
-		return
-	}
-	writeJSON(w, http.StatusOK, MatchResult{Matched: true, Route: route.Name, Groups: groups})
+	writeJSON(w, http.StatusOK, matchResult(route, groups))
 }
 
 func (s *Server) pause(paused bool) http.HandlerFunc {

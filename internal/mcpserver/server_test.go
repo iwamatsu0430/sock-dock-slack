@@ -25,6 +25,8 @@ type fake struct {
 	saved  *rules.Form
 	order  *control.OrderRequest
 	paused map[string]bool
+	// noUsers simulates a Slack app without users:read.
+	noUsers bool
 }
 
 func (f *fake) err() error {
@@ -74,6 +76,13 @@ func (f *fake) SetPaused(_ context.Context, name string, p bool) error {
 	return f.err()
 }
 func (f *fake) StopTurn(context.Context, int64) error { return f.err() }
+func (f *fake) Users(_ context.Context, q string, _ int) (control.UsersResult, error) {
+	if f.noUsers {
+		return control.UsersResult{Members: []slackio.Member{}, Problem: "missing_scope"}, f.err()
+	}
+	all := []slackio.Member{{ID: "U01TARO", Name: "田中 太郎", RealName: "Taro Tanaka"}, {ID: "U02HANA", Name: "hanako"}}
+	return control.UsersResult{Members: slackio.SearchMembers(all, q, 10)}, f.err()
+}
 
 func connect(t *testing.T, b Backend) *mcp.ClientSession {
 	t.Helper()
@@ -128,7 +137,7 @@ func TestToolsAndAnnotations(t *testing.T) {
 		reads[tl.Name] = tl.Annotations != nil && tl.Annotations.ReadOnlyHint
 	}
 	want := map[string]bool{"sockdock_get_status": true, "sockdock_list_rules": true, "sockdock_get_rule": true, "sockdock_list_runs": true, "sockdock_list_channels": true, "sockdock_test_match": true,
-		"sockdock_check_rule": true, "sockdock_save_rule": false, "sockdock_delete_rule": false, "sockdock_reorder_rules": false, "sockdock_set_rule_enabled": false, "sockdock_stop_run": false}
+		"sockdock_check_rule": true, "sockdock_find_users": true, "sockdock_save_rule": false, "sockdock_delete_rule": false, "sockdock_reorder_rules": false, "sockdock_set_rule_enabled": false, "sockdock_stop_run": false}
 	if len(reads) != len(want) {
 		t.Errorf("tools = %v", reads)
 	}
@@ -304,5 +313,64 @@ func TestDescriptionsAreDetailed(t *testing.T) {
 		if n := strings.Count(tl.Description, ". "); n < 2 {
 			t.Errorf("%s: description has %d sentences, want 3 or more", tl.Name, n+1)
 		}
+	}
+}
+
+func TestAllowedUsersTools(t *testing.T) {
+	f := sample()
+	f.rules[1].Form.Restricted, f.rules[1].Form.AllowedUsers = true, []string{"U01TARO", "U09GONE"}
+	f.rules[1].Users = []slackio.Member{{ID: "U01TARO", Name: "田中 太郎"}, {ID: "U09GONE"}}
+	cs := connect(t, f)
+
+	var found FindOut
+	call(t, cs, "sockdock_find_users", map[string]any{"name": "taro"}, &found)
+	if len(found.People) != 1 || found.People[0].ID != "U01TARO" {
+		t.Fatalf("find = %+v", found)
+	}
+
+	var detail RuleDetail
+	call(t, cs, "sockdock_get_rule", map[string]any{"name": "b"}, &detail)
+	if len(detail.AllowedUsers) != 2 || detail.AllowedUsers[0].Name != "田中 太郎" || detail.AllowedUsers[1].ID != "U09GONE" {
+		t.Fatalf("allowed_users = %+v", detail.AllowedUsers)
+	}
+	var rule Rule
+	call(t, cs, "sockdock_get_rule", map[string]any{"name": "a"}, &rule)
+	if rule.AllowedUsers != nil {
+		t.Errorf("a rule open to everyone should have no allowed_users: %+v", rule.AllowedUsers)
+	}
+
+	// Setting and clearing allowed_users.
+	call(t, cs, "sockdock_save_rule", map[string]any{"name": "a", "allowed_users": []string{"U01TARO"}}, nil)
+	if !f.saved.Restricted || len(f.saved.AllowedUsers) != 1 || f.saved.Commands[0] != "make test" {
+		t.Fatalf("saved = %+v", f.saved)
+	}
+	call(t, cs, "sockdock_save_rule", map[string]any{"name": "b", "allowed_users": []string{}}, nil)
+	if f.saved.Restricted {
+		t.Fatalf("[] should open the rule to everyone: %+v", f.saved)
+	}
+	call(t, cs, "sockdock_save_rule", map[string]any{"name": "b", "keyword": "ship"}, nil)
+	if !f.saved.Restricted || len(f.saved.AllowedUsers) != 2 {
+		t.Fatalf("omitting allowed_users should keep it: %+v", f.saved)
+	}
+
+	var check CheckOut
+	call(t, cs, "sockdock_check_rule", map[string]any{"name": "b"}, &check)
+	if !strings.Contains(fmt.Sprint(check.Findings), "Only 田中 太郎 (U01TARO), U09GONE can run this rule") {
+		t.Errorf("check = %+v", check.Findings)
+	}
+
+	f.noUsers = true
+	call(t, cs, "sockdock_find_users", map[string]any{"name": "taro"}, &found)
+	if found.Problem != "missing_scope" {
+		t.Errorf("without users:read: %+v", found)
+	}
+}
+
+func TestSaveWarning(t *testing.T) {
+	if w := saveOut(control.RuleSaveResult{OK: true, OpenToAll: "commands"}).Warning; !strings.Contains(w, "run the allowed commands") {
+		t.Errorf("warning = %q", w)
+	}
+	if w := saveOut(control.RuleSaveResult{OK: true}).Warning; w != "" {
+		t.Errorf("no warning expected, got %q", w)
 	}
 }

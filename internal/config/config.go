@@ -72,13 +72,16 @@ type Messages struct {
 // condition is exactly one of StartsWith, Contains, Match (a regex) and
 // AllPosts (see match.go).
 type Route struct {
-	Name       string  `yaml:"name"`
-	Channel    string  `yaml:"channel"`
-	StartsWith string  `yaml:"starts_with"`
-	Contains   string  `yaml:"contains"`
-	Match      string  `yaml:"match"`
-	AllPosts   bool    `yaml:"all_posts"`
-	Handler    Handler `yaml:"handler"`
+	Name       string `yaml:"name"`
+	Channel    string `yaml:"channel"`
+	StartsWith string `yaml:"starts_with"`
+	Contains   string `yaml:"contains"`
+	Match      string `yaml:"match"`
+	AllPosts   bool   `yaml:"all_posts"`
+	// AllowedUsers are the Slack member IDs who may run the route ("実行できる
+	// 人"). Empty means everyone in the channel (docs/design.md §3.4).
+	AllowedUsers []string `yaml:"allowed_users"`
+	Handler      Handler  `yaml:"handler"`
 
 	re *regexp.Regexp
 	// Env holds the values read from Handler.EnvFile plus Handler.Env.
@@ -170,7 +173,11 @@ func DefaultMessagesFor(lang string) Messages {
 var (
 	varRef   = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)\}`)
 	nameRule = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]*$`)
+	memberID = regexp.MustCompile(`^[UW][A-Z0-9]{2,}$`)
 )
+
+// IsMemberID reports whether s looks like a Slack member ID (U… or W…).
+func IsMemberID(s string) bool { return memberID.MatchString(s) }
 
 // ValidationError lists every problem found in a config.
 type ValidationError struct {
@@ -401,6 +408,14 @@ func (c *Config) prepare(lookupEnv func(string) (string, bool)) (global []string
 		}
 		if p := r.conditionProblem(); p != "" {
 			add("%s: %s", label, p)
+		}
+		if r.AllowedUsers != nil && len(r.AllowedUsers) == 0 {
+			add("%s: allowed_users is empty; list member IDs, or remove the key to let everyone in the channel run it", label)
+		}
+		for _, u := range r.AllowedUsers {
+			if !IsMemberID(u) {
+				add("%s: allowed_users: %q is not a Slack member ID (like U0123ABCD)", label, u)
+			}
 		}
 
 		switch h.Type {

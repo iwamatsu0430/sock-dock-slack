@@ -35,6 +35,7 @@ type Backend interface {
 	SetPaused(ctx context.Context, route string, paused bool) error
 	StopTurn(ctx context.Context, id int64) error
 	CheckClaude(ctx context.Context, force bool) (*bool, error)
+	Users(ctx context.Context, q string, limit int) (control.UsersResult, error)
 }
 
 // New builds the MCP server.
@@ -56,6 +57,7 @@ func New(b Backend, version string) *mcp.Server {
 	mcp.AddTool(s, &mcp.Tool{Name: "sockdock_list_runs", Annotations: read, Description: descListRuns}, t.listRuns)
 	mcp.AddTool(s, &mcp.Tool{Name: "sockdock_list_channels", Annotations: read, Description: descListChannels}, t.listChannels)
 	mcp.AddTool(s, &mcp.Tool{Name: "sockdock_test_match", Annotations: read, Description: descTestMatch}, t.testMatch)
+	mcp.AddTool(s, &mcp.Tool{Name: "sockdock_find_users", Annotations: read, Description: descFindUsers}, t.findUsers)
 	mcp.AddTool(s, &mcp.Tool{Name: "sockdock_save_rule", Annotations: change(true, false), Description: descSaveRule}, t.saveRule)
 	mcp.AddTool(s, &mcp.Tool{Name: "sockdock_delete_rule", Annotations: change(true, false), Description: descDeleteRule}, t.deleteRule)
 	mcp.AddTool(s, &mcp.Tool{Name: "sockdock_reorder_rules", Annotations: change(false, true), Description: descReorderRules}, t.reorderRules)
@@ -110,10 +112,19 @@ type Rule struct {
 	Enabled     bool       `json:"enabled"`
 	Problem     string     `json:"problem,omitempty" jsonschema:"why the rule cannot run, if it cannot"`
 	ShadowedBy  *Condition `json:"shadowed_by,omitempty" jsonschema:"an earlier rule in the channel that always matches first, so this rule never runs"`
+	// AllowedUsers are the only people who may run the rule (absent: everyone in the channel).
+	AllowedUsers []Person `json:"allowed_users,omitempty" jsonschema:"the only people who may run the rule; absent means everyone in the channel. Posts and thread replies from anyone else are ignored without a reply"`
 	// PostsArrived is false when no post from the rule's channel has reached
 	// SockDock since it connected (nil when unknown).
 	PostsArrived *bool `json:"posts_arrived,omitempty" jsonschema:"whether a post from this channel has reached SockDock since it last connected; false only matters if someone has posted there since; left out when SockDock is not connected"`
 	LastRun      *Run  `json:"last_run,omitempty"`
+}
+
+// Person is a Slack member.
+type Person struct {
+	ID       string `json:"id" jsonschema:"Slack member ID (U…), used in allowed_users"`
+	Name     string `json:"name,omitempty" jsonschema:"display name; absent when Slack does not know the ID or the Slack app lacks users:read"`
+	RealName string `json:"real_name,omitempty"`
 }
 
 // RuleDetail is every setting of a rule.
@@ -161,6 +172,19 @@ func ruleOf(ri control.RuleInfo) Rule {
 	if ri.Last != nil {
 		run := runOf(*ri.Last)
 		r.LastRun = &run
+	}
+	if f.Restricted {
+		names := map[string]Person{}
+		for _, u := range ri.Users {
+			names[u.ID] = Person{ID: u.ID, Name: u.Name, RealName: u.RealName}
+		}
+		for _, id := range f.AllowedUsers {
+			p, ok := names[id]
+			if !ok {
+				p = Person{ID: id}
+			}
+			r.AllowedUsers = append(r.AllowedUsers, p)
+		}
 	}
 	return r
 }
@@ -349,6 +373,7 @@ func (t *tools) resolveChannel(ctx context.Context, s string) (string, error) {
 type MatchIn struct {
 	Channel string `json:"channel" jsonschema:"channel name (#dev-help or dev-help) or ID; must be in sockdock_list_channels"`
 	Text    string `json:"text" jsonschema:"the post's text"`
+	User    string `json:"user,omitempty" jsonschema:"the poster's Slack member ID (from sockdock_find_users); rules this person may not run are passed over, as for a real post. Omit to ignore who posts"`
 }
 
 // MatchOut is test_match's result.
@@ -356,6 +381,8 @@ type MatchOut struct {
 	Matched bool              `json:"matched"`
 	Rule    string            `json:"rule,omitempty"`
 	Values  map[string]string `json:"values,omitempty" jsonschema:"what the rule would pass to a program (text, or the regular expression's named groups)"`
+	// AllowedUsers is set when only some people may run the matched rule.
+	AllowedUsers []string `json:"allowed_users,omitempty" jsonschema:"member IDs of the only people who may run the matched rule; a post by anyone else does nothing (or goes to a later rule)"`
 }
 
 func (t *tools) testMatch(ctx context.Context, _ *mcp.CallToolRequest, in MatchIn) (*mcp.CallToolResult, MatchOut, error) {
@@ -363,11 +390,37 @@ func (t *tools) testMatch(ctx context.Context, _ *mcp.CallToolRequest, in MatchI
 	if err != nil {
 		return nil, MatchOut{}, err
 	}
-	res, err := t.b.Match(ctx, control.MatchRequest{Channel: ch, Text: in.Text})
+	res, err := t.b.Match(ctx, control.MatchRequest{Channel: ch, Text: in.Text, User: strings.TrimSpace(in.User)})
 	if err != nil {
 		return nil, MatchOut{}, errText(err)
 	}
-	return nil, MatchOut{Matched: res.Matched, Rule: res.Route, Values: res.Groups}, nil
+	return nil, MatchOut{Matched: res.Matched, Rule: res.Route, Values: res.Groups, AllowedUsers: res.AllowedUsers}, nil
+}
+
+// FindIn searches people.
+type FindIn struct {
+	Name string `json:"name" jsonschema:"part of a display name or real name (case-insensitive), or a member ID"`
+}
+
+// FindOut is find_users's result.
+type FindOut struct {
+	People  []Person `json:"people"`
+	Problem string   `json:"problem,omitempty" jsonschema:"why people cannot be listed: missing_scope (the Slack app lacks users:read; ask the user for member IDs, or to add users:read and reinstall the app), unavailable (not connected) or error"`
+}
+
+func (t *tools) findUsers(ctx context.Context, _ *mcp.CallToolRequest, in FindIn) (*mcp.CallToolResult, FindOut, error) {
+	if strings.TrimSpace(in.Name) == "" {
+		return nil, FindOut{}, errors.New("give part of the person's name")
+	}
+	res, err := t.b.Users(ctx, in.Name, 10)
+	if err != nil {
+		return nil, FindOut{}, errText(err)
+	}
+	out := FindOut{People: []Person{}, Problem: res.Problem}
+	for _, m := range res.Members {
+		out.People = append(out.People, Person{ID: m.ID, Name: m.Name, RealName: m.RealName})
+	}
+	return nil, out, nil
 }
 
 // SaveIn adds or changes a rule. For a change, omitted fields keep their values.
@@ -382,6 +435,7 @@ type SaveIn struct {
 	AllowWeb        *bool     `json:"allow_web,omitempty" jsonschema:"agent: may search and fetch the web"`
 	AllowEdit       *bool     `json:"allow_edit,omitempty" jsonschema:"agent: may edit files in the folder"`
 	AllowedCommands *[]string `json:"allowed_commands,omitempty" jsonschema:"agent: command prefixes it may run, e.g. 'npm test'"`
+	AllowedUsers    *[]string `json:"allowed_users,omitempty" jsonschema:"member IDs (U…, from sockdock_find_users) of the only people who may run the rule; [] lets everyone in the channel run it; omitted on a new rule means everyone"`
 	Model           *string   `json:"model,omitempty" jsonschema:"agent: opus, sonnet, haiku or empty for the default"`
 	Program         *string   `json:"program,omitempty" jsonschema:"program: path to the executable; gets the post as JSON on stdin, its stdout is the reply"`
 	Args            *string   `json:"args,omitempty" jsonschema:"program: arguments"`
@@ -394,10 +448,18 @@ type SaveOut struct {
 	Name           string    `json:"name,omitempty"`
 	Problems       []Problem `json:"problems,omitempty" jsonschema:"what to fix, per field (nothing was saved)"`
 	ConfigProblems []string  `json:"config_problems,omitempty"`
+	Warning        string    `json:"warning,omitempty" jsonschema:"saved, but tell the user this"`
 }
 
 func saveOut(r control.RuleSaveResult) SaveOut {
-	return SaveOut{OK: r.OK, Name: r.Name, Problems: problemsOf(r.Problems), ConfigProblems: r.ConfigProblems}
+	out := SaveOut{OK: r.OK, Name: r.Name, Problems: problemsOf(r.Problems), ConfigProblems: r.ConfigProblems}
+	switch r.OpenToAll {
+	case "commands":
+		out.Warning = "Everyone in this channel can make this Mac run the allowed commands. If that is not what the user wants, set allowed_users to the people who may run the rule."
+	case "edit":
+		out.Warning = "Everyone in this channel can make the agent change files in the working folder. If that is not what the user wants, set allowed_users to the people who may run the rule."
+	}
+	return out
 }
 
 func (t *tools) saveRule(ctx context.Context, _ *mcp.CallToolRequest, in SaveIn) (*mcp.CallToolResult, SaveOut, error) {
@@ -443,6 +505,10 @@ func (t *tools) saveRule(ctx context.Context, _ *mcp.CallToolRequest, in SaveIn)
 	}
 	if in.AllowedCommands != nil {
 		f.Commands = *in.AllowedCommands
+	}
+	if in.AllowedUsers != nil {
+		f.AllowedUsers = *in.AllowedUsers
+		f.Restricted = len(f.AllowedUsers) > 0
 	}
 	set(&f.Model, in.Model)
 	set(&f.Program, in.Program)

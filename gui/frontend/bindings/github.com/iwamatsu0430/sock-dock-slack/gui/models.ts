@@ -13,6 +13,9 @@ import * as gateway$0 from "../internal/gateway/models.js";
 import * as rules$0 from "../internal/rules/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as slackio$0 from "../internal/slackio/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as store$0 from "../internal/store/models.js";
 
 /**
@@ -209,6 +212,40 @@ export class MCPSetup {
 }
 
 /**
+ * MemberList is people matching a search, or why they cannot be listed.
+ */
+export class MemberList {
+    "members": slackio$0.Member[];
+
+    /**
+     * Problem is "no_token", "missing_scope" (users:read) or "error" (see Error).
+     */
+    "problem"?: string;
+    "error"?: string;
+
+    /** Creates a new MemberList instance. */
+    constructor($$source: Partial<MemberList> = {}) {
+        if (!("members" in $$source)) {
+            this["members"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MemberList instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MemberList {
+        const $$createField0_0 = $$createType5;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("members" in $$parsedSource) {
+            $$parsedSource["members"] = $$createField0_0($$parsedSource["members"]);
+        }
+        return new MemberList($$parsedSource as Partial<MemberList>);
+    }
+}
+
+/**
  * Prefs are GUI preferences.
  */
 export class Prefs {
@@ -290,8 +327,8 @@ export class RouteSaveResult {
      * Creates a new RouteSaveResult instance from a string or object.
      */
     static createFrom($$source: any = {}): RouteSaveResult {
-        const $$createField1_0 = $$createType5;
-        const $$createField2_0 = $$createType6;
+        const $$createField1_0 = $$createType7;
+        const $$createField2_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("problems" in $$parsedSource) {
             $$parsedSource["problems"] = $$createField1_0($$parsedSource["problems"]);
@@ -323,7 +360,7 @@ export class RuleList {
      * Creates a new RuleList instance from a string or object.
      */
     static createFrom($$source: any = {}): RuleList {
-        const $$createField0_0 = $$createType8;
+        const $$createField0_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rules" in $$parsedSource) {
             $$parsedSource["rules"] = $$createField0_0($$parsedSource["rules"]);
@@ -365,6 +402,12 @@ export class RuleRow {
      */
     "last"?: store$0.Turn | null;
 
+    /**
+     * Users are the people in Form.AllowedUsers, in order (Name is "" when
+     * Slack does not know the ID or users:read is missing).
+     */
+    "users": slackio$0.Member[];
+
     /** Creates a new RuleRow instance. */
     constructor($$source: Partial<RuleRow> = {}) {
         if (!("form" in $$source)) {
@@ -379,6 +422,9 @@ export class RuleRow {
         if (!("channel" in $$source)) {
             this["channel"] = "";
         }
+        if (!("users" in $$source)) {
+            this["users"] = [];
+        }
 
         Object.assign(this, $$source);
     }
@@ -387,10 +433,11 @@ export class RuleRow {
      * Creates a new RuleRow instance from a string or object.
      */
     static createFrom($$source: any = {}): RuleRow {
-        const $$createField0_0 = $$createType9;
-        const $$createField2_0 = $$createType10;
-        const $$createField3_0 = $$createType12;
-        const $$createField6_0 = $$createType14;
+        const $$createField0_0 = $$createType11;
+        const $$createField2_0 = $$createType12;
+        const $$createField3_0 = $$createType14;
+        const $$createField6_0 = $$createType16;
+        const $$createField7_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("form" in $$parsedSource) {
             $$parsedSource["form"] = $$createField0_0($$parsedSource["form"]);
@@ -403,6 +450,9 @@ export class RuleRow {
         }
         if ("last" in $$parsedSource) {
             $$parsedSource["last"] = $$createField6_0($$parsedSource["last"]);
+        }
+        if ("users" in $$parsedSource) {
+            $$parsedSource["users"] = $$createField7_0($$parsedSource["users"]);
         }
         return new RuleRow($$parsedSource as Partial<RuleRow>);
     }
@@ -437,8 +487,8 @@ export class Snapshot {
      * Creates a new Snapshot instance from a string or object.
      */
     static createFrom($$source: any = {}): Snapshot {
-        const $$createField2_0 = $$createType16;
-        const $$createField3_0 = $$createType17;
+        const $$createField2_0 = $$createType18;
+        const $$createField3_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("status" in $$parsedSource) {
             $$parsedSource["status"] = $$createField2_0($$parsedSource["status"]);
@@ -482,17 +532,19 @@ const $$createType0 = Channel.createFrom;
 const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = TokenProblem.createFrom;
 const $$createType3 = $Create.Nullable($$createType2);
-const $$createType4 = rules$0.FieldProblem.createFrom;
+const $$createType4 = slackio$0.Member.createFrom;
 const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = $Create.Array($Create.Any);
-const $$createType7 = RuleRow.createFrom;
-const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = rules$0.Form.createFrom;
-const $$createType10 = $Create.Nullable($$createType4);
-const $$createType11 = rules$0.Condition.createFrom;
-const $$createType12 = $Create.Nullable($$createType11);
-const $$createType13 = store$0.Turn.createFrom;
+const $$createType6 = rules$0.FieldProblem.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = $Create.Array($Create.Any);
+const $$createType9 = RuleRow.createFrom;
+const $$createType10 = $Create.Array($$createType9);
+const $$createType11 = rules$0.Form.createFrom;
+const $$createType12 = $Create.Nullable($$createType6);
+const $$createType13 = rules$0.Condition.createFrom;
 const $$createType14 = $Create.Nullable($$createType13);
-const $$createType15 = gateway$0.Status.createFrom;
+const $$createType15 = store$0.Turn.createFrom;
 const $$createType16 = $Create.Nullable($$createType15);
-const $$createType17 = GatewayState.createFrom;
+const $$createType17 = gateway$0.Status.createFrom;
+const $$createType18 = $Create.Nullable($$createType17);
+const $$createType19 = GatewayState.createFrom;

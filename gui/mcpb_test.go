@@ -56,7 +56,7 @@ func TestBuildMCPB(t *testing.T) {
 	if _, ok := files["icon.png"]; !ok || man.Icon != "icon.png" {
 		t.Errorf("icon: manifest %q, files %v", man.Icon, files)
 	}
-	if len(man.Tools) != 12 {
-		t.Errorf("tools = %d, want 12", len(man.Tools))
+	if len(man.Tools) != 13 {
+		t.Errorf("tools = %d, want 13", len(man.Tools))
 	}
 }

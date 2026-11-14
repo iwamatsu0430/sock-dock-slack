@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"slices"
 	"strings"
 
@@ -9,6 +11,7 @@ import (
 	"github.com/iwamatsu0430/sock-dock-slack/internal/config"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/rules"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/secret"
+	"github.com/iwamatsu0430/sock-dock-slack/internal/slackio"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/store"
 )
 
@@ -234,6 +237,9 @@ type RuleRow struct {
 	Channel string `json:"channel"`
 	// Last is the most recent run.
 	Last *store.Turn `json:"last,omitempty"`
+	// Users are the people in Form.AllowedUsers, in order (Name is "" when
+	// Slack does not know the ID or users:read is missing).
+	Users []slackio.Member `json:"users"`
 }
 
 // RuleList is the rule list, or why the config could not be read.
@@ -260,12 +266,66 @@ func (a *AppService) ListRules() RuleList {
 			last[t.Route] = &t
 		}
 	}
+	var ids []string
+	for _, r := range raw.Routes {
+		ids = append(ids, r.AllowedUsers...)
+	}
+	c, cancel := ctx()
+	people := a.members.Names(c, ids)
+	cancel()
 	out := make([]RuleRow, 0, len(raw.Routes))
 	for i, row := range rules.List(raw, func(n string) bool { return paused[n] }) {
 		r := raw.Routes[i]
-		out = append(out, RuleRow{Row: row, Label: a.ruleLabel(r), Channel: a.channelLabel(r.Channel), Last: last[r.Name]})
+		users := []slackio.Member{}
+		for _, id := range r.AllowedUsers {
+			m, ok := people[id]
+			if !ok {
+				m = slackio.Member{ID: id}
+			}
+			users = append(users, m)
+		}
+		out = append(out, RuleRow{Row: row, Label: a.ruleLabel(r), Channel: a.channelLabel(r.Channel), Last: last[r.Name], Users: users})
 	}
 	return RuleList{Rules: out}
+}
+
+// MemberList is people matching a search, or why they cannot be listed.
+type MemberList struct {
+	Members []slackio.Member `json:"members"`
+	// Problem is "no_token", "missing_scope" (users:read) or "error" (see Error).
+	Problem string `json:"problem,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
+// fetchMembers lists the workspace's people with the Bot Token (users:read).
+func (a *AppService) fetchMembers(c context.Context) ([]slackio.Member, error) {
+	bot, _, _ := secret.Lookup(secret.BotToken, a.secretsFile())
+	if bot == "" {
+		return nil, errNoToken
+	}
+	return slackio.FetchMembers(c, slack.New(bot))
+}
+
+var errNoToken = errors.New("no Bot Token")
+
+// ListMembers searches the workspace's people by name for the "実行できる人"
+// field (at most 8). An empty query only checks that names can be listed.
+func (a *AppService) ListMembers(query string) MemberList {
+	c, cancel := ctx()
+	defer cancel()
+	found, err := a.members.Search(c, query, 8)
+	switch {
+	case errors.Is(err, errNoToken):
+		return MemberList{Members: []slackio.Member{}, Problem: "no_token"}
+	case slackio.IsMissingScope(err):
+		return MemberList{Members: []slackio.Member{}, Problem: "missing_scope"}
+	case err != nil:
+		return MemberList{Members: []slackio.Member{}, Problem: "error", Error: err.Error()}
+	}
+	if strings.TrimSpace(query) == "" {
+		found = []slackio.Member{}
+	}
+	return MemberList{Members: found}
 }
 
 // PickFolder shows a folder picker and returns the chosen path ("" if cancelled).

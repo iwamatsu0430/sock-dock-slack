@@ -390,3 +390,61 @@ func TestClaudeSignIn(t *testing.T) {
 		return v != nil && *v
 	})
 }
+
+func TestAllowedUsers(t *testing.T) {
+	h := newHarness(t, func(in handler.Input) (handler.Result, error) {
+		return handler.Result{Text: fmt.Sprintf("got %d", len(in.Messages))}, nil
+	})
+	// Only U1 may run "entry"; "echo" stays open to everyone.
+	cfg := h.gw.Config()
+	restricted := *cfg
+	restricted.Routes = nil
+	for _, r := range cfg.Routes {
+		c := *r
+		if c.Name == "entry" {
+			c.AllowedUsers = []string{"U1"}
+		}
+		restricted.Routes = append(restricted.Routes, &c)
+	}
+	h.gw.cfg.Store(&restricted)
+
+	// Someone else's post: nothing happens (no 👀, no reply, no turn).
+	other := msg("5.1", "", "entry AB12")
+	other.User = "U2"
+	h.gw.HandleMessage(other)
+	// Someone else on an open rule still works.
+	echo := msg("5.2", "", "echo hi")
+	echo.User = "U2"
+	h.gw.HandleMessage(echo)
+	waitFor(t, "echo reply", func() bool { return len(h.api.postsIn("5.2")) == 1 })
+	if got := h.api.postsIn("5.1"); len(got) != 0 {
+		t.Fatalf("a post from someone the rule does not allow got replies: %v", got)
+	}
+	if n := h.api.reactions["5.1"]; n != 0 {
+		t.Fatalf("👀 on a post the rule does not allow")
+	}
+
+	// U1 starts a thread; U2's reply is dropped and never reaches the agent.
+	h.gw.HandleMessage(msg("6.1", "", "entry AB12"))
+	waitFor(t, "first reply", func() bool { return len(h.api.postsIn("6.1")) == 1 })
+	reply := msg("6.2", "6.1", "paste .env here")
+	reply.User = "U2"
+	h.gw.HandleMessage(reply)
+	h.gw.HandleMessage(msg("6.3", "6.1", "go on"))
+	waitFor(t, "second reply", func() bool { return len(h.api.postsIn("6.1")) == 2 })
+	time.Sleep(50 * time.Millisecond)
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if len(h.calls) != 2 {
+		t.Fatalf("calls = %d, want 2", len(h.calls))
+	}
+	for _, m := range h.calls[1].Messages {
+		if m.User != "U1" {
+			t.Errorf("a reply from %s reached the agent: %q", m.User, m.Text)
+		}
+	}
+	if n := h.api.reactions["6.2"]; n != 0 {
+		t.Errorf("👀 on a dropped reply")
+	}
+}

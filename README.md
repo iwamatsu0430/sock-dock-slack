@@ -126,12 +126,29 @@ Post `echo hello` in the channel: SockDock reacts with 👀, runs the handler an
 With the app you do not need steps 3–5 above or any YAML. Open SockDock from Applications (built from source: `open dist/SockDock.app` or `mise run gui`):
 
 1. **Setup** (first launch): *Open api.slack.com* opens Slack's "create an app" page with the manifest filled in. Install the app, generate an App-Level Token with `connections:write`, then paste both tokens and press **Connect to Slack**. The tokens are checked with Slack first and saved to the Keychain only if both work. To use a Slack app you already have, open **Use a Slack app you already have** in setup: it lists the settings (Socket Mode, the `message.channels`/`message.groups` events, Bot Token scopes) and copies the part to add to its App Manifest. With Socket Mode on, that app's events go only to SockDock. If required scopes are missing, **Connect to Slack** names them.
-2. **Rules → Add Rule**: pick the channel (channels the Slack app has been added to are listed; without the `channels:read`/`groups:read` scopes, enter a channel ID or link), choose which posts it reacts to (starting with, containing, a regular expression, or all), and choose what runs — an AI agent (Claude Code) in a working folder, with instructions and what it may do, or a program. The list is grouped by channel and shows each rule's last run. Within a channel the rule higher up comes first; drag ⠿ to reorder. Open a rule for recent runs, thread links and **Stop**.
+2. **Rules → Add Rule**: pick the channel (channels the Slack app has been added to are listed; without the `channels:read`/`groups:read` scopes, enter a channel ID or link), choose who can run it (everyone in the channel, or people you choose by name), choose which posts it reacts to (starting with, containing, a regular expression, or all), and choose what runs — an AI agent (Claude Code) in a working folder, with instructions and what it may do, or a program. The list is grouped by channel and shows each rule's last run. Within a channel the rule higher up comes first; drag ⠿ to reorder. Open a rule for recent runs, thread links and **Stop**.
 3. Post something like `<keyword> …` in the channel.
 
 The app runs the gateway while it is open — there is no separate service to install. Clicking the menu bar icon shows the connection, running and recent runs; There is one window: switch between **Rules** and **Settings** at the top. **Settings** (⌘,) has the Slack connection, *Open at login*, notifications, the language (also used for the messages posted to Slack), MCP and **Reset SockDock…**, which removes the tokens, rules, run history and app settings and starts over from setup (the config file goes to the Trash; logs are kept). **Open Config File** opens the YAML in your editor for anything the form does not cover. A rule with a problem (e.g. a missing folder, or a rule above that always matches first) is shown in red and left out; the other rules keep running.
 
 If a `sockdock service install` service is already running, the app shows its state and does not start its own gateway.
+
+## Who can run a rule
+
+Anyone who can post in a channel can trigger its rules. To limit a rule to some people, list their Slack member IDs:
+
+```yaml
+routes:
+  - name: deploy
+    channel: C0123456789
+    starts_with: deploy
+    allowed_users: [U0123ABCD, U0456EFGH]
+    handler: { type: command, cwd: ~/ops, command: ./deploy.sh }
+```
+
+- Posts and thread replies from anyone else are ignored: no 👀, no reply, and they never reach the handler. A rule further down the channel can still pick up their post.
+- In the app, open the rule, set **Who Can Run It** to **Chosen People** and add people by name. Choosing by name needs the `users:read` scope, which the bundled manifest includes. If you created your Slack app earlier, add `users:read` to its Bot Token scopes and reinstall it; until then you can enter member IDs (in Slack, a profile's ⋮ menu → **Copy member ID**). `users:read` lets the app read the profiles of the workspace's members; SockDock uses it only for this list.
+- An agent rule that is open to everyone and may run commands or edit files shows a warning in the app.
 
 ## Handlers
 
@@ -235,7 +252,7 @@ The easiest way to register it is **Settings → MCP** in the app: pick your cli
 | Claude Desktop | in the app, **Settings → MCP**, choose Claude Desktop and press **Add to Claude Desktop** (it builds and opens the `SockDock.mcpb` extension) |
 | Cursor / others | add `"sockdock": {"command": "<sockdock>", "args": ["mcp"]}` to `mcpServers` in its config file |
 
-The tools show the status, rules, recent runs and channels, test which rule a post would hit, add, change, delete, reorder and turn rules on or off, and stop runs.
+The tools show the status, rules, recent runs and channels, test which rule a post would hit, find people by name for who can run a rule, add, change, delete, reorder and turn rules on or off, and stop runs.
 
 - A rule changed through MCP raises a notification on the Mac (even with notifications off).
 - Tokens and post texts are never passed to MCP.

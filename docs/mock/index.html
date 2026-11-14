@@ -370,7 +370,15 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); color: #f
               <p class="small muted" data-only="route-noscope" style="margin-top:6px">チャンネル ID かリンクを入力してください。一覧から選ぶには、Slack アプリに <code>channels:read</code> と <code>groups:read</code> のスコープが要ります。</p>
               <p class="small muted" style="margin-top:6px" data-only="route-nochannels">Slack アプリを追加したチャンネルが、まだありません。チャンネルで <code>/invite</code> を使ってアプリを追加してください。 <button class="link small">一覧を読み込み直す</button></p>
             </div>
-            <p class="small">このチャンネルのメンバーなら誰でも実行できます。</p>
+          </div>
+        </div>
+        <div class="sec">
+          <h2>実行できる人</h2>
+          <div class="ctl">
+            <div class="seg"><button class="on">全員</button><button>選んだ人</button></div>
+            <p class="small" data-only="route-new">このチャンネルのメンバーなら誰でも実行できます。</p>
+            <p class="small bad-t" data-only="route route-none route-noscope route-nochannels route-signin">チャンネルのメンバー全員が、この Mac でコマンドを実行させられます。</p>
+            <p class="small muted">選んだ人の状態は <a href="allowed-users.html">allowed-users.html</a></p>
           </div>
         </div>
         <div class="sec">

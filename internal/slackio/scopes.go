@@ -9,10 +9,11 @@ import (
 )
 
 // RequiredBotScopes are the Bot Token scopes SockDock cannot work without;
-// OptionalBotScopes only enable the channel list (docs/ia.md §3).
+// OptionalBotScopes only enable the channel list and choosing people by name
+// for "who can run it" (docs/ia.md §3).
 var (
 	RequiredBotScopes = []string{"channels:history", "groups:history", "chat:write", "reactions:write"}
-	OptionalBotScopes = []string{"channels:read", "groups:read"}
+	OptionalBotScopes = []string{"channels:read", "groups:read", "users:read"}
 )
 
 // authTestURL is overridden in tests.

@@ -48,6 +48,10 @@ func problemMessage(p rules.FieldProblem) string {
 		return "Claude Code was not found on this Mac. Ask the user to install it (or set claude_command in SockDock's config)."
 	case "type/required":
 		return "Set runs to agent or program."
+	case "allowed_users/required":
+		return "List at least one member ID in allowed_users, or pass [] to let everyone in the channel run the rule."
+	case "allowed_users/bad_user":
+		return d + " is not a Slack member ID. Find people's IDs (U…) with sockdock_find_users."
 	case "name/duplicate":
 		return "Another rule already has this name."
 	case "name/bad_name":
@@ -127,6 +131,18 @@ func (t *tools) checkRule(ctx context.Context, _ *mcp.CallToolRequest, in NameIn
 				add(false, "Claude Code sign-in", "Claude Code is not signed in, so agent rules fail. Ask the user to click Sign In in Terminal (ターミナルでサインイン) in the SockDock app (or run claude auth login in Terminal).")
 			}
 		}
+	}
+	if f.Restricted {
+		var who []string
+		for _, p := range ruleOf(ri).AllowedUsers {
+			if p.Name != "" {
+				who = append(who, p.Name+" ("+p.ID+")")
+			} else {
+				who = append(who, p.ID)
+			}
+		}
+		out.Findings = append(out.Findings, Finding{OK: true, Check: "who can run it",
+			Message: "Only " + strings.Join(who, ", ") + " can run this rule. Posts and thread replies from anyone else are ignored without a reply; if someone else's post did nothing, that is why."})
 	}
 	if ri.ShadowedBy != nil {
 		add(false, "order", fmt.Sprintf("An earlier rule in %s (%s %q) always matches first, so this rule never runs. Move this rule up with sockdock_reorder_rules.",

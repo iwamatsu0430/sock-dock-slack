@@ -125,11 +125,21 @@ export function ListChannels(): $CancellablePromise<$models.ChannelList> {
 }
 
 /**
+ * ListMembers searches the workspace's people by name for the "実行できる人"
+ * field (at most 8). An empty query only checks that names can be listed.
+ */
+export function ListMembers(query: string): $CancellablePromise<$models.MemberList> {
+    return $Call.ByID(584038297, query).then(($result: any) => {
+        return $$createType5($result);
+    });
+}
+
+/**
  * ListRules returns the rules with their state and last run.
  */
 export function ListRules(): $CancellablePromise<$models.RuleList> {
     return $Call.ByID(3471677289).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType6($result);
     });
 }
 
@@ -145,7 +155,7 @@ export function Locale(): $CancellablePromise<string> {
  */
 export function MCPSetup(client: string): $CancellablePromise<$models.MCPSetup> {
     return $Call.ByID(274028147, client).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType7($result);
     });
 }
 
@@ -205,7 +215,7 @@ export function PickFolder(title: string): $CancellablePromise<string> {
  */
 export function RecentTurns(limit: number): $CancellablePromise<store$0.Turn[]> {
     return $Call.ByID(2254536103, limit).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType9($result);
     });
 }
 
@@ -235,7 +245,7 @@ export function ResetAll(): $CancellablePromise<void> {
  */
 export function RuleTurns(route: string): $CancellablePromise<store$0.Turn[]> {
     return $Call.ByID(3105143504, route).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType9($result);
     });
 }
 
@@ -298,7 +308,7 @@ export function StopTurn(id: number): $CancellablePromise<void> {
  */
 export function ValidateRoute(f: $models.RouteForm): $CancellablePromise<$models.FieldProblem[]> {
     return $Call.ByID(2577932297, f).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType11($result);
     });
 }
 
@@ -315,9 +325,10 @@ const $$createType1 = $models.RouteSaveResult.createFrom;
 const $$createType2 = $models.Prefs.createFrom;
 const $$createType3 = $models.Snapshot.createFrom;
 const $$createType4 = $models.ChannelList.createFrom;
-const $$createType5 = $models.RuleList.createFrom;
-const $$createType6 = $models.MCPSetup.createFrom;
-const $$createType7 = store$0.Turn.createFrom;
-const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = rules$0.FieldProblem.createFrom;
-const $$createType10 = $Create.Array($$createType9);
+const $$createType5 = $models.MemberList.createFrom;
+const $$createType6 = $models.RuleList.createFrom;
+const $$createType7 = $models.MCPSetup.createFrom;
+const $$createType8 = store$0.Turn.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = rules$0.FieldProblem.createFrom;
+const $$createType11 = $Create.Array($$createType10);

@@ -96,6 +96,26 @@ type MatchOptions struct {
 	BotUserID string
 	// Skip reports routes to pass over (turned off).
 	Skip func(name string) bool
+	// ByUser passes over routes that User may not run (allowed_users). When
+	// it is false, who posted is not considered.
+	ByUser bool
+	User   string
+}
+
+// Restricted reports whether only some people may run the route.
+func (r *Route) Restricted() bool { return len(r.AllowedUsers) > 0 }
+
+// Allows reports whether the Slack member may run the route.
+func (r *Route) Allows(user string) bool {
+	if !r.Restricted() {
+		return true
+	}
+	for _, u := range r.AllowedUsers {
+		if u == user {
+			return user != ""
+		}
+	}
+	return false
 }
 
 // Match finds the first route whose channel and condition match a top-level
@@ -109,7 +129,7 @@ func (c *Config) Match(channel, text string) (*Route, map[string]string) {
 func (c *Config) MatchWith(channel, text string, o MatchOptions) (*Route, map[string]string) {
 	body := postBody(text, o.BotUserID)
 	for _, r := range c.Routes {
-		if r.Channel != channel || (o.Skip != nil && o.Skip(r.Name)) {
+		if r.Channel != channel || (o.Skip != nil && o.Skip(r.Name)) || (o.ByUser && !r.Allows(o.User)) {
 			continue
 		}
 		if g, ok := r.matchBody(body); ok {
@@ -263,9 +283,10 @@ func contains(body, keyword string) bool {
 
 // ShadowedBy reports whether every post that matches later also matches
 // earlier, so later can never run while earlier comes first and is on.
-// Regexes are only compared for equality.
+// Regexes are only compared for equality. An earlier route that only some
+// people may run lets everyone else's posts through, so it shadows nothing.
 func ShadowedBy(earlier, later *Route) bool {
-	if earlier.Channel != later.Channel {
+	if earlier.Channel != later.Channel || earlier.Restricted() {
 		return false
 	}
 	ek, lk := earlier.Kind(), later.Kind()
