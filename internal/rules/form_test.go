@@ -90,3 +90,28 @@ func TestFormConditions(t *testing.T) {
 		t.Errorf("all posts needs no keyword: %v", ps)
 	}
 }
+
+// A codex rule keeps its permissions in allow_web / allow_edit, never in
+// Claude Code's allowed_tools (docs/design.md §3.8).
+func TestCodexForm(t *testing.T) {
+	in := Form{Name: "cx", Channel: "C0123ABCD", Trigger: "starts_with", Keyword: "cx", Type: "codex", Folder: "~/proj",
+		Instructions: "Be brief.", AllowWeb: true, Commands: []string{"npm test"}, Model: "gpt-6-luna"}
+	r := FromForm(in, nil)
+	h := r.Handler
+	if h.Type != "codex" || !h.AllowWeb || h.AllowEdit || h.AllowedTools != nil || h.Model != "gpt-6-luna" || h.Instructions != "Be brief." {
+		t.Fatalf("handler = %+v", h)
+	}
+	out := ToForm(r)
+	if out.Type != "codex" || !out.AllowWeb || out.AllowEdit || len(out.Commands) != 0 {
+		t.Errorf("form = %+v", out)
+	}
+	// Back to Claude Code: the permissions become allowed_tools again.
+	in.Type = "claude"
+	back := FromForm(in, r)
+	if back.Handler.AllowWeb || !slices.Contains(back.Handler.AllowedTools, "WebSearch") || !slices.Contains(back.Handler.AllowedTools, "Bash(npm test *)") {
+		t.Errorf("claude handler = %+v", back.Handler)
+	}
+	if OpenToAll(Form{Type: "codex"}) != "commands" || OpenToAll(Form{Type: "codex", Restricted: true}) != "" {
+		t.Error("Codex can always run commands")
+	}
+}

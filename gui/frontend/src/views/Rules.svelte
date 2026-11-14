@@ -46,7 +46,9 @@
   }
 
   const target = (r: RuleRow) =>
-    r.form.type === "claude" ? t("rules.toAgent", { agent: t("agent.claude"), folder: r.form.folder }) : r.form.program;
+    r.form.type === "claude" || r.form.type === "codex"
+      ? t("rules.toAgent", { agent: t(r.form.type === "codex" ? "agent.codex" : "agent.claude"), folder: r.form.folder })
+      : r.form.program;
   const condition = (r: RuleRow) => {
     if (r.form.mention_only && r.form.trigger === "all_posts") return t("rules.cond.mention_all");
     const cond = t(`rules.cond.${r.form.trigger}` as MessageKey, { keyword: r.form.keyword });

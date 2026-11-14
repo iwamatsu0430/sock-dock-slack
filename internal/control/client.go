@@ -122,6 +122,18 @@ func (c *Client) CheckClaude(ctx context.Context, force bool) (*bool, error) {
 	return out.SignedIn, err
 }
 
+// CheckAgents asks whether each agent that a rule runs is signed in (by
+// handler type; unknown ones are left out). force skips the recent answers.
+func (c *Client) CheckAgents(ctx context.Context, force bool) (map[string]bool, error) {
+	path := "/v1/claude/check"
+	if force {
+		path += "?force=1"
+	}
+	var out ClaudeCheck
+	err := c.do(ctx, http.MethodPost, path, nil, &out)
+	return out.Agents, err
+}
+
 // Reload asks the gateway to re-read its config.
 func (c *Client) Reload(ctx context.Context) error {
 	return c.do(ctx, http.MethodPost, "/v1/reload", nil, nil)

@@ -31,6 +31,8 @@ type RouteSaveResult struct {
 	ConfigProblems []string `json:"config_problems,omitempty"`
 	// ClaudeCommand is set when the app filled in settings.claude_command.
 	ClaudeCommand string `json:"claude_command,omitempty"`
+	// CodexCommand is set when the app filled in settings.codex_command.
+	CodexCommand string `json:"codex_command,omitempty"`
 }
 
 // ensureConfig writes a minimal config when there is none, so the gateway
@@ -76,7 +78,7 @@ func (a *AppService) SaveRoute(f RouteForm) (RouteSaveResult, error) {
 		return RouteSaveResult{Problems: saved.Problems}, nil
 	}
 	res, err := a.write(saved.Content)
-	res.ClaudeCommand = saved.ClaudeCommand
+	res.ClaudeCommand, res.CodexCommand = saved.ClaudeCommand, saved.CodexCommand
 	return res, err
 }
 

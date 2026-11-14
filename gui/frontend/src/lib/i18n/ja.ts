@@ -50,6 +50,7 @@ export const ja: Record<MessageKey, string> = {
   "banner.retry": "Slack に接続できません。つなぎ直しています。",
   "banner.reset": "トークンを再設定",
   "banner.claude": "Claude Code にサインインしていません。",
+  "banner.codex": "Codex にサインインしていません。",
   "claude.signIn": "ターミナルでサインイン",
 
   "rules.title": "ルール",
@@ -74,6 +75,7 @@ export const ja: Record<MessageKey, string> = {
   "rules.shadowed.all_posts": "上の「すべての投稿」のルールに先に合うため、動きません",
 
   "agent.claude": "Claude Code",
+  "agent.codex": "Codex",
 
   "rule.back": "← ルール",
   "rule.newTitle": "新しいルール",
@@ -125,6 +127,7 @@ export const ja: Record<MessageKey, string> = {
   "rule.commands": "実行してよいコマンド",
   "rule.commandsPlaceholder": "例: npm test",
   "rule.permissionsNote": "許可した操作だけを実行します。",
+  "rule.codexCommands": "コマンドも実行します。触れるのは作業フォルダの中だけで、ネットワークは使えません。",
   "rule.program": "ファイル",
   "rule.args": "引数（省略可）",
   "rule.programNote": "投稿の内容を JSON で標準入力に渡します。標準出力がそのまま返信になります。",
@@ -151,6 +154,7 @@ export const ja: Record<MessageKey, string> = {
   "err.prompt_file.not_found": "プロンプトのファイルが見つかりません",
   "err.not_executable": "実行できないファイルです（{detail}）",
   "err.claude_not_found": "Claude Code が見つかりません",
+  "err.codex_not_found": "Codex が見つかりません",
   "err.duplicate": "同じ名前のルールがあります",
   "err.bad_name": "名前に使えない文字があります",
   "err.config_broken": "設定ファイルを読めません（{detail}）",
@@ -163,6 +167,7 @@ export const ja: Record<MessageKey, string> = {
   "runs.running": "処理中 · {elapsed}",
   "runs.timeoutReason": "上限時間（{sec} 秒）を超えたため停止しました",
   "runs.signedOut": "Claude Code にサインインしていません",
+  "runs.codexSignedOut": "Codex にサインインしていません",
   "runs.filesNoScope": "`files:read` のスコープがないため、添付ファイルを渡していません。",
   "runs.notHeard": "このチャンネルの投稿は、まだ届いていません。",
   "runs.notHeardHelp": "届かないとき",

@@ -448,3 +448,67 @@ func TestAllowedUsers(t *testing.T) {
 		t.Errorf("👀 on a dropped reply")
 	}
 }
+
+// A codex rule runs Codex with the thread's conversation, and its sign-in is
+// tracked apart from Claude Code's (docs/design.md §3.8).
+func TestCodexRoute(t *testing.T) {
+	dir := t.TempDir()
+	cfg, err := config.Parse([]byte(fmt.Sprintf(`
+settings:
+  codex_command: /bin/echo
+  language: en
+routes:
+  - name: cx
+    channel: C1
+    starts_with: cx
+    handler: {type: codex, cwd: %q, allow_web: true, timeout_sec: 5}
+`, dir)), filepath.Join(dir, "config.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := store.Open(filepath.Join(dir, "t.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	api := &fakeAPI{reactions: map[string]int{}}
+	var mu sync.Mutex
+	var sessions []string
+	gw := New(Options{
+		Store: db, API: api,
+		RunCodex: func(_ context.Context, r *config.Route, in handler.Input, o handler.CodexOptions, _ handler.Env) (handler.Result, error) {
+			mu.Lock()
+			sessions = append(sessions, o.SessionID)
+			mu.Unlock()
+			if strings.Contains(in.Messages[0].Text, "fail") {
+				return handler.Result{}, &handler.ExitError{Code: 1, Reason: handler.ReasonCodexSignedOut}
+			}
+			if len(o.Command) == 0 || o.Command[0] != "/bin/echo" || !r.Handler.AllowWeb {
+				t.Errorf("command = %v, route = %+v", o.Command, r.Handler)
+			}
+			return handler.Result{Text: "**ok**", SessionID: "thread-1"}, nil
+		},
+		CodexSignedIn: func(context.Context, []string, string) (bool, bool) { return true, true },
+	}, cfg)
+	if err := gw.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	gw.HandleMessage(msg("1.1", "", "cx hello"))
+	waitFor(t, "reply", func() bool { return len(api.postsIn("1.1")) == 1 })
+	if p := api.postsIn("1.1")[0]; p != "*ok*" {
+		t.Errorf("reply = %q (Codex answers are turned into mrkdwn)", p)
+	}
+	gw.HandleMessage(msg("1.2", "1.1", "fail"))
+	waitFor(t, "codex signed out", func() bool { return gw.Status(0).SignedIn["codex"] == false && len(gw.Status(0).SignedIn) == 1 })
+	mu.Lock()
+	if len(sessions) != 2 || sessions[0] != "" || sessions[1] != "thread-1" {
+		t.Errorf("sessions = %q", sessions)
+	}
+	mu.Unlock()
+	if gw.Status(0).ClaudeSignedIn != nil {
+		t.Error("Claude Code's sign-in must stay unknown")
+	}
+	if got := gw.CheckAgents(context.Background(), 0); !got["codex"] || len(got) != 1 {
+		t.Errorf("CheckAgents = %v", got)
+	}
+}

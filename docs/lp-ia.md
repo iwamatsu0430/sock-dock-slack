@@ -121,7 +121,7 @@ SockDock は家で使うためのもの（ホームユース）です。会社�
 | 1 行目 | Slack に「ask」と投稿されたら、AI エージェントを動かす。 | Post “ask” in Slack, run your AI agent. |
 | 2 行目 | Slack に「遊ぼう」と投稿されたら、ゲームを起動する。 | Post “play”, launch a game. |
 
-- AI エージェントを Claude Code に絞らない。いま動かせるのは Claude Code だけなので、それは「3 つの手順で始める」の実行するものの説明で「いまは Claude Code」と一度だけ書く（ほかのエージェントは ACP で足す予定: ia.md §11）。
+- AI エージェントを Claude Code に絞らない。動かせるエージェント（Claude Code と Codex）は、「3 つの手順で始める」の実行するものの説明で一度だけ書く（2026-11-15 に Codex を足した: design.md §3.8）。補足の文からコマンドを外す。Codex はコマンドを許可したものに限れないため、「コマンドは許可したときだけ」はどちらにも当てはまる文ではなくなった（提案）。
 - 投稿の言葉（「ask」「遊ぼう」）と、動かすもの（AI エージェント・ゲーム）に色を付けて、自分で決める部分だと示す。
 - 見出しに「Mac で」を入れない。ほかの環境も選べると誤解されるため。Mac で動くことは、すぐ下の 3 つ目の項目と条件の 1 行で伝える。
 - 日本語の 2 行目は日本語の話し言葉にして、投稿の言葉を自由に決められることも伝える。
@@ -186,7 +186,7 @@ SockDock は家で使うためのもの（ホームユース）です。会社�
 | 1 | Slack 側に何を設定するの？ | 細かい設定は作成ページに入っている。使うチャンネルに追加するだけ | **Slack アプリを作成** / SockDock のボタンから、必要な権限を入れた作成ページが開きます。作ったアプリを、使うチャンネルに追加します。 | **Create a Slack app** / A button in SockDock opens Slack's create page with the permissions filled in. Then add the app to the channels you'll use. |
 | 2 | トークンって何？ | 2 つの役目と、置き場所 | **トークンを 2 つ貼る** / 投稿を受け取る App-Level Token（`xapp-`）と、返信する Bot Token（`xoxb-`）です。どちらも Mac のキーチェーンに保存します。 | **Paste its two tokens** / An App-Level Token (`xapp-`) to receive posts and a Bot Token (`xoxb-`) to reply. Both are kept in your Mac's Keychain. |
 | 3 | ルールはどこで作るの？ 何を実行できるの？ | メニューバーのアプリで作る。AI エージェントでも、自分で書いたプログラムでも | **ルールを作る** / メニューバーのアプリで、チャンネル・反応する投稿・実行するものを選びます。 | **Add a rule** / In the menu bar app, choose a channel, which posts, and what runs. |
-| 3 の補足 | — | 実行するものは 2 種類 | ・**AI エージェント（いまは Claude Code）**: 選んだフォルダで動きます。ファイルの読み取りは常に、編集・Web 検索・コマンドは許可したときだけできます。<br>・**プログラム**: 自分で書いたスクリプトなど。標準出力がスレッドへの返信になります。 | • **AI agent (Claude Code for now)**: runs in the folder you pick. It can always read files; editing, web search and commands only if you allow them.<br>• **Program**: any script you write. What it prints becomes the reply. |
+| 3 の補足 | — | 実行するものは 2 種類 | ・**AI エージェント（Claude Code か Codex）**: 選んだフォルダで動きます。ファイルの読み取りは常に、編集と Web 検索は許可したときだけできます。<br>・**プログラム**: 自分で書いたスクリプトなど。標準出力がスレッドへの返信になります。 | • **AI agent (Claude Code or Codex)**: runs in the folder you pick. It can always read files; editing and web search only if you allow them.<br>• **Program**: any script you write. What it prints becomes the reply. |
 
 #### Slack での動き
 
@@ -230,7 +230,7 @@ SockDock は家で使うためのもの（ホームユース）です。会社�
 |---|---|
 | rule / ルール | route, handler |
 | Slack app / Slack アプリ | bot, `@SockDock` |
-| AI agent / AI エージェント（実行するものの種類として書くときだけ「いまは Claude Code」と添える） | Claude handler |
+| AI agent / AI エージェント（実行するものの種類として書くときだけ「Claude Code か Codex」と添える） | Claude handler、Codex handler |
 | program / プログラム | command handler |
 | which posts / 反応する投稿 | trigger, regex（見出しや例では使わない） |
 

@@ -1,6 +1,6 @@
 # SockDock for Slack — MCP の要件
 
-SockDock が起動している間、同じ Mac の MCP クライアント（Claude Code、Codex、Gemini CLI、Claude Desktop、Cursor、VS Code など）から SockDock を操作できるようにします。§8 は 2026-11-13 に決めました。
+SockDock が起動している間、同じ Mac の MCP クライアント（Claude Code、Codex、Antigravity、Claude Desktop、Cursor、VS Code など）から SockDock を操作できるようにします。§8 は 2026-11-13 に決めました。
 
 ## 1. 使う場面
 
@@ -38,7 +38,7 @@ MCP サーバーは 1 つで、どのクライアントからも同じものを�
 |---|---|---|
 | Claude Code | `claude mcp add -s user sockdock -- <sockdock> mcp` | `-s user` がないと、今のプロジェクトだけに登録される |
 | Codex | `codex mcp add sockdock -- <sockdock> mcp` | `~/.codex/config.toml` に書かれる |
-| Gemini CLI | `gemini mcp add -s user sockdock <sockdock> mcp` | `-s user` がないと、今のプロジェクトだけに登録される |
+| Antigravity | `agy mcp add sockdock <sockdock> mcp` | 利用者全体（`~/.gemini/config/mcp_config.json`）に登録される。2026-11-15 に Gemini CLI から置き換えた（Gemini CLI は 2026-06-18 に個人向けの提供を終えた。[`design.md`](design.md) §3.8） |
 | VS Code | `code --add-mcp '{"name":"sockdock","command":"<sockdock>","args":["mcp"]}'` | ユーザーのプロファイルに登録される |
 | Claude Desktop | 拡張機能（`SockDock.mcpb`）を開いてインストールする | アプリが、同梱の CLI から MCPB（binary 形式）をその場で作って開く。動いているアプリと同じ版になる。`claude_desktop_config.json` の `mcpServers` に足す方法は「その他」で使える |
 | Cursor | `~/.cursor/mcp.json` の `mcpServers` に足す | インストール用のリンクもあるが、壊れているという報告があるので使わない |
@@ -120,7 +120,7 @@ AI エージェントは、手引き（`instructions`）とツールの説明だ
 | 他人につながれる | 同じ macOS ユーザーだけが使えるソケットを使う。ポートは開かない |
 | トークンが漏れる | トークンは出さないし、受け取らない |
 | Slack の投稿が AI エージェントの文脈に入る（投稿に仕込まれた指示に従ってしまう） | 投稿の本文は返さない（`groups`・メッセージ・ログを出さない）。失敗の理由はプログラムの出力なので、本文が混じることがある。ツールの説明に「信用しない情報」と書き、長さを切る |
-| Slack から動いたエージェントが、MCP でルールを書き換えて自分の許可を広げる | `sockdock mcp` は、SockDock が動かした処理の中（環境変数 `SOCKDOCK_TURN` がある）では起動しない。Codex や Gemini CLI は、利用者が登録した MCP サーバーを自分で読み込むので、ACP で動かすようになってもこの対策が要になる。Claude Code は今も、`allow_mcp` にしない限り MCP を使えない |
+| Slack から動いたエージェントが、MCP でルールを書き換えて自分の許可を広げる | `sockdock mcp` は、SockDock が動かした処理の中（環境変数 `SOCKDOCK_TURN` がある）では起動しない。Codex も、`allow_mcp` にしない限り利用者の `~/.codex/config.toml`（MCP サーバー）を読まない（`--ignore-user-config`）。`allow_mcp` にしたときは、この対策が要になる。Claude Code も、`allow_mcp` にしない限り MCP を使えない |
 | 気づかないうちにルールが変わる（AI エージェントが勝手に、または仕込まれた指示で変える） | 変えるツールに注釈を付け、クライアントが確認するようにする。ただし、確認するかどうかや注釈の扱いはクライアントと利用者の設定しだいで、SockDock からは守らせられない。どのクライアントでも必ず効くのは、ルールを変えたら Mac に通知すること（§8-1） |
 
 MCP からの変更は、変更元が MCP だと分かるようにログに残します。

@@ -31,7 +31,10 @@ type Status struct {
 	Heard []string `json:"heard"`
 	// ClaudeSignedIn is whether Claude Code is signed in, when known.
 	ClaudeSignedIn *bool `json:"claude_signed_in,omitempty"`
-	Pending        int   `json:"pending"`
+	// SignedIn is whether each agent that a rule runs is signed in, by
+	// handler type ("claude", "codex"), when known.
+	SignedIn map[string]bool `json:"signed_in,omitempty"`
+	Pending  int             `json:"pending"`
 	// Scopes are the Bot Token's scopes (absent when unknown).
 	Scopes []string `json:"scopes,omitempty"`
 	// Owner is the registered owner's member ID; NotifyDM and
@@ -103,6 +106,7 @@ func (g *Gateway) Status(pid int) Status {
 	}
 	sort.Strings(s.Heard)
 	s.ClaudeSignedIn = g.claudeSignedInLocked()
+	s.SignedIn = g.signedInMapLocked()
 	s.Scopes = g.scopes
 	s.Owner, s.NotifyDM, s.NotifyDMFailures = cfg.Settings.Owner, cfg.Settings.NotifyDM, cfg.Settings.NotifyDMFailures
 	s.CheckUpdates, s.Update = cfg.Settings.UpdatesOn(), g.updateInfoLocked()

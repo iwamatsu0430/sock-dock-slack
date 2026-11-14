@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Events } from "@wailsio/runtime";
   import { SockdockNavigate } from "../lib/api";
-  import { live, needsSetup, banner, claudeSignedOut, signInClaude } from "../lib/live.svelte";
+  import { live, needsSetup, banner, agents, agentSignedOut, signInAgent } from "../lib/live.svelte";
   import { errorText } from "../lib/api";
   import { t } from "../lib/i18n/index.svelte";
   import Setup from "./Setup.svelte";
@@ -39,10 +39,10 @@
   const setup = $derived(inSetup || needsSetup(live.snap));
   const bannerKind = $derived(banner(live.snap, live.now));
   let signInError = $state("");
-  async function signIn() {
+  async function signIn(agent: string) {
     signInError = "";
     try {
-      await signInClaude();
+      await signInAgent(agent);
     } catch (e) {
       signInError = errorText(e);
     }
@@ -72,12 +72,14 @@
           {#if bannerKind !== "retry" && view.kind !== "settings"}<button class="small" onclick={() => (view = { kind: "settings" })}>{t("banner.reset")}</button>{/if}
         </div>
       {/if}
-      {#if view.kind === "list" && claudeSignedOut(live.snap)}
-        <div class="banner">
-          <span>{t("banner.claude")}{#if signInError}<br /><span class="small">{signInError}</span>{/if}</span>
-          <span class="spacer"></span>
-          <button class="small" onclick={signIn}>{t("claude.signIn")}</button>
-        </div>
+      {#if view.kind === "list"}
+        {#each agents.filter((a) => agentSignedOut(live.snap, a)) as agent (agent)}
+          <div class="banner">
+            <span>{t(agent === "codex" ? "banner.codex" : "banner.claude")}{#if signInError}<br /><span class="small">{signInError}</span>{/if}</span>
+            <span class="spacer"></span>
+            <button class="small" onclick={() => signIn(agent)}>{t("claude.signIn")}</button>
+          </div>
+        {/each}
       {/if}
       {#if view.kind === "settings"}
         <Settings />

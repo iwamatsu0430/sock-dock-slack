@@ -42,8 +42,10 @@ type Options struct {
 	// Overridable for tests.
 	RunCommand func(context.Context, *config.Route, handler.Input, handler.Env) (handler.Result, error)
 	RunClaude  func(context.Context, *config.Route, handler.Input, handler.ClaudeOptions, handler.Env) (handler.Result, error)
-	// ClaudeSignedIn asks Claude Code whether it is signed in.
+	RunCodex   func(context.Context, *config.Route, handler.Input, handler.CodexOptions, handler.Env) (handler.Result, error)
+	// ClaudeSignedIn and CodexSignedIn ask the agent whether it is signed in.
 	ClaudeSignedIn func(ctx context.Context, command []string, pathEnv string) (signedIn, ok bool)
+	CodexSignedIn  func(ctx context.Context, command []string, pathEnv string) (signedIn, ok bool)
 	Now            func() time.Time
 	// UpdateURL and UpdateClient are where a newer version is looked up
 	// (default: GitHub's latest release).
@@ -72,7 +74,7 @@ type Gateway struct {
 	paused  map[string]bool
 	// heard holds channels whose posts reached SockDock since it started.
 	heard   map[string]bool
-	claude  claudeAuth
+	auth    map[string]*claudeAuth // by agent type (claude.go)
 	subs    map[chan Event]struct{}
 	started time.Time
 	ident   slackio.Identity
@@ -89,7 +91,7 @@ type Gateway struct {
 	regEnded       string
 	ownerDM        ownerDM
 	// cfgWrite serializes the gateway's own edits of the config file;
-	// claudeNotice serializes the Claude Code sign-out notice.
+	// claudeNotice serializes the agents' sign-out notices.
 	cfgWrite     sync.Mutex
 	claudeNotice sync.Mutex
 
@@ -136,6 +138,12 @@ func New(opts Options, cfg *config.Config) *Gateway {
 	}
 	if opts.ClaudeSignedIn == nil {
 		opts.ClaudeSignedIn = handler.ClaudeSignedIn
+	}
+	if opts.RunCodex == nil {
+		opts.RunCodex = handler.RunCodex
+	}
+	if opts.CodexSignedIn == nil {
+		opts.CodexSignedIn = handler.CodexSignedIn
 	}
 	if opts.Log == nil {
 		opts.Log = slog.Default()
@@ -314,7 +322,7 @@ func (g *Gateway) HandleMessage(m event.Message) {
 			return
 		}
 	}
-	coalesce := r != nil && r.Handler.Type == config.TypeClaude
+	coalesce := r != nil && config.IsAgent(r.Handler.Type)
 	g.disp.Submit(router.ThreadKey(m.Channel, m.ThreadRoot()), m, coalesce)
 	g.broadcast(Event{Type: "queued", Data: map[string]string{"channel": m.Channel, "thread_ts": m.ThreadRoot()}})
 }
@@ -437,6 +445,13 @@ func (g *Gateway) process(key string, batch []event.Message) {
 			InstructionsFile: g.instructionsFile(r, log),
 			FilesDir:         files.dir,
 		}, env)
+	case r.Handler.Type == config.TypeCodex:
+		res, err = g.opts.RunCodex(turnCtx, run, in, handler.CodexOptions{
+			Command:          cfg.AgentCommandFor(r),
+			SystemPromptFile: g.opts.SystemPromptFile,
+			SessionID:        th.SessionID,
+			FilesDir:         files.dir,
+		}, env)
 	default:
 		res, err = g.opts.RunCommand(turnCtx, run, in, env)
 	}
@@ -445,13 +460,13 @@ func (g *Gateway) process(key string, batch []event.Message) {
 	delete(g.stops, turnID)
 	delete(g.stopped, turnID)
 	g.mu.Unlock()
-	if r.Handler.Type == config.TypeClaude {
+	if config.IsAgent(r.Handler.Type) {
 		var ee *handler.ExitError
 		switch {
 		case err == nil:
-			g.setClaudeSignedIn(true)
-		case errors.As(err, &ee) && ee.Reason == handler.ReasonSignedOut:
-			g.setClaudeSignedIn(false)
+			g.setSignedIn(r.Handler.Type, true)
+		case errors.As(err, &ee) && (ee.Reason == handler.ReasonSignedOut || ee.Reason == handler.ReasonCodexSignedOut):
+			g.setSignedIn(r.Handler.Type, false)
 		}
 	}
 
@@ -465,7 +480,7 @@ func (g *Gateway) process(key string, batch []event.Message) {
 			_ = api.PostMessage(ctx, channel, threadTS, msgs.ResumeFailed)
 		}
 		text := res.Text
-		if r.Handler.Type == config.TypeClaude {
+		if config.IsAgent(r.Handler.Type) {
 			text = textutil.ToMrkdwn(text)
 		}
 		for _, chunk := range textutil.Split(text, textutil.DefaultLimit) {

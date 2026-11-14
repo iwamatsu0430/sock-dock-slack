@@ -208,3 +208,47 @@ routes:
 		t.Fatal("settings problems should still fail")
 	}
 }
+
+func TestCodexRoutes(t *testing.T) {
+	dir := t.TempDir()
+	c, err := Parse([]byte(`
+settings:
+  codex_command: /bin/echo
+routes:
+  - name: cx
+    channel: C1
+    starts_with: cx
+    handler: {type: codex, cwd: `+dir+`, allow_web: true, allow_edit: true}
+`), "cfg.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := c.Routes[0]
+	if r.Handler.TimeoutSec != DefaultClaudeTimeoutSec || !r.Handler.AllowWeb || c.AgentCommandFor(r)[0] != "/bin/echo" {
+		t.Errorf("route = %+v", r.Handler)
+	}
+	_, err = Parse([]byte(`
+settings:
+  codex_command: /bin/echo
+  claude_command: /bin/echo
+routes:
+  - name: cx
+    channel: C1
+    starts_with: cx
+    handler: {type: codex, cwd: `+dir+`, allowed_tools: ["Bash(npm test *)"]}
+  - name: cl
+    channel: C1
+    starts_with: cl
+    handler: {type: claude, cwd: `+dir+`, allow_web: true}
+`), "cfg.yaml")
+	var ve *ValidationError
+	if !errors.As(err, &ve) {
+		t.Fatalf("want ValidationError, got %v", err)
+	}
+	joined := strings.Join(ve.Problems, "\n")
+	for _, want := range []string{`route "cx": allowed_tools and tools are for Claude Code`, `route "cl": allow_web and allow_edit are for codex routes`} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("missing %q in:\n%s", want, joined)
+		}
+	}
+}

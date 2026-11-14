@@ -56,6 +56,8 @@ type handlerOut struct {
 	AllowedTools []string          `yaml:"allowed_tools,omitempty,flow"`
 	Tools        []string          `yaml:"tools,omitempty,flow"`
 	AllowMCP     bool              `yaml:"allow_mcp,omitempty"`
+	AllowWeb     bool              `yaml:"allow_web,omitempty"`
+	AllowEdit    bool              `yaml:"allow_edit,omitempty"`
 	Model        string            `yaml:"model,omitempty"`
 	ExtraArgs    []string          `yaml:"extra_args,omitempty,flow"`
 	TimeoutSec   int               `yaml:"timeout_sec,omitempty"`
@@ -75,7 +77,7 @@ func RenderRoutes(routes []*Route) ([]byte, error) {
 			Handler: handlerOut{
 				Type: h.Type, Cwd: h.Cwd, EnvFile: h.EnvFile, Env: h.Env, Command: h.Command,
 				Prompt: h.Prompt, Instructions: h.Instructions, AllowedTools: h.AllowedTools, Tools: h.Tools,
-				AllowMCP: h.AllowMCP, Model: h.Model, ExtraArgs: h.ExtraArgs, TimeoutSec: h.TimeoutSec,
+				AllowMCP: h.AllowMCP, AllowWeb: h.AllowWeb, AllowEdit: h.AllowEdit, Model: h.Model, ExtraArgs: h.ExtraArgs, TimeoutSec: h.TimeoutSec,
 			},
 		})
 	}

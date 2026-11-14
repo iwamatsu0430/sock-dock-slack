@@ -54,15 +54,15 @@ func (g *Gateway) Watch(ctx context.Context, o WatchOptions, reconnect func()) e
 	}
 }
 
-// checkClaudeForOwner asks Claude Code about its sign-in at most once an
-// hour while the owner gets DM notices, so a signed-out Claude Code is noticed
-// even when only the service runs.
+// checkClaudeForOwner asks the agents about their sign-in at most once an
+// hour while the owner gets DM notices, so a signed-out agent is noticed even
+// when only the service runs.
 func (g *Gateway) checkClaudeForOwner(ctx context.Context) {
 	s := g.cfg.Load().Settings
 	if !s.NotifyDM || s.Owner == "" {
 		return
 	}
-	go g.CheckClaude(ctx, time.Hour)
+	go g.CheckAgents(ctx, time.Hour)
 }
 
 func (g *Gateway) pruneOccasionally(ctx context.Context, now time.Time) {

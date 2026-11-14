@@ -26,6 +26,7 @@ import (
 const (
 	stateKeyOwnerDM        = "owner_dm"
 	stateKeyClaudeNotified = "claude_signed_out_notified"
+	stateKeyCodexNotified  = "codex_signed_out_notified"
 
 	registrationTTL = 10 * time.Minute
 	maxWrongCodes   = 5
@@ -302,6 +303,8 @@ func (g *Gateway) notifyRunFailed(ctx context.Context, cfg *config.Config, r *co
 		reason = strings.ReplaceAll(t["reason.timeout"], "{timeout_sec}", fmt.Sprint(r.Handler.TimeoutSec))
 	case errors.As(runErr, &ee) && ee.Reason == handler.ReasonSignedOut:
 		reason = t["reason.signed_out"]
+	case errors.As(runErr, &ee) && ee.Reason == handler.ReasonCodexSignedOut:
+		reason = t["reason.codex_signed_out"]
 	}
 	link := ""
 	if permalink != "" {
@@ -312,58 +315,68 @@ func (g *Gateway) notifyRunFailed(ctx context.Context, cfg *config.Config, r *co
 	g.notifyOwner(ctx, strings.TrimSpace(text))
 }
 
-// noticeClaudeSignedOut tells the owner by DM once that Claude Code is
-// signed out; clearClaudeNotice (on signing in) lets it be told again.
-func (g *Gateway) noticeClaudeSignedOut() {
+// noticeSignedOut tells the owner by DM once that an agent is signed out;
+// clearSignedOutNotice (on signing in) lets it be told again.
+func (g *Gateway) noticeSignedOut(agent string) {
 	g.claudeNotice.Lock()
 	defer g.claudeNotice.Unlock()
 	g.mu.Lock()
-	signedOut := g.claude.known && !g.claude.signedIn
+	v := g.signedInLocked(agent)
 	g.mu.Unlock()
 	cfg := g.cfg.Load()
-	if !signedOut || !cfg.Settings.NotifyDM || cfg.Settings.Owner == "" || !hasClaudeRoutes(cfg) {
+	if v == nil || *v || !cfg.Settings.NotifyDM || cfg.Settings.Owner == "" || !hasAgentRoutes(cfg, agent) {
 		return
+	}
+	key, text := stateKeyClaudeNotified, cfg.Settings.Messages.ClaudeSignedOut
+	if agent == config.TypeCodex {
+		key, text = stateKeyCodexNotified, cfg.Settings.Messages.CodexSignedOut
 	}
 	ctx := context.WithoutCancel(g.runCtx)
 	var notified bool
-	if _, err := g.opts.Store.GetState(ctx, stateKeyClaudeNotified, &notified); err != nil || notified {
+	if _, err := g.opts.Store.GetState(ctx, key, &notified); err != nil || notified {
 		return
 	}
-	g.notifyOwner(ctx, cfg.Settings.Messages.ClaudeSignedOut)
-	_ = g.opts.Store.SetState(ctx, stateKeyClaudeNotified, true)
+	g.notifyOwner(ctx, text)
+	_ = g.opts.Store.SetState(ctx, key, true)
 }
 
-func (g *Gateway) clearClaudeNotice() {
+func (g *Gateway) clearSignedOutNotice(agent string) {
 	g.claudeNotice.Lock()
 	defer g.claudeNotice.Unlock()
+	key := stateKeyClaudeNotified
+	if agent == config.TypeCodex {
+		key = stateKeyCodexNotified
+	}
 	ctx := context.WithoutCancel(g.runCtx)
 	var notified bool
-	if _, err := g.opts.Store.GetState(ctx, stateKeyClaudeNotified, &notified); err == nil && notified {
-		_ = g.opts.Store.SetState(ctx, stateKeyClaudeNotified, false)
+	if _, err := g.opts.Store.GetState(ctx, key, &notified); err == nil && notified {
+		_ = g.opts.Store.SetState(ctx, key, false)
 	}
 }
 
 // dmText holds the parts of DM notices that are not configurable.
 var dmText = map[string]map[string]string{
 	"en": {
-		"keyword":           "%s “%s”",
-		"regex":             "%s /%s/",
-		"dm":                "DM",
-		"thread":            "Thread",
-		"release_notes":     "Release notes",
-		"reason.timeout":    "It ran past the time limit ({timeout_sec} seconds) and was stopped.",
-		"reason.signed_out": "Claude Code isn't signed in.",
-		"reason.error":      "The reason is shown in SockDock on the Mac.",
+		"keyword":                 "%s “%s”",
+		"regex":                   "%s /%s/",
+		"dm":                      "DM",
+		"thread":                  "Thread",
+		"release_notes":           "Release notes",
+		"reason.timeout":          "It ran past the time limit ({timeout_sec} seconds) and was stopped.",
+		"reason.signed_out":       "Claude Code isn't signed in.",
+		"reason.codex_signed_out": "Codex isn't signed in.",
+		"reason.error":            "The reason is shown in SockDock on the Mac.",
 	},
 	"ja": {
-		"keyword":           "%s「%s」",
-		"regex":             "%s /%s/",
-		"dm":                "DM",
-		"thread":            "スレッド",
-		"release_notes":     "リリースノート",
-		"reason.timeout":    "上限時間（{timeout_sec} 秒）を超えたため停止しました。",
-		"reason.signed_out": "Claude Code にサインインしていません。",
-		"reason.error":      "理由は Mac の SockDock で確認できます。",
+		"keyword":                 "%s「%s」",
+		"regex":                   "%s /%s/",
+		"dm":                      "DM",
+		"thread":                  "スレッド",
+		"release_notes":           "リリースノート",
+		"reason.timeout":          "上限時間（{timeout_sec} 秒）を超えたため停止しました。",
+		"reason.signed_out":       "Claude Code にサインインしていません。",
+		"reason.codex_signed_out": "Codex にサインインしていません。",
+		"reason.error":            "理由は Mac の SockDock で確認できます。",
 	},
 }
 

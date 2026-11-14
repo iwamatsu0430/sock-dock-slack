@@ -20,7 +20,14 @@ import (
 const (
 	TypeCommand = "command"
 	TypeClaude  = "claude"
+	TypeCodex   = "codex"
 )
+
+// IsAgent reports whether a handler type runs an AI agent (docs/design.md §3.8).
+func IsAgent(typ string) bool { return typ == TypeClaude || typ == TypeCodex }
+
+// Agents lists the AI agent handler types.
+var Agents = []string{TypeClaude, TypeCodex}
 
 // ChannelDM is the channel of rules that react to DMs to the Slack app, from
 // anyone (docs/design.md §3.5).
@@ -52,6 +59,7 @@ type Settings struct {
 	ThreadTTLDays  int        `yaml:"thread_ttl_days"`
 	AckReaction    string     `yaml:"ack_reaction"`
 	ClaudeCommand  StringList `yaml:"claude_command"`
+	CodexCommand   StringList `yaml:"codex_command"`
 	Path           []string   `yaml:"path"`
 	SecretsFile    string     `yaml:"secrets_file"`
 	// Language of the messages posted to Slack: "auto" (default, follows
@@ -91,6 +99,7 @@ type Messages struct {
 	WrongCode       string `yaml:"wrong_code"`
 	Registered      string `yaml:"registered"`
 	ClaudeSignedOut string `yaml:"claude_signed_out"`
+	CodexSignedOut  string `yaml:"codex_signed_out"`
 	RuleChangedMCP  string `yaml:"rule_changed_mcp"`
 	RunFailed       string `yaml:"run_failed"`
 	// UpdateAvailable: {version}, {link} (the release notes).
@@ -129,7 +138,7 @@ type Handler struct {
 	Command    StringList        `yaml:"command"`
 	TimeoutSec int               `yaml:"timeout_sec"`
 
-	// claude only
+	// agents (claude, codex)
 	Prompt string `yaml:"prompt"`
 	// Instructions is inline text appended to the system prompt (like
 	// Prompt, but kept in the config; the app's route form writes it).
@@ -137,8 +146,12 @@ type Handler struct {
 	AllowedTools []string `yaml:"allowed_tools"`
 	Tools        []string `yaml:"tools"`
 	AllowMCP     bool     `yaml:"allow_mcp"`
-	Model        string   `yaml:"model"`
-	ExtraArgs    []string `yaml:"extra_args"`
+	// AllowWeb and AllowEdit are a codex route's permissions (docs/design.md
+	// §3.8). Claude Code lists tools in AllowedTools instead.
+	AllowWeb  bool     `yaml:"allow_web"`
+	AllowEdit bool     `yaml:"allow_edit"`
+	Model     string   `yaml:"model"`
+	ExtraArgs []string `yaml:"extra_args"`
 }
 
 // StringList accepts either a YAML string or a list of strings.
@@ -186,6 +199,7 @@ var defaultMessages = map[string]Messages{
 		WrongCode:       "⚠️ That code isn't right.",
 		Registered:      "✅ You're registered. Notices from SockDock will come to this DM.",
 		ClaudeSignedOut: "⚠️ Claude Code isn't signed in, so AI agent rules can't run. Sign in from SockDock on the Mac.",
+		CodexSignedOut:  "⚠️ Codex isn't signed in, so Codex rules can't run. Sign in from SockDock on the Mac.",
 		RuleChangedMCP:  "{rule} was changed through MCP",
 		RunFailed:       "⚠️ {rule} failed. {reason} {link}",
 		UpdateAvailable: "🆕 SockDock {version} is out. {link}",
@@ -202,6 +216,7 @@ var defaultMessages = map[string]Messages{
 		WrongCode:       "⚠️ コードが違います。",
 		Registered:      "✅ 登録しました。SockDock からのお知らせは、この DM に届きます。",
 		ClaudeSignedOut: "⚠️ Claude Code にサインインしていないため、AI エージェントのルールが動きません。Mac の SockDock でサインインしてください。",
+		CodexSignedOut:  "⚠️ Codex にサインインしていないため、Codex のルールが動きません。Mac の SockDock でサインインしてください。",
 		RuleChangedMCP:  "MCP から {rule} を変更しました",
 		RunFailed:       "⚠️ {rule} の処理が失敗しました。{reason} {link}",
 		UpdateAvailable: "🆕 SockDock {version} が出ました。 {link}",
@@ -327,6 +342,9 @@ func (c *Config) applyDefaults() {
 	if len(s.ClaudeCommand) == 0 {
 		s.ClaudeCommand = StringList{"claude"}
 	}
+	if len(s.CodexCommand) == 0 {
+		s.CodexCommand = StringList{"codex"}
+	}
 	s.ResolvedLanguage = locale.Resolve(s.Language)
 	m, d := &s.Messages, DefaultMessagesFor(s.ResolvedLanguage)
 	for _, p := range []struct {
@@ -335,7 +353,7 @@ func (c *Config) applyDefaults() {
 	}{
 		{&m.Timeout, d.Timeout}, {&m.Error, d.Error}, {&m.Stopped, d.Stopped}, {&m.Interrupted, d.Interrupted},
 		{&m.RouteMissing, d.RouteMissing}, {&m.RoutePaused, d.RoutePaused}, {&m.ResumeFailed, d.ResumeFailed},
-		{&m.WrongCode, d.WrongCode}, {&m.Registered, d.Registered}, {&m.ClaudeSignedOut, d.ClaudeSignedOut},
+		{&m.WrongCode, d.WrongCode}, {&m.Registered, d.Registered}, {&m.ClaudeSignedOut, d.ClaudeSignedOut}, {&m.CodexSignedOut, d.CodexSignedOut},
 		{&m.RuleChangedMCP, d.RuleChangedMCP}, {&m.RunFailed, d.RunFailed}, {&m.UpdateAvailable, d.UpdateAvailable},
 	} {
 		if *p.v == "" {
@@ -344,7 +362,7 @@ func (c *Config) applyDefaults() {
 	}
 	for _, r := range c.Routes {
 		if r.Handler.TimeoutSec <= 0 {
-			if r.Handler.Type == TypeClaude {
+			if IsAgent(r.Handler.Type) {
 				r.Handler.TimeoutSec = DefaultClaudeTimeoutSec
 			} else {
 				r.Handler.TimeoutSec = DefaultCommandTimeoutSec
@@ -375,6 +393,9 @@ func (c *Config) prepare(lookupEnv func(string) (string, bool)) (global []string
 	}
 	for i := range c.Settings.ClaudeCommand {
 		c.Settings.ClaudeCommand[i] = paths.ExpandHome(envOnly(c.Settings.ClaudeCommand[i]))
+	}
+	for i := range c.Settings.CodexCommand {
+		c.Settings.CodexCommand[i] = paths.ExpandHome(envOnly(c.Settings.CodexCommand[i]))
 	}
 	for i := range c.Settings.Path {
 		c.Settings.Path[i] = paths.ExpandHome(envOnly(c.Settings.Path[i]))
@@ -483,10 +504,17 @@ func (c *Config) prepare(lookupEnv func(string) (string, bool)) (global []string
 			} else if err := c.checkExecutable(h.Command[0], h.Cwd); err != nil {
 				add("%s: handler.command: %v", label, err)
 			}
-		case TypeClaude:
-			cmd := c.ClaudeCommandFor(r)
+		case TypeClaude, TypeCodex:
+			cmd := c.AgentCommandFor(r)
 			if err := c.checkExecutable(cmd[0], h.Cwd); err != nil {
-				add("%s: claude command: %v", label, err)
+				add("%s: %s command: %v", label, h.Type, err)
+			}
+			if h.Type == TypeCodex {
+				if len(h.AllowedTools) > 0 || len(h.Tools) > 0 {
+					add("%s: allowed_tools and tools are for Claude Code; a codex route uses allow_web and allow_edit (commands always run in Codex's sandbox)", label)
+				}
+			} else if h.AllowWeb || h.AllowEdit {
+				add("%s: allow_web and allow_edit are for codex routes; a claude route lists tools in allowed_tools", label)
 			}
 			if h.Prompt != "" {
 				p := paths.ExpandHome(h.Prompt)
@@ -499,9 +527,9 @@ func (c *Config) prepare(lookupEnv func(string) (string, bool)) (global []string
 				}
 			}
 		case "":
-			add("%s: handler.type is required (command or claude)", label)
+			add("%s: handler.type is required (command, claude or codex)", label)
 		default:
-			add("%s: unknown handler.type %q (command or claude)", label, h.Type)
+			add("%s: unknown handler.type %q (command, claude or codex)", label, h.Type)
 		}
 		if len(probs) > 0 {
 			name := r.Name
@@ -531,6 +559,23 @@ func countName(routes []*Route, name string) int {
 func (c *Config) ClaudeCommandFor(r *Route) []string {
 	if len(r.Handler.Command) > 0 {
 		return r.Handler.Command
+	}
+	return c.Settings.ClaudeCommand
+}
+
+// AgentCommandFor returns the command (and leading args) used to start the
+// route's agent: the route's own command, else the setting for its type.
+func (c *Config) AgentCommandFor(r *Route) []string {
+	if len(r.Handler.Command) > 0 {
+		return r.Handler.Command
+	}
+	return c.AgentCommand(r.Handler.Type)
+}
+
+// AgentCommand returns the configured command for an agent type.
+func (c *Config) AgentCommand(typ string) []string {
+	if typ == TypeCodex {
+		return c.Settings.CodexCommand
 	}
 	return c.Settings.ClaudeCommand
 }

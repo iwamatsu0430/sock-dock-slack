@@ -13,7 +13,9 @@ import (
 
 // MCP clients the settings window can register SockDock with
 // (docs/mcp.md §2.1). "other" copies a generic mcpServers entry.
-var mcpClients = []string{"claude-code", "codex", "gemini", "vscode", "claude-desktop", "cursor", "other"}
+// Antigravity replaced Gemini CLI, which stopped serving personal accounts on
+// 2026-06-18 (docs/design.md §3.8).
+var mcpClients = []string{"claude-code", "codex", "antigravity", "vscode", "claude-desktop", "cursor", "other"}
 
 // MCPSetup is what the settings window copies for one MCP client.
 type MCPSetup struct {
@@ -66,8 +68,8 @@ func mcpSetupFor(client, cli string) (MCPSetup, error) {
 		return MCPSetup{Client: client, Kind: "command", Text: "claude mcp add -s user sockdock -- " + q + " mcp"}, nil
 	case "codex":
 		return MCPSetup{Client: client, Kind: "command", Text: "codex mcp add sockdock -- " + q + " mcp"}, nil
-	case "gemini":
-		return MCPSetup{Client: client, Kind: "command", Text: "gemini mcp add -s user sockdock " + q + " mcp"}, nil
+	case "antigravity":
+		return MCPSetup{Client: client, Kind: "command", Text: "agy mcp add sockdock " + q + " mcp"}, nil
 	case "vscode":
 		b, _ := json.Marshal(map[string]any{"name": "sockdock", "command": cli, "args": []string{"mcp"}})
 		return MCPSetup{Client: client, Kind: "command", Text: "code --add-mcp " + shellQuote(string(b))}, nil
@@ -86,6 +88,9 @@ func mcpSetupFor(client, cli string) (MCPSetup, error) {
 func (a *AppService) MCPSetup(client string) (MCPSetup, error) {
 	if client == "" {
 		client = a.GetPrefs().MCPClient
+	}
+	if client == "gemini" {
+		client = "antigravity" // chosen before Gemini CLI was replaced
 	}
 	return mcpSetupFor(client, sockdockCLI())
 }

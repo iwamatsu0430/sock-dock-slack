@@ -123,6 +123,17 @@ func (t *tools) checkRule(ctx context.Context, _ *mcp.CallToolRequest, in NameIn
 	} else {
 		add(true, "settings", "The rule's settings are valid.")
 	}
+	if f.Type == config.TypeCodex {
+		if m, err := t.b.CheckAgents(ctx, true); err == nil {
+			if v, ok := m[config.TypeCodex]; ok {
+				if v {
+					add(true, "Codex sign-in", "Codex is signed in.")
+				} else {
+					add(false, "Codex sign-in", "Codex is not signed in, so codex rules fail. Ask the user to click Sign In in Terminal (ターミナルでサインイン) in the SockDock app (or run codex login in Terminal).")
+				}
+			}
+		}
+	}
 	if f.Type == config.TypeClaude {
 		if v, err := t.b.CheckClaude(ctx, true); err == nil && v != nil {
 			if *v {

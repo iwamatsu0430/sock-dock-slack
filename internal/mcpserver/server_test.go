@@ -49,6 +49,12 @@ func (f *fake) Status(context.Context) (gateway.Status, error) {
 }
 func (f *fake) Rules(context.Context) ([]control.RuleInfo, error) { return f.rules, f.err() }
 func (f *fake) CheckClaude(context.Context, bool) (*bool, error)  { return f.claude, f.err() }
+func (f *fake) CheckAgents(context.Context, bool) (map[string]bool, error) {
+	if f.claude == nil {
+		return map[string]bool{}, f.err()
+	}
+	return map[string]bool{"claude": *f.claude}, f.err()
+}
 func (f *fake) Rule(_ context.Context, name string) (control.RuleInfo, error) {
 	for _, r := range f.rules {
 		if r.Form.Name == name {
@@ -376,13 +382,16 @@ func TestAllowedUsersTools(t *testing.T) {
 }
 
 func TestSaveWarning(t *testing.T) {
-	if w := saveOut(control.RuleSaveResult{OK: true, OpenToAll: "commands"}, false).Warning; !strings.Contains(w, "run the allowed commands") {
+	if w := saveOut(control.RuleSaveResult{OK: true, OpenToAll: "commands"}, false, "claude").Warning; !strings.Contains(w, "run the allowed commands") {
 		t.Errorf("warning = %q", w)
 	}
-	if w := saveOut(control.RuleSaveResult{OK: true, OpenToAll: "edit"}, true).Warning; !strings.Contains(w, "Everyone in the workspace") {
+	if w := saveOut(control.RuleSaveResult{OK: true, OpenToAll: "commands"}, false, "codex").Warning; !strings.Contains(w, "Codex run commands") {
+		t.Errorf("codex warning = %q", w)
+	}
+	if w := saveOut(control.RuleSaveResult{OK: true, OpenToAll: "edit"}, true, "claude").Warning; !strings.Contains(w, "Everyone in the workspace") {
 		t.Errorf("DM warning = %q", w)
 	}
-	if w := saveOut(control.RuleSaveResult{OK: true}, false).Warning; w != "" {
+	if w := saveOut(control.RuleSaveResult{OK: true}, false, "claude").Warning; w != "" {
 		t.Errorf("no warning expected, got %q", w)
 	}
 }

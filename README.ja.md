@@ -8,6 +8,7 @@ SockDock（コマンド名 `sockdock`）は、Mac で動く小さなゲートウ
 
 - **command 型**: 任意のプログラム。投稿を JSON で標準入力に受け取り、標準出力がスレッドへの返信になります。
 - **claude 型**: [Claude Code](https://code.claude.com/) をヘッドレスで動かします。Slack のスレッド 1 つが 1 つの会話になり、返信のたびに続きから再開します。使えるツールは許可したものだけです。
+- **codex 型**: [Codex CLI](https://developers.openai.com/codex/cli) を同じようにヘッドレスで動かします。Web 検索とファイル編集はルールのとおりにし、コマンドはいつも Codex のサンドボックスの中で実行します。
 
 電源タップのようなものです。Slack アプリの差込口は 1 つですが、SockDock を挟めばいくつでも差し込めます。トップレベルの投稿がルート（チャンネルか Slack アプリへの DM と、条件）に一致するとスレッドが始まり、そのスレッドへの返信はすべて同じハンドラに渡ります。
 
@@ -131,7 +132,7 @@ sockdock status
 アプリを使えば、上の手順 3〜5 も YAML の編集も要りません。アプリケーションフォルダの SockDock を開きます（ソースからビルドした場合は `open dist/SockDock.app` または `mise run gui`）。
 
 1. 初回はセットアップが出ます。「api.slack.com を開く」で、マニフェストが入った状態の作成ページが開きます。アプリをインストールし、`connections:write` のスコープで App-Level Token を発行したら、2 つのトークンを貼って「Slack に接続」を押します。トークンは Slack で確かめてから、2 つとも使えるときだけキーチェーンに保存します。すでにある Slack アプリを使うなら、セットアップの「すでにある Slack アプリを使う」を開いてください。必要な設定（Socket Mode、イベント `message.channels`・`message.groups`、Bot Token のスコープ。DM を使うなら、任意のイベント `message.im`・スコープ `im:history`・Messages タブ）と、App Manifest に足す部分のコピーがあります。Socket Mode をオンにすると、そのアプリのイベントは SockDock にだけ届くようになるので気をつけてください。必須のスコープが足りなければ、「Slack に接続」で足りないものの名前が出ます。
-2. 「ルール」→「ルールを追加」で、チャンネルか「DM」を選び（Slack アプリを追加したチャンネルが一覧に出ます。`channels:read`・`groups:read` のスコープがなければ、チャンネル ID かリンクを入力します）、実行できる人（チャンネルの全員か、名前で選んだ人）を選び、反応する投稿（〜で始まる・〜を含む・正規表現・すべて。「メンションされたときだけ」にすると、Slack アプリをメンションした投稿だけで動きます）を選び、実行するもの（作業フォルダで動く AI エージェント〈Claude Code〉と、その指示・許可する操作／またはプログラム）を選びます。一覧はチャンネルごとにまとまり、各ルールの最後の処理が出ます。同じチャンネルでは上のルールが優先され、⠿ をドラッグして並べ替えます。ルールを開くと、最近の処理、スレッドへのリンク、「停止」があります。
+2. 「ルール」→「ルールを追加」で、チャンネルか「DM」を選び（Slack アプリを追加したチャンネルが一覧に出ます。`channels:read`・`groups:read` のスコープがなければ、チャンネル ID かリンクを入力します）、実行できる人（チャンネルの全員か、名前で選んだ人）を選び、反応する投稿（〜で始まる・〜を含む・正規表現・すべて。「メンションされたときだけ」にすると、Slack アプリをメンションした投稿だけで動きます）を選び、実行するもの（作業フォルダで動く AI エージェント〈Claude Code か Codex〉と、その指示・許可する操作／またはプログラム）を選びます。一覧はチャンネルごとにまとまり、各ルールの最後の処理が出ます。同じチャンネルでは上のルールが優先され、⠿ をドラッグして並べ替えます。ルールを開くと、最近の処理、スレッドへのリンク、「停止」があります。
 3. チャンネルに「<キーワード> …」のように投稿します。
 
 ゲートウェイはアプリが開いている間アプリの中で動くので、別にサービスを入れる必要はありません。メニューバーのアイコンを押すと、接続の状態・処理中・最近の処理が出ます。ウィンドウは 1 つで、上の［ルール｜設定］で切り替えます。「設定」（⌘,）には、Slack の接続と本人（下の「DM での通知」）、ログイン時に起動、通知（Mac と Slack の DM）、言語（Slack に書く定型文の言語も兼ねます）、MCP、「初期状態に戻す」があります。「初期状態に戻す」は、トークン・ルール・処理の記録・アプリの設定を消してセットアップからやり直します（設定ファイルはゴミ箱に移します。ログは残します）。フォームにないことは「設定ファイルを開く」で YAML をエディタで開いて書きます。問題のあるルール（作業フォルダがない、上のルールに先に合うなど）は赤く表示され、そのルールだけが外れます。ほかのルールは動き続けます。
@@ -206,6 +207,24 @@ handler:
 - Claude Code はあなた自身のログインで動きます。`--bare` を使わないので、プロジェクトの `.claude/settings.json`・`CLAUDE.md`・フックも効きます。ルートに何を許すかは、それも含めて考えてください。
 - `settings.claude_command` には絶対パスを書いてください。SockDock から Claude Code を起動するとき、バージョン管理ツール（mise、asdf など）のシムは動かないことが多いためです。メニューバーのアプリはログインシェルの `PATH` をハンドラに渡し、`sockdock service install` は実行したときの `PATH` をサービスに記録します。
 
+### codex
+
+```yaml
+handler:
+  type: codex
+  cwd: ~/projects/my-project
+  instructions: 原因の候補を 3 つまで挙げてください。   # ファイルなら prompt
+  allow_web: true      # Web 検索（書かなければオフ）
+  allow_edit: false    # cwd のファイル編集（書かなければオフ）
+  model: gpt-6-luna    # 省略可
+  timeout_sec: 600
+```
+
+- `codex exec --json` を動かし、返信のたびにスレッドの会話を再開します（`codex exec resume`）。claude 型と同じです。先に一度 `codex login` でサインインしてください（ChatGPT か API キー）。
+- **コマンドは、許可したものだけには絞れません。** Codex はコマンドをいつも実行します。実行するのはサンドボックスの中で、ネットワークは使えず、書き込めるのは `allow_edit` のときの `cwd` だけです。ホームフォルダの中で読めるのは `cwd`、そのターンの添付ファイル、`PATH` のフォルダだけです。ホームフォルダの外（システムのツールや Homebrew）は読めます。`allowed_tools` は Claude Code 用なので、codex 型では設定エラーになります。一部のコマンドだけを許したいルールには、Claude Code を使ってください。
+- `allow_mcp: true` にしない限り、`~/.codex/config.toml`（MCP サーバーやプラグイン）は読み込まず、ChatGPT のアプリも使いません。プロジェクトの `AGENTS.md` は効きます。`.codex/` の設定は、Codex でそのフォルダを信頼したときだけ効きます。
+- `settings.codex_command` も絶対パスにしてください（Codex のルールを保存すると、アプリが書き込みます）。
+
 ## DM とメンション
 
 ルールは、チャンネルの投稿の代わりに、Slack アプリへの DM で動かすこともできます。チャンネルのルールは、Slack アプリへのメンションを条件にできます。
@@ -239,7 +258,7 @@ SockDock からのお知らせを、Mac の通知だけでなく、Slack の DM 
 
 コードを受け付けるのは始めてから 10 分間で、違うコードが 5 回届くと終わります。違う人が登録されたら、［解除］を押してやり直してください。「設定」には本人の名前が出ます。Slack アプリに `users:read` がないときは、メンバー ID が出ます。
 
-「設定」→「通知」に、Mac と Slack の DM のスイッチがあります。DM で届くのは、Claude Code にサインインしていないこと（サインインし直すまで 1 回だけ）と、MCP からのルールの変更です。「処理の失敗も送る」をオンにすると、処理が失敗するたびにも届きます（数が多くなることがあります）。設定ファイルでは `settings.owner`、`settings.notify_dm`、`settings.notify_dm_failures` です。
+「設定」→「通知」に、Mac と Slack の DM のスイッチがあります。DM で届くのは、Claude Code か Codex にサインインしていないこと（それぞれ、サインインし直すまで 1 回だけ）と、MCP からのルールの変更です。「処理の失敗も送る」をオンにすると、処理が失敗するたびにも届きます（数が多くなることがあります）。設定ファイルでは `settings.owner`、`settings.notify_dm`、`settings.notify_dm_failures` です。
 
 ## 新しい版
 
@@ -255,6 +274,7 @@ settings:
   thread_ttl_days: 30       # スレッドとルートの結びつきを保つ日数
   ack_reaction: eyes
   claude_command: claude    # 文字列かリスト。ルートの `command` があればそちらを使う
+  codex_command: codex      # codex 型のための同じ設定
   language: auto            # Slack に投稿する定型文の言語: auto、en、ja
   path: ["/opt/homebrew/bin"]
   secrets_file: secrets.env
@@ -298,7 +318,7 @@ SockDock が動いている間（アプリでも `sockdock run` でも）、Clau
 |---|---|
 | Claude Code | `claude mcp add -s user sockdock -- <sockdock> mcp` |
 | Codex | `codex mcp add sockdock -- <sockdock> mcp` |
-| Gemini CLI | `gemini mcp add -s user sockdock <sockdock> mcp` |
+| Antigravity | `agy mcp add sockdock <sockdock> mcp` |
 | VS Code | `code --add-mcp '{"name":"sockdock","command":"<sockdock>","args":["mcp"]}'` |
 | Claude Desktop | アプリの「設定」→「MCP」で Claude Desktop を選び、［Claude Desktop に追加］を押す（拡張機能 `SockDock.mcpb` を作って開きます） |
 | Cursor / その他 | 設定ファイルの `mcpServers` に `"sockdock": {"command": "<sockdock>", "args": ["mcp"]}` を足す |

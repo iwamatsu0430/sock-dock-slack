@@ -107,7 +107,7 @@ export class Form {
     "allowed_users": string[];
 
     /**
-     * Type is "claude" or "command".
+     * Type is "claude", "codex" (AI agents) or "command".
      */
     "type": string;
 
@@ -117,7 +117,8 @@ export class Form {
     "folder": string;
 
     /**
-     * claude
+     * agents (claude, codex). Commands and OtherTools are Claude Code's;
+     * Codex always runs commands in its sandbox (docs/design.md §3.8).
      */
     "instructions": string;
     "allow_web": boolean;

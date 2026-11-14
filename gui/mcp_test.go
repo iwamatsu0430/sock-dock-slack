@@ -11,7 +11,7 @@ func TestMCPSetup(t *testing.T) {
 	want := map[string]string{
 		"claude-code": "claude mcp add -s user sockdock -- '" + cli + "' mcp",
 		"codex":       "codex mcp add sockdock -- '" + cli + "' mcp",
-		"gemini":      "gemini mcp add -s user sockdock '" + cli + "' mcp",
+		"antigravity": "agy mcp add sockdock '" + cli + "' mcp",
 	}
 	for client, text := range want {
 		s, err := mcpSetupFor(client, cli)

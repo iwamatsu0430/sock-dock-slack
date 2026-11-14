@@ -72,6 +72,30 @@ func DetectClaude() []string {
 	return out
 }
 
+// DetectCodex lists Codex executables that run without a shell shim.
+func DetectCodex() []string {
+	home, _ := os.UserHomeDir()
+	cands := []string{
+		filepath.Join(home, ".local", "share", "mise", "installs", "codex", "latest", "bin", "codex"),
+		filepath.Join(home, ".local", "bin", "codex"),
+		"/opt/homebrew/bin/codex",
+		"/usr/local/bin/codex",
+	}
+	if p, err := config.LookPath("codex", LoginShellPath()); err == nil {
+		cands = append([]string{p}, cands...)
+	}
+	seen := map[string]bool{}
+	var out []string
+	for _, c := range cands {
+		if seen[c] || !isExecutable(c) || strings.Contains(c, "/shims/") {
+			continue
+		}
+		seen[c] = true
+		out = append(out, c)
+	}
+	return out
+}
+
 func isExecutable(p string) bool {
 	st, err := os.Stat(p)
 	return err == nil && !st.IsDir() && st.Mode()&0o111 != 0

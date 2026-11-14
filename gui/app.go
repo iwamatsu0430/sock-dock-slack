@@ -393,6 +393,9 @@ func (a *AppService) GetPrefs() Prefs {
 	if !locale.Valid(p.Language) || p.Language == "" {
 		p.Language = locale.Auto
 	}
+	if p.MCPClient == "gemini" {
+		p.MCPClient = "antigravity" // Gemini CLI was replaced by Antigravity
+	}
 	if !slices.Contains(mcpClients, p.MCPClient) {
 		p.MCPClient = mcpClients[0]
 	}

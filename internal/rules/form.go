@@ -35,12 +35,13 @@ type Form struct {
 	Restricted bool `json:"restricted"`
 	// AllowedUsers are Slack member IDs, in the order they were added.
 	AllowedUsers []string `json:"allowed_users"`
-	// Type is "claude" or "command".
+	// Type is "claude", "codex" (AI agents) or "command".
 	Type string `json:"type"`
 	// Folder is the working directory (claude: the project folder).
 	Folder string `json:"folder"`
 
-	// claude
+	// agents (claude, codex). Commands and OtherTools are Claude Code's;
+	// Codex always runs commands in its sandbox (docs/design.md §3.8).
 	Instructions string   `json:"instructions"`
 	AllowWeb     bool     `json:"allow_web"`
 	AllowEdit    bool     `json:"allow_edit"`
@@ -103,6 +104,10 @@ func ToForm(r *config.Route) Form {
 		return true
 	}
 	f.AllowWeb, f.AllowEdit = has(webTools), has(editTools)
+	if h.Type == config.TypeCodex {
+		f.AllowWeb, f.AllowEdit = h.AllowWeb, h.AllowEdit
+		return f
+	}
 	for _, rule := range h.AllowedTools {
 		switch {
 		case f.AllowWeb && slices.Contains(webTools, rule), f.AllowEdit && slices.Contains(editTools, rule):
@@ -146,8 +151,16 @@ func FromForm(f Form, base *config.Route) *config.Route {
 	h.Cwd = TildePath(strings.TrimSpace(f.Folder))
 	h.TimeoutSec = f.TimeoutSec
 	switch f.Type {
+	case config.TypeCodex:
+		h.Command = nil
+		h.Instructions = strings.TrimSpace(f.Instructions)
+		h.Prompt = strings.TrimSpace(f.PromptFile)
+		h.Model = strings.TrimSpace(f.Model)
+		h.AllowedTools, h.Tools = nil, nil
+		h.AllowWeb, h.AllowEdit = f.AllowWeb, f.AllowEdit
 	case config.TypeClaude:
 		h.Command = nil
+		h.AllowWeb, h.AllowEdit = false, false
 		h.Instructions = strings.TrimSpace(f.Instructions)
 		h.Prompt = strings.TrimSpace(f.PromptFile)
 		h.Model = strings.TrimSpace(f.Model)
@@ -171,6 +184,7 @@ func FromForm(f Form, base *config.Route) *config.Route {
 		h.AllowedTools = tools
 	case config.TypeCommand:
 		h.Instructions, h.Prompt, h.Model, h.AllowedTools = "", "", "", nil
+		h.AllowWeb, h.AllowEdit = false, false
 		h.Command = append([]string{TildePath(strings.TrimSpace(f.Program))}, SplitArgs(f.Args)...)
 	}
 	return r
@@ -239,7 +253,7 @@ func Validate(f Form, raw *config.Config) []FieldProblem {
 	}
 
 	switch f.Type {
-	case config.TypeClaude:
+	case config.TypeClaude, config.TypeCodex:
 		if p := strings.TrimSpace(f.PromptFile); p != "" && folder != "" {
 			pp := paths.ExpandHome(p)
 			if !filepath.IsAbs(pp) {
@@ -290,9 +304,13 @@ func cleanUsers(ids []string) []string {
 // in the workspace) can make an agent run
 // commands or edit files with this rule ("risk": the rule page and
 // sockdock_save_rule warn about it). It returns "commands", "edit" or "".
+// Codex can always run commands (in its sandbox).
 func OpenToAll(f Form) string {
-	if f.Restricted || f.Type != config.TypeClaude {
+	if f.Restricted || !config.IsAgent(f.Type) {
 		return ""
+	}
+	if f.Type == config.TypeCodex {
+		return "commands"
 	}
 	for _, c := range f.Commands {
 		if strings.TrimSpace(c) != "" {

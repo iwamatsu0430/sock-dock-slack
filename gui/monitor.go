@@ -59,7 +59,7 @@ func (m *monitor) run() {
 				m.maybeNotifyTurn(e)
 			case "rule_changed":
 				m.notifyRuleChange(e)
-			case "claude_auth":
+			case "claude_auth", "agent_auth":
 				m.maybeNotifyClaude(e)
 			case "update_available":
 				m.maybeNotifyUpdate(e)
@@ -254,28 +254,36 @@ func (m *monitor) maybeNotifyUpdate(e gateway.Event) {
 	}
 }
 
-// maybeNotifyClaude tells the user that Claude Code is signed out, when a
-// rule runs it (docs/ia.md §8「通知」).
+// maybeNotifyClaude tells the user that an agent is signed out, when a
+// rule that is on runs it (docs/ia.md §8「通知」). claude_auth events are
+// Claude Code's; agent_auth events name the agent.
 func (m *monitor) maybeNotifyClaude(e gateway.Event) {
-	data, ok := e.Data.(map[string]bool)
-	if !ok {
-		if d, ok2 := e.Data.(map[string]any); ok2 {
-			v, _ := d["signed_in"].(bool)
-			data = map[string]bool{"signed_in": v}
-		} else {
-			return
+	agent, signedIn := config.TypeClaude, false
+	switch d := e.Data.(type) {
+	case map[string]bool:
+		signedIn = d["signed_in"]
+	case map[string]any:
+		signedIn, _ = d["signed_in"].(bool)
+		if a, ok := d["agent"].(string); ok && a != "" {
+			agent = a
 		}
+	default:
+		return
 	}
-	if data["signed_in"] || !m.svc.GetPrefs().Notifications {
+	if signedIn || !m.svc.GetPrefs().Notifications {
 		return
 	}
 	snap := m.svc.GetSnapshot()
 	if snap.Status == nil {
 		return
 	}
+	key := "notify.claude"
+	if agent == config.TypeCodex {
+		key = "notify.codex"
+	}
 	for _, r := range snap.Status.Routes {
-		if r.Type == config.TypeClaude && !r.Paused {
-			notify("SockDock", m.svc.tr("notify.claude"))
+		if r.Type == agent && !r.Paused {
+			notify("SockDock", m.svc.tr(key))
 			return
 		}
 	}

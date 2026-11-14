@@ -194,6 +194,12 @@ export class Status {
      * ClaudeSignedIn is whether Claude Code is signed in, when known.
      */
     "claude_signed_in"?: boolean | null;
+
+    /**
+     * SignedIn is whether each agent that a rule runs is signed in, by
+     * handler type ("claude", "codex"), when known.
+     */
+    "signed_in"?: { [_ in string]?: boolean };
     "pending": number;
 
     /**
@@ -270,8 +276,9 @@ export class Status {
         const $$createField11_0 = $$createType4;
         const $$createField12_0 = $$createType6;
         const $$createField13_0 = $$createType7;
-        const $$createField16_0 = $$createType7;
-        const $$createField21_0 = $$createType9;
+        const $$createField15_0 = $$createType8;
+        const $$createField17_0 = $$createType7;
+        const $$createField22_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("identity" in $$parsedSource) {
             $$parsedSource["identity"] = $$createField8_0($$parsedSource["identity"]);
@@ -288,11 +295,14 @@ export class Status {
         if ("heard" in $$parsedSource) {
             $$parsedSource["heard"] = $$createField13_0($$parsedSource["heard"]);
         }
+        if ("signed_in" in $$parsedSource) {
+            $$parsedSource["signed_in"] = $$createField15_0($$parsedSource["signed_in"]);
+        }
         if ("scopes" in $$parsedSource) {
-            $$parsedSource["scopes"] = $$createField16_0($$parsedSource["scopes"]);
+            $$parsedSource["scopes"] = $$createField17_0($$parsedSource["scopes"]);
         }
         if ("update" in $$parsedSource) {
-            $$parsedSource["update"] = $$createField21_0($$parsedSource["update"]);
+            $$parsedSource["update"] = $$createField22_0($$parsedSource["update"]);
         }
         return new Status($$parsedSource as Partial<Status>);
     }
@@ -329,7 +339,7 @@ export class UpdateInfo {
      * Creates a new UpdateInfo instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateInfo {
-        const $$createField2_0 = $$createType10;
+        const $$createField2_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("notes" in $$parsedSource) {
             $$parsedSource["notes"] = $$createField2_0($$parsedSource["notes"]);
@@ -347,6 +357,7 @@ const $$createType4 = $Create.Array($$createType3);
 const $$createType5 = RunningTurn.createFrom;
 const $$createType6 = $Create.Array($$createType5);
 const $$createType7 = $Create.Array($Create.Any);
-const $$createType8 = UpdateInfo.createFrom;
-const $$createType9 = $Create.Nullable($$createType8);
-const $$createType10 = $Create.Map($Create.Any, $Create.Any);
+const $$createType8 = $Create.Map($Create.Any, $Create.Any);
+const $$createType9 = UpdateInfo.createFrom;
+const $$createType10 = $Create.Nullable($$createType9);
+const $$createType11 = $Create.Map($Create.Any, $Create.Any);

@@ -615,7 +615,7 @@ SockDock が新しい版を確かめ、出ていたら知らせ、メニュー�
 - リリースノートの節の取り出し（英語・日本語・節なし・空）
 - 版の比べ方（形が違う版を確かめないこと、`v0.10.0` > `v0.9.0`）、1 回だけ知らせること、失敗の扱いを、偽の GitHub（`httptest`）で確かめる
 
-### 3.8 ほかのエージェント（2026-11-15 承認）
+### 3.8 ほかのエージェント（2026-11-15 承認・実装）
 
 ルールが動かす AI エージェントに、Claude Code のほか Codex CLI を選べるようにする。調べた結果は [research/2026-11-15-agent-clis.md](research/2026-11-15-agent-clis.md)。画面と文言は [ia.md](ia.md) §8「エージェントと、許可の項目」が正。モック: [`docs/mock/agents.html`](mock/agents.html)
 
@@ -667,7 +667,10 @@ SockDock が新しい版を確かめ、出ていたら知らせ、メニュー�
 | コマンド | 許可したコマンドだけ | いつも実行できる（サンドボックスの中。ネットワークなし）。ルールでは選ばない |
 | MCP（`allow_mcp`） | `mcp__*` を拒否しない | `--ignore-user-config` と `--disable apps` を外す |
 
-- 権限プロファイル: `-c 'permissions.sockdock.filesystem={":minimal"="read", "<Codex のインストール先>"="read", "<添付ファイルのフォルダ>"="read", ":workspace_roots"={"."="read" または "write"}}'`。Codex のインストール先は、`codex_command` を `resolveCommand` で解いたパスの親の親を、シンボリックリンクをたどる前と後の両方で入れる（mise は `latest` のリンクを通るため。入れないと Codex が起動しない）
+- 権限プロファイル（実装 2026-11-15）: `-c 'permissions.sockdock.filesystem={"/"="read", "<ホーム>"="deny", <ホームの中で開けるフォルダ>…, ":workspace_roots"={"."="read" または "write"}}'`。ホームの外（システムのツール、Homebrew、Xcode）は読め、ホームの中は塞いだうえで、作業フォルダ・添付ファイルのフォルダ・Codex のインストール先・`PATH` にあるフォルダだけを開ける。`PATH` に mise があれば `~/.local/share/mise` と `~/.config/mise` を読めるようにし、`~/Library/Caches/mise` には書けるようにする（mise のシムが毎回キャッシュを書くため）。
+    - はじめは `":minimal"` を土台にしたが、`git`（Xcode の開発者ツール）、Homebrew の道具、mise の `node` が動かなかった（2026-11-15、実物で確認）。「触れるのは作業フォルダの中だけ」は、利用者のファイル（ホームの中）について守る
+    - Codex のインストール先は、`codex_command` を解いたパスの親の親を、シンボリックリンクをたどる前と後の両方で入れる（mise は `latest` のリンクを通るため。入れないと Codex が起動しない）
+    - `/tmp` には書けない。`git` は警告を出すが動く
 - コマンドをオフにする手段（`--disable shell_tool`）はあるが、使わない。Codex はファイルをコマンドで読むので、作業フォルダも読めなくなる
 - 実行できる人が「全員」のとき、Codex のルールには、いつもコマンドの赤字を出す（3.4、IA §8）
 
@@ -718,6 +721,7 @@ routes:
 ```
 
 - `type` に `codex` を足す。`claude` の書き方は変えない
+- Codex が見つからないときは、Claude Code と同じく、保存のときに「Codex が見つかりません」と出して止める（見つかれば `settings.codex_command` に絶対パスを書く）
 - Codex の許可は、Claude Code の `allowed_tools` の書式（`Bash(npm test *)`）ではなく、`allow_web`・`allow_edit`・`allow_mcp` で書く。Codex のルールに `allowed_tools` や `tools` を書いたら設定エラーにする（守れない許可を、守れるように見せないため）
 - `prompt`・`instructions`・`model`・`extra_args`・`timeout_sec`・`command`・`env_file` は共通
 - `sockdock check` は、そのルールのエージェントのコマンドが見つかるかも確かめる
@@ -731,7 +735,13 @@ routes:
 
 - README: 実行するものに Codex を足す。エージェントごとの許可の違い（Codex のコマンド）を書く
 - [mcp.md](mcp.md) §2.1 と設定の「MCP」の選択肢: Gemini CLI を Antigravity に置き換える。登録は `agy mcp add sockdock <sockdock> mcp`（実装のときに、登録先が利用者全体か、登録したあと agy から使えるかを確かめる）
-- LP: [lp-ia.md](lp-ia.md) の「AI エージェント（いまは Claude Code）」を「（Claude Code、Codex）」に直す。「`CLAUDE.md` などの指示や設定もそのまま効きます」は「など」で足りるので変えない。LP の文言は、先に lp-ia.md を直してから変える
+- LP: [lp-ia.md](lp-ia.md) の「AI エージェント（いまは Claude Code）」を「（Claude Code か Codex）」に直す。続く文の「コマンドは許可したときだけ」は Codex に当てはまらないので外す（2026-11-15 実装時）。「`CLAUDE.md` などの指示や設定もそのまま効きます」は「など」で足りるので変えない。LP の文言は、先に lp-ia.md を直してから変える
+
+**実装（2026-11-15）**
+
+- `internal/handler/codex.go`（起動と出力）、`codex_auth.go`（`login status`）。ゲートウェイはエージェントごとにサインインを覚え（`Status.signed_in`）、制御 API の `POST /v1/claude/check` は `agents` も返す
+- 本物の Codex（0.169.0）で確かめたこと: ホームの中のファイルは読めず、作業フォルダは読める。`allow_edit` なしでは書けず、ありなら書ける。`allow_web` なしでは検索のツールがなく、ありなら検索する。2 ターン目は同じ会話で続く。指示が効く
+- 確かめていないこと: 本物の Slack からの一連の流れ、Codex のサインインが切れたときの文言（`401 Unauthorized` で見分けている）、`SIGINT` でターンが終わるか
 
 **テスト**
 

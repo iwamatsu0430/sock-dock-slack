@@ -8,6 +8,7 @@ SockDock (`sockdock`) is a small gateway that runs on your Mac. It receives mess
 
 - **command** handlers: any program. It gets the message as JSON on stdin; its stdout is posted back to the thread.
 - **claude** handlers: [Claude Code](https://code.claude.com/) in headless mode. Each Slack thread is one conversation that continues on every reply, limited to the tools you allow.
+- **codex** handlers: [Codex CLI](https://developers.openai.com/codex/cli) in headless mode, the same way. Web search and file edits follow the rule; commands always run in Codex's sandbox.
 
 Think of it as a power strip: Slack apps allow one socket, and SockDock lets you plug many things into it. A top-level message that matches a route (a channel, or DMs to the app, plus a condition) starts a thread; every reply in that thread goes to the same handler.
 
@@ -131,7 +132,7 @@ Post `echo hello` in the channel: SockDock reacts with 👀, runs the handler an
 With the app you do not need steps 3–5 above or any YAML. Open SockDock from Applications (built from source: `open dist/SockDock.app` or `mise run gui`):
 
 1. **Setup** (first launch): *Open api.slack.com* opens Slack's "create an app" page with the manifest filled in. Install the app, generate an App-Level Token with `connections:write`, then paste both tokens and press **Connect to Slack**. The tokens are checked with Slack first and saved to the Keychain only if both work. To use a Slack app you already have, open **Use a Slack app you already have** in setup: it lists the settings (Socket Mode, the `message.channels`/`message.groups` events, Bot Token scopes, for DMs the optional `message.im` event, `im:history` scope and Messages tab, and for attached files the optional `files:read` scope) and copies the part to add to its App Manifest. With Socket Mode on, that app's events go only to SockDock. If required scopes are missing, **Connect to Slack** names them.
-2. **Rules → Add Rule**: pick the channel (channels the Slack app has been added to are listed; without the `channels:read`/`groups:read` scopes, enter a channel ID or link) or **DM**, choose who can run it (everyone in the channel, or people you choose by name), choose which posts it reacts to (starting with, containing, a regular expression, or all; tick *Only when mentioned* to need a mention of the Slack app), and choose what runs — an AI agent (Claude Code) in a working folder, with instructions and what it may do, or a program. The list is grouped by channel and shows each rule's last run. Within a channel the rule higher up comes first; drag ⠿ to reorder. Open a rule for recent runs, thread links and **Stop**.
+2. **Rules → Add Rule**: pick the channel (channels the Slack app has been added to are listed; without the `channels:read`/`groups:read` scopes, enter a channel ID or link) or **DM**, choose who can run it (everyone in the channel, or people you choose by name), choose which posts it reacts to (starting with, containing, a regular expression, or all; tick *Only when mentioned* to need a mention of the Slack app), and choose what runs — an AI agent (Claude Code or Codex) in a working folder, with instructions and what it may do, or a program. The list is grouped by channel and shows each rule's last run. Within a channel the rule higher up comes first; drag ⠿ to reorder. Open a rule for recent runs, thread links and **Stop**.
 3. Post something like `<keyword> …` in the channel.
 
 The app runs the gateway while it is open — there is no separate service to install. Clicking the menu bar icon shows the connection, running and recent runs; There is one window: switch between **Rules** and **Settings** at the top. **Settings** (⌘,) has the Slack connection and who you are in Slack (see "Notifications by DM"), *Open at login*, notifications (Mac and Slack DM), the language (also used for the messages posted to Slack), MCP and **Reset SockDock…**, which removes the tokens, rules, run history and app settings and starts over from setup (the config file goes to the Trash; logs are kept). **Open Config File** opens the YAML in your editor for anything the form does not cover. A rule with a problem (e.g. a missing folder, or a rule above that always matches first) is shown in red and left out; the other rules keep running.
@@ -225,6 +226,24 @@ handler:
 - Claude Code uses your own login. Because `--bare` is not used, the project's `.claude/settings.json`, `CLAUDE.md` and hooks apply too — take them into account when deciding what a route may do.
 - Set `settings.claude_command` to an absolute path: version-manager shims (mise, asdf, …) often fail when SockDock starts Claude Code. The menu bar app gives handlers your login shell's `PATH`; `sockdock service install` records the `PATH` it was run with.
 
+### codex
+
+```yaml
+handler:
+  type: codex
+  cwd: ~/projects/my-project
+  instructions: List at most three likely causes.   # or prompt: a file
+  allow_web: true      # web search (off unless set)
+  allow_edit: false    # edit files in cwd (off unless set)
+  model: gpt-6-luna    # optional
+  timeout_sec: 600
+```
+
+- Runs `codex exec --json` and resumes the thread's conversation (`codex exec resume`) on every reply, like the claude handler. Sign in once with `codex login` (ChatGPT or an API key).
+- **Commands cannot be limited to a list.** Codex always runs commands, inside its sandbox: no network, writes only in `cwd` and only with `allow_edit`. In your home folder it can read only `cwd`, the turn's attached files and the folders on `PATH`; outside your home folder (system tools, Homebrew) it can read. `allowed_tools` is for Claude Code and is rejected here. If a rule should run only some commands, use Claude Code.
+- Your `~/.codex/config.toml` (its MCP servers and plugins) is not loaded, and ChatGPT apps are off, unless `allow_mcp: true`. The project's `AGENTS.md` applies; its `.codex/` settings apply only if you trusted that folder in Codex.
+- Set `settings.codex_command` to an absolute path, as for Claude Code (the app fills it in when you save a Codex rule).
+
 ## DMs and mentions
 
 A rule can react to DMs sent to the Slack app instead of a channel's posts, and a channel rule can require a mention of the app:
@@ -258,7 +277,7 @@ SockDock can also send its notices to you as Slack DMs, not only as Mac notifica
 
 Codes are accepted for 10 minutes after you start, and five wrong codes end it. If the wrong person got registered, press **Remove** and register again. Settings shows your name when the Slack app has `users:read`; without it, your member ID.
 
-**Settings → Notifications** has a switch for the Mac and one for Slack DMs. By DM you get: Claude Code being signed out (once, until it is signed in again) and rules changed through MCP. Turn on *Also send failed runs* to get a DM for every failed run too (there can be many). In the config these are `settings.owner`, `settings.notify_dm` and `settings.notify_dm_failures`.
+**Settings → Notifications** has a switch for the Mac and one for Slack DMs. By DM you get: Claude Code or Codex being signed out (once each, until it is signed in again) and rules changed through MCP. Turn on *Also send failed runs* to get a DM for every failed run too (there can be many). In the config these are `settings.owner`, `settings.notify_dm` and `settings.notify_dm_failures`.
 
 ## Updates
 
@@ -275,6 +294,7 @@ settings:
   max_file_mb: 20           # larger attached files are not handed over
   ack_reaction: eyes
   claude_command: claude    # string or list; per-route `command` overrides it
+  codex_command: codex      # the same, for codex handlers
   language: auto            # canned replies posted to Slack: auto, en, ja
   path: ["/opt/homebrew/bin"]
   secrets_file: secrets.env
@@ -318,7 +338,7 @@ The easiest way to register it is **Settings → MCP** in the app: pick your cli
 |---|---|
 | Claude Code | `claude mcp add -s user sockdock -- <sockdock> mcp` |
 | Codex | `codex mcp add sockdock -- <sockdock> mcp` |
-| Gemini CLI | `gemini mcp add -s user sockdock <sockdock> mcp` |
+| Antigravity | `agy mcp add sockdock <sockdock> mcp` |
 | VS Code | `code --add-mcp '{"name":"sockdock","command":"<sockdock>","args":["mcp"]}'` |
 | Claude Desktop | in the app, **Settings → MCP**, choose Claude Desktop and press **Add to Claude Desktop** (it builds and opens the `SockDock.mcpb` extension) |
 | Cursor / others | add `"sockdock": {"command": "<sockdock>", "args": ["mcp"]}` to `mcpServers` in its config file |

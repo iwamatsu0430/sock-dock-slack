@@ -342,6 +342,14 @@ export function SignInClaude(): $CancellablePromise<void> {
 }
 
 /**
+ * SignInCodex opens Terminal and starts signing in to the Codex that rules
+ * run (settings.codex_command) with `codex login`.
+ */
+export function SignInCodex(): $CancellablePromise<void> {
+    return $Call.ByID(2513338419);
+}
+
+/**
  * StartOwnerRegistration shows a code to send to the Slack app by DM.
  */
 export function StartOwnerRegistration(): $CancellablePromise<$models.OwnerState> {

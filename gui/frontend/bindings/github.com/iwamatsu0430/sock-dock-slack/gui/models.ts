@@ -370,6 +370,11 @@ export class RouteSaveResult {
      */
     "claude_command"?: string;
 
+    /**
+     * CodexCommand is set when the app filled in settings.codex_command.
+     */
+    "codex_command"?: string;
+
     /** Creates a new RouteSaveResult instance. */
     constructor($$source: Partial<RouteSaveResult> = {}) {
         if (!("ok" in $$source)) {

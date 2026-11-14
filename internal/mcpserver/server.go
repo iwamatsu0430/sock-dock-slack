@@ -35,6 +35,7 @@ type Backend interface {
 	SetPaused(ctx context.Context, route string, paused bool) error
 	StopTurn(ctx context.Context, id int64) error
 	CheckClaude(ctx context.Context, force bool) (*bool, error)
+	CheckAgents(ctx context.Context, force bool) (map[string]bool, error)
 	Users(ctx context.Context, q string, limit int) (control.UsersResult, error)
 	Owner(ctx context.Context) (control.OwnerInfo, error)
 }
@@ -87,7 +88,8 @@ type Condition struct {
 
 // Runs is what a rule runs.
 type Runs struct {
-	Type    string `json:"type" jsonschema:"agent (Claude Code) or program"`
+	Type    string `json:"type" jsonschema:"agent or program"`
+	Agent   string `json:"agent,omitempty" jsonschema:"for an agent: claude_code or codex"`
 	Folder  string `json:"folder" jsonschema:"working folder"`
 	Program string `json:"program,omitempty"`
 	Args    string `json:"args,omitempty"`
@@ -137,7 +139,7 @@ type RuleDetail struct {
 	Instructions    string   `json:"instructions,omitempty"`
 	AllowWeb        bool     `json:"allow_web"`
 	AllowEdit       bool     `json:"allow_edit"`
-	AllowedCommands []string `json:"allowed_commands"`
+	AllowedCommands []string `json:"allowed_commands" jsonschema:"Claude Code only; a codex rule always lets Codex run commands in its sandbox (the working folder only, no network)"`
 	OtherTools      []string `json:"other_allowed_tools,omitempty"`
 	Model           string   `json:"model,omitempty"`
 	PromptFile      string   `json:"prompt_file,omitempty"`
@@ -152,6 +154,14 @@ func runOf(t store.Turn) Run {
 	return Run{ID: t.ID, Rule: t.Route, Status: t.Status, StartedAt: t.StartedAt, Error: e, ThreadURL: t.Permalink, FileProblem: t.FileProblem}
 }
 
+// agentName is the agent's name in tool results.
+func agentName(typ string) string {
+	if typ == config.TypeCodex {
+		return "codex"
+	}
+	return "claude_code"
+}
+
 func problemText(p *rules.FieldProblem) string {
 	if p == nil {
 		return ""
@@ -164,7 +174,7 @@ func ruleOf(ri control.RuleInfo) Rule {
 	r := Rule{
 		Name: f.Name, ChannelID: f.Channel, ChannelName: ri.ChannelName,
 		Condition: Condition{Type: f.Trigger, Keyword: f.Keyword}, MentionOnly: f.MentionOnly,
-		Runs:    Runs{Type: "agent", Folder: f.Folder},
+		Runs:    Runs{Type: "agent", Agent: agentName(f.Type), Folder: f.Folder},
 		Enabled: !ri.Off, Problem: problemText(ri.Problem),
 	}
 	if f.Type == config.TypeCommand {
@@ -207,6 +217,8 @@ type StatusOut struct {
 	PostsArrivedFrom []string `json:"posts_arrived_from" jsonschema:"channel IDs whose posts have reached SockDock since it connected"`
 	// ClaudeSignedIn is whether the Claude Code that agent rules run is signed in.
 	ClaudeSignedIn *bool `json:"claude_signed_in,omitempty" jsonschema:"whether the Claude Code that agent rules run is signed in; left out when unknown or no rule runs Claude Code"`
+	// CodexSignedIn is the same for Codex.
+	CodexSignedIn *bool `json:"codex_signed_in,omitempty" jsonschema:"whether the Codex that codex rules run is signed in; left out when unknown or no rule runs Codex"`
 	// Owner is the person notices go to by DM.
 	Owner     *Person `json:"owner,omitempty" jsonschema:"the person who uses SockDock (registered in the app); new DM rules are limited to them, and notices go to them by DM when dm_notices is true. Absent when nobody is registered"`
 	DMNotices bool    `json:"dm_notices" jsonschema:"whether notices also go to the owner by Slack DM"`
@@ -232,8 +244,13 @@ func (t *tools) getStatus(ctx context.Context, _ *mcp.CallToolRequest, _ none) (
 	for _, r := range st.Running {
 		out.Running = append(out.Running, Run{ID: r.TurnID, Rule: r.Route, Status: store.StatusRunning, StartedAt: r.StartedAt, ThreadURL: r.Permalink})
 	}
-	if v, err := t.b.CheckClaude(ctx, false); err == nil {
-		out.ClaudeSignedIn = v
+	if m, err := t.b.CheckAgents(ctx, false); err == nil {
+		if v, ok := m[config.TypeClaude]; ok {
+			out.ClaudeSignedIn = &v
+		}
+		if v, ok := m[config.TypeCodex]; ok {
+			out.CodexSignedIn = &v
+		}
 	}
 	if st.Update != nil {
 		out.UpdateAvailable = &Update{Version: st.Update.Version, URL: st.Update.URL}
@@ -457,14 +474,15 @@ type SaveIn struct {
 	ConditionType   *string   `json:"condition_type,omitempty" jsonschema:"starts_with (default for a new rule), contains, match or all_posts"`
 	Keyword         *string   `json:"keyword,omitempty" jsonschema:"the keyword, or the regular expression (RE2) for match; not used for all_posts"`
 	MentionOnly     *bool     `json:"mention_only,omitempty" jsonschema:"true to run only for posts that mention the Slack app (@app); not used for dm"`
-	Runs            *string   `json:"runs,omitempty" jsonschema:"agent (Claude Code, default for a new rule) or program"`
+	Runs            *string   `json:"runs,omitempty" jsonschema:"agent (default for a new rule) or program"`
+	Agent           *string   `json:"agent,omitempty" jsonschema:"for runs agent: claude_code (default) or codex"`
 	Folder          *string   `json:"folder,omitempty" jsonschema:"working folder (absolute or ~/...); for a program, defaults to the program's folder"`
 	Instructions    *string   `json:"instructions,omitempty" jsonschema:"agent: instructions added to its system prompt"`
 	AllowWeb        *bool     `json:"allow_web,omitempty" jsonschema:"agent: may search and fetch the web"`
 	AllowEdit       *bool     `json:"allow_edit,omitempty" jsonschema:"agent: may edit files in the folder"`
-	AllowedCommands *[]string `json:"allowed_commands,omitempty" jsonschema:"agent: command prefixes it may run, e.g. 'npm test'"`
+	AllowedCommands *[]string `json:"allowed_commands,omitempty" jsonschema:"claude_code only: command prefixes it may run, e.g. 'npm test'. Not for codex, which always runs commands in its sandbox"`
 	AllowedUsers    *[]string `json:"allowed_users,omitempty" jsonschema:"member IDs (U…, from sockdock_find_users) of the only people who may run the rule; [] lets everyone in the channel run it; omitted on a new rule means everyone"`
-	Model           *string   `json:"model,omitempty" jsonschema:"agent: opus, sonnet, haiku or empty for the default"`
+	Model           *string   `json:"model,omitempty" jsonschema:"agent: for claude_code opus, sonnet or haiku; for codex a Codex model name; empty for the default"`
 	Program         *string   `json:"program,omitempty" jsonschema:"program: path to the executable; gets the post as JSON on stdin, its stdout is the reply"`
 	Args            *string   `json:"args,omitempty" jsonschema:"program: arguments"`
 	TimeoutSec      *int      `json:"timeout_sec,omitempty" jsonschema:"time limit in seconds; 0 for the default (600 for agents, 300 for programs)"`
@@ -479,7 +497,7 @@ type SaveOut struct {
 	Warning        string    `json:"warning,omitempty" jsonschema:"saved, but tell the user this"`
 }
 
-func saveOut(r control.RuleSaveResult, dm bool) SaveOut {
+func saveOut(r control.RuleSaveResult, dm bool, agent string) SaveOut {
 	out := SaveOut{OK: r.OK, Name: r.Name, Problems: problemsOf(r.Problems), ConfigProblems: r.ConfigProblems}
 	who := "Everyone in this channel"
 	if dm {
@@ -487,7 +505,11 @@ func saveOut(r control.RuleSaveResult, dm bool) SaveOut {
 	}
 	switch r.OpenToAll {
 	case "commands":
-		out.Warning = who + " can make this Mac run the allowed commands. If that is not what the user wants, set allowed_users to the people who may run the rule."
+		if agent == config.TypeCodex {
+			out.Warning = who + " can make Codex run commands on this Mac (in its sandbox: the working folder only, no network). If that is not what the user wants, set allowed_users to the people who may run the rule."
+		} else {
+			out.Warning = who + " can make this Mac run the allowed commands. If that is not what the user wants, set allowed_users to the people who may run the rule."
+		}
 	case "edit":
 		out.Warning = who + " can make the agent change files in the working folder. If that is not what the user wants, set allowed_users to the people who may run the rule."
 	}
@@ -523,11 +545,26 @@ func (t *tools) saveRule(ctx context.Context, _ *mcp.CallToolRequest, in SaveIn)
 	if in.Runs != nil {
 		switch *in.Runs {
 		case "agent":
-			f.Type = config.TypeClaude
+			if !config.IsAgent(f.Type) {
+				f.Type = config.TypeClaude
+			}
 		case "program":
 			f.Type = config.TypeCommand
 		default:
 			return nil, SaveOut{}, fmt.Errorf("runs must be agent or program, not %q", *in.Runs)
+		}
+	}
+	if in.Agent != nil {
+		if !config.IsAgent(f.Type) {
+			return nil, SaveOut{}, errors.New("agent is only for runs: agent")
+		}
+		switch *in.Agent {
+		case "claude_code", "":
+			f.Type = config.TypeClaude
+		case "codex":
+			f.Type = config.TypeCodex
+		default:
+			return nil, SaveOut{}, fmt.Errorf("agent must be claude_code or codex, not %q", *in.Agent)
 		}
 	}
 	set(&f.Folder, in.Folder)
@@ -539,6 +576,9 @@ func (t *tools) saveRule(ctx context.Context, _ *mcp.CallToolRequest, in SaveIn)
 		f.AllowEdit = *in.AllowEdit
 	}
 	if in.AllowedCommands != nil {
+		if f.Type == config.TypeCodex && len(*in.AllowedCommands) > 0 {
+			return nil, SaveOut{Problems: []Problem{{Field: "allowed_commands", Message: "Codex cannot be limited to some commands: it always runs commands in its sandbox (the working folder only, no network). Leave allowed_commands out for a codex rule, or use agent claude_code to allow only some commands."}}}, nil
+		}
 		f.Commands = *in.AllowedCommands
 	}
 	if in.AllowedUsers != nil {
@@ -568,7 +608,7 @@ func (t *tools) saveRule(ctx context.Context, _ *mcp.CallToolRequest, in SaveIn)
 	if err != nil {
 		return nil, SaveOut{}, errText(err)
 	}
-	return nil, saveOut(res, f.Channel == config.ChannelDM), nil
+	return nil, saveOut(res, f.Channel == config.ChannelDM, f.Type), nil
 }
 
 // ChangeOut is the result of a delete or reorder.

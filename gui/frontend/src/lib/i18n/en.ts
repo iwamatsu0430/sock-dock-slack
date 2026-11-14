@@ -49,6 +49,7 @@ export const en = {
   "banner.retry": "Can't connect to Slack. Reconnecting…",
   "banner.reset": "Replace tokens",
   "banner.claude": "Claude Code isn't signed in.",
+  "banner.codex": "Codex isn't signed in.",
   "claude.signIn": "Sign In in Terminal",
 
   "rules.title": "Rules",
@@ -73,6 +74,7 @@ export const en = {
   "rules.shadowed.all_posts": "Never runs: the rule above for all posts matches first",
 
   "agent.claude": "Claude Code",
+  "agent.codex": "Codex",
 
   "rule.back": "← Rules",
   "rule.newTitle": "New Rule",
@@ -124,6 +126,7 @@ export const en = {
   "rule.commands": "Commands it may run",
   "rule.commandsPlaceholder": "e.g. npm test",
   "rule.permissionsNote": "It does only what you allow here.",
+  "rule.codexCommands": "It runs commands too, touching only the working folder and without network access.",
   "rule.program": "File",
   "rule.args": "Arguments (optional)",
   "rule.programNote": "The post is passed as JSON on standard input. Whatever it prints becomes the reply.",
@@ -150,6 +153,7 @@ export const en = {
   "err.prompt_file.not_found": "Prompt file not found",
   "err.not_executable": "Not an executable file ({detail})",
   "err.claude_not_found": "Claude Code not found",
+  "err.codex_not_found": "Codex not found",
   "err.duplicate": "Another rule has this name",
   "err.bad_name": "The name has characters that can't be used",
   "err.config_broken": "Can't read the config file ({detail})",
@@ -162,6 +166,7 @@ export const en = {
   "runs.running": "Running · {elapsed}",
   "runs.timeoutReason": "Stopped after the time limit ({sec} seconds)",
   "runs.signedOut": "Claude Code isn't signed in",
+  "runs.codexSignedOut": "Codex isn't signed in",
   "runs.filesNoScope": "The attached files weren't passed on: the Slack app doesn't have the `files:read` scope.",
   "runs.notHeard": "No posts from this channel have reached SockDock yet.",
   "runs.notHeardHelp": "If posts don't arrive",

@@ -20,7 +20,7 @@
 
   // MCP clients, in the order of docs/mcp.md §2.1.
   const mcpClients: [string, string][] = [
-    ["claude-code", "Claude Code"], ["codex", "Codex"], ["gemini", "Gemini CLI"], ["vscode", "VS Code"],
+    ["claude-code", "Claude Code"], ["codex", "Codex"], ["antigravity", "Antigravity"], ["vscode", "VS Code"],
     ["claude-desktop", "Claude Desktop"], ["cursor", "Cursor"], ["other", ""],
   ];
   const clientName = (id: string) => mcpClients.find(([k]) => k === id)?.[1] || t("settings.mcpOther");

@@ -99,6 +99,9 @@ type ClaudeCheck struct {
 	// SignedIn is whether Claude Code is signed in; absent when unknown or
 	// no rule runs Claude Code.
 	SignedIn *bool `json:"signed_in,omitempty"`
+	// Agents is whether each agent that a rule runs is signed in, by
+	// handler type ("claude", "codex"); unknown ones are left out.
+	Agents map[string]bool `json:"agents,omitempty"`
 }
 
 // claudeCheckAge is how long a sign-in answer is reused, so that focusing
@@ -110,7 +113,12 @@ func (s *Server) checkClaude(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("force") == "1" {
 		age = 0
 	}
-	writeJSON(w, http.StatusOK, ClaudeCheck{SignedIn: s.gw.CheckClaude(r.Context(), age)})
+	agents := s.gw.CheckAgents(r.Context(), age)
+	out := ClaudeCheck{Agents: agents}
+	if v, ok := agents["claude"]; ok {
+		out.SignedIn = &v
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 func (s *Server) events(w http.ResponseWriter, r *http.Request) {

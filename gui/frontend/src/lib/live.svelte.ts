@@ -40,14 +40,24 @@ export function startLive() {
 let signingIn = false;
 
 function checkClaude() {
-  if (live.snap?.status?.claude_signed_in === true) signingIn = false;
+  const signed = live.snap?.status?.signed_in;
+  if (signed && Object.values(signed).every(Boolean)) signingIn = false;
   App.CheckClaude(signingIn).catch(() => {});
 }
 
+/** The AI agents a rule can run (handler types), in the order the form lists them. */
+export const agents = ["claude", "codex"] as const;
+export type Agent = (typeof agents)[number];
+
 /** Opens Terminal to sign in to the Claude Code that rules run. */
 export async function signInClaude() {
+  await signInAgent("claude");
+}
+
+/** Opens Terminal to sign in to the agent that rules run. */
+export async function signInAgent(agent: string) {
   signingIn = true;
-  await App.SignInClaude();
+  await (agent === "codex" ? App.SignInCodex() : App.SignInClaude());
 }
 
 /** True unless the Slack app's Bot Token is known to lack the scope. */
@@ -58,13 +68,21 @@ export function hasScope(snap: Snapshot | null, scope: string): boolean {
 
 /** True when Claude Code is signed out and a rule that is on runs it. */
 export function claudeSignedOut(snap: Snapshot | null): boolean {
+  return agentSignedOut(snap, "claude");
+}
+
+/** True when the agent is signed out and a rule that is on runs it. */
+export function agentSignedOut(snap: Snapshot | null, agent: string): boolean {
   const st = snap?.status;
-  if (!snap?.running || st?.claude_signed_in !== false) return false;
-  return (st.routes ?? []).some((r) => r.type === "claude" && !r.paused);
+  const signedIn = st?.signed_in?.[agent] ?? (agent === "claude" ? st?.claude_signed_in : undefined);
+  if (!snap?.running || signedIn !== false) return false;
+  return (st?.routes ?? []).some((r) => r.type === agent && !r.paused);
 }
 
 /** The run error SockDock records when Claude Code is not signed in (handler.ReasonSignedOut). */
 export const reasonSignedOut = "Claude Code is not signed in";
+/** The same for Codex (handler.ReasonCodexSignedOut). */
+export const reasonCodexSignedOut = "Codex is not signed in";
 
 /** True until both tokens are set (the window shows setup). */
 export function needsSetup(snap: Snapshot | null): boolean {

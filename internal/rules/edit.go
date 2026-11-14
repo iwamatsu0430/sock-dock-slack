@@ -47,6 +47,8 @@ type Saved struct {
 	Problems []FieldProblem
 	// ClaudeCommand is set when settings.claude_command was filled in.
 	ClaudeCommand string
+	// CodexCommand is set when settings.codex_command was filled in.
+	CodexCommand string
 }
 
 // Save adds or updates a rule. A new rule, or one moved to another channel,
@@ -106,6 +108,19 @@ func Save(data []byte, raw *config.Config, f Form) (Saved, error) {
 				return Saved{}, err
 			}
 			out.ClaudeCommand = path
+		}
+	}
+	// Codex: the same, for settings.codex_command.
+	if f.Type == config.TypeCodex {
+		path, changed := codexCommandFix(raw)
+		switch {
+		case path == "":
+			return Saved{Problems: []FieldProblem{{Field: "type", Code: "codex_not_found"}}}, nil
+		case changed:
+			if content, err = config.SetSetting(content, "codex_command", path); err != nil {
+				return Saved{}, err
+			}
+			out.CodexCommand = path
 		}
 	}
 	out.Content = content
@@ -222,6 +237,22 @@ func claudeCommandFix(raw *config.Config) (path string, changed bool) {
 		}
 	}
 	found := DetectClaude()
+	if len(found) == 0 {
+		return "", false
+	}
+	return found[0], true
+}
+
+// codexCommandFix is claudeCommandFix for settings.codex_command.
+func codexCommandFix(raw *config.Config) (path string, changed bool) {
+	cur := []string(raw.Settings.CodexCommand)
+	if len(cur) > 0 && cur[0] != "" && cur[0] != "codex" {
+		p := paths.ExpandHome(cur[0])
+		if st, err := os.Stat(p); err == nil && !st.IsDir() && !strings.Contains(p, "/shims/") {
+			return p, false
+		}
+	}
+	found := DetectCodex()
 	if len(found) == 0 {
 		return "", false
 	}

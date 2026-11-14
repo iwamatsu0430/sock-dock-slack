@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { App, errorText, type ChannelList, type FieldProblem, type Member, type RouteForm, type Turn } from "../lib/api";
-  import { hasScope, live, reasonSignedOut, signInClaude } from "../lib/live.svelte";
+  import { hasScope, live, reasonCodexSignedOut, reasonSignedOut, signInAgent } from "../lib/live.svelte";
   import { i18n, t } from "../lib/i18n/index.svelte";
   import type { MessageKey } from "../lib/i18n/en";
   import Rich from "../lib/Rich.svelte";
@@ -149,9 +149,26 @@
       people = people.slice(0, -1);
     }
   }
+  // Claude Code or Codex (docs/design.md §3.8). Switching agents keeps the
+  // web and edit choices; Claude Code's commands stay in commandsText.
+  const isAgent = $derived(f.type === "claude" || f.type === "codex");
+  let lastAgent = $state("claude");
+  $effect(() => {
+    if (f.type === "claude" || f.type === "codex") lastAgent = f.type;
+  });
+  const agentSignedOut = $derived(
+    (live.snap?.status?.signed_in?.[f.type] ?? (f.type === "claude" ? live.snap?.status?.claude_signed_in : undefined)) === false,
+  );
   // Everyone in the channel can make the agent run commands or edit files.
+  // Codex always runs commands (in its sandbox).
   const openToAll = $derived(
-    f.restricted || f.type !== "claude" ? "" : commandsText.trim() ? "commands" : f.allow_edit ? "edit" : "",
+    f.restricted || !isAgent
+      ? ""
+      : f.type === "codex" || commandsText.trim()
+        ? "commands"
+        : f.allow_edit
+          ? "edit"
+          : "",
   );
   const problem = (field: string) => problemText(problems.find((p) => p.field === field));
   // SockDock knows which channels' posts reached it since it connected; when
@@ -167,7 +184,7 @@
       return c ? (c.private ? "🔒" : "#") + c.name : resolved || saved.channel;
     })(),
   );
-  const defaultTimeout = $derived(f.type === "claude" ? 600 : 300);
+  const defaultTimeout = $derived(isAgent ? 600 : 300);
   const howToURL = $derived(
     i18n.locale === "ja"
       ? "https://github.com/iwamatsu0430/sock-dock-slack/blob/main/README.ja.md#command"
@@ -323,16 +340,19 @@
     <h2>{t("rule.run")}</h2>
     <div class="ctl">
       <div class="seg">
-        <button class:on={f.type === "claude"} onclick={() => (f.type = "claude")}>{t("rule.kindClaude")}</button>
+        <button class:on={isAgent} onclick={() => (f.type = isAgent ? f.type : lastAgent)}>{t("rule.kindClaude")}</button>
         <button class:on={f.type === "command"} onclick={() => (f.type = "command")}>{t("rule.kindCommand")}</button>
       </div>
       {#if problem("type")}<p class="small bad-t">{problem("type")}</p>{/if}
-      {#if f.type === "claude"}
+      {#if isAgent}
         <div class="stack body">
           <div><label class="f small" for="r-agent">{t("rule.agent")}</label>
-            <select id="r-agent" class="narrow"><option>{t("agent.claude")}</option></select>
-            {#if live.snap?.status?.claude_signed_in === false}
-              <p class="small bad-t row signin">{t("banner.claude")}<button class="small" onclick={() => signInClaude().catch((e) => (error = errorText(e)))}>{t("claude.signIn")}</button></p>
+            <select id="r-agent" class="narrow" bind:value={f.type} onchange={() => (f.model = "")}>
+              <option value="claude">{t("agent.claude")}</option>
+              <option value="codex">{t("agent.codex")}</option>
+            </select>
+            {#if agentSignedOut}
+              <p class="small bad-t row signin">{t(f.type === "codex" ? "banner.codex" : "banner.claude")}<button class="small" onclick={() => signInAgent(f.type).catch((e) => (error = errorText(e)))}>{t("claude.signIn")}</button></p>
             {/if}</div>
           <div><label class="f small" for="r-folder">{t("rule.folder")}</label>
             <div class="row"><input id="r-folder" type="text" bind:value={f.folder} class:invalid={problem("folder")} /><button onclick={pickFolder}>{t("rule.choose")}</button></div>
@@ -342,9 +362,13 @@
           <div><span class="f small label">{t("rule.permissions")}</span>
             <label class="check"><input type="checkbox" bind:checked={f.allow_web} /> {t("rule.allowWeb")}</label>
             <label class="check"><input type="checkbox" bind:checked={f.allow_edit} /> {t("rule.allowEdit")}</label>
-            <label class="f small sub" for="r-cmds">{t("rule.commands")}</label>
-            <textarea id="r-cmds" rows="2" bind:value={commandsText} placeholder={t("rule.commandsPlaceholder")}></textarea>
-            <p class="small muted note">{t("rule.permissionsNote")}</p></div>
+            {#if f.type === "codex"}
+              <p class="small muted note">{t("rule.codexCommands")}</p>
+            {:else}
+              <label class="f small sub" for="r-cmds">{t("rule.commands")}</label>
+              <textarea id="r-cmds" rows="2" bind:value={commandsText} placeholder={t("rule.commandsPlaceholder")}></textarea>
+              <p class="small muted note">{t("rule.permissionsNote")}</p>
+            {/if}</div>
         </div>
       {:else}
         <div class="stack body">
@@ -360,7 +384,10 @@
 
   <details class="more" open={!!f.model || !!f.timeout_sec}>
     <summary>{t("rule.options")}</summary>
-    {#if f.type === "claude"}
+    {#if f.type === "codex"}
+      <div class="sec first"><h2>{t("rule.model")}</h2><div class="ctl">
+        <input type="text" class="narrow" bind:value={f.model} placeholder={t("rule.modelDefault")} /></div></div>
+    {:else if f.type === "claude"}
       <div class="sec first"><h2>{t("rule.model")}</h2><div class="ctl">
         <select class="narrow" bind:value={f.model}>
           <option value="">{t("rule.modelDefault")}</option>
@@ -368,7 +395,7 @@
           {#if f.model && !["opus", "sonnet", "haiku"].includes(f.model)}<option value={f.model}>{f.model}</option>{/if}
         </select></div></div>
     {/if}
-    <div class="sec" class:first={f.type !== "claude"}><h2>{t("rule.timeout")}</h2><div class="ctl">
+    <div class="sec" class:first={!isAgent}><h2>{t("rule.timeout")}</h2><div class="ctl">
       <div class="row"><input type="number" min="0" class="num" bind:value={f.timeout_sec} placeholder={String(defaultTimeout)} /><span class="muted">{t("rule.seconds")}</span></div></div></div>
   </details>
 
@@ -417,6 +444,7 @@
                   {:else}<span class={statusClass(r.status)}>{statusLabel(r.status)}</span>
                     {#if r.status === "timeout"}<div class="muted">{t("runs.timeoutReason", { sec: f.timeout_sec || defaultTimeout })}</div>
                     {:else if r.status === "error" && r.error === reasonSignedOut}<div class="muted">{t("runs.signedOut")}</div>
+                    {:else if r.status === "error" && r.error === reasonCodexSignedOut}<div class="muted">{t("runs.codexSignedOut")}</div>
                     {:else if r.status === "error" && r.error}<div class="muted reason">{r.error}</div>{/if}
                   {/if}
                   {#if r.file_problem === "missing_scope"}<div class="muted"><Rich key="runs.filesNoScope" /></div>{/if}
