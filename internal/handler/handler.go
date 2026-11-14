@@ -22,7 +22,28 @@ type InputMessage struct {
 	TS   string `json:"ts"`
 	User string `json:"user"`
 	Text string `json:"text"`
+	// Files are the files attached to the message (docs/design.md §3.6).
+	Files []InputFile `json:"files,omitempty"`
 }
+
+// InputFile is an attached file. Path is set when the file was saved for this
+// turn; otherwise Skipped says why it was not.
+type InputFile struct {
+	Name     string `json:"name"`
+	Mimetype string `json:"mimetype,omitempty"`
+	Size     int    `json:"size"`
+	Path     string `json:"path,omitempty"`
+	Skipped  string `json:"skipped,omitempty"`
+}
+
+// Reasons an attached file was not handed over (InputFile.Skipped).
+const (
+	SkipTooLarge    = "too_large"
+	SkipExternal    = "external"
+	SkipUnsupported = "unsupported"
+	SkipNoScope     = "no_scope"
+	SkipFailed      = "failed"
+)
 
 // Result is a handler's outcome.
 type Result struct {

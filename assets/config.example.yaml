@@ -6,6 +6,7 @@
 settings:
   max_concurrency: 3        # handlers running at the same time
   thread_ttl_days: 30       # how long a thread stays bound to its route
+  max_file_mb: 20           # larger attached files are not handed over to handlers
   ack_reaction: eyes        # reaction added while a message is being handled
   claude_command: claude    # used by claude handlers; prefer an absolute path under launchd
   language: auto            # messages posted to Slack: auto (system language), en, ja

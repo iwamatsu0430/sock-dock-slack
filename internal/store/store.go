@@ -23,6 +23,10 @@ const (
 	StatusStopped     = "stopped"
 )
 
+// FileProblemMissingScope: attached files were not handed over for lack of
+// the files:read scope (docs/design.md §3.6).
+const FileProblemMissingScope = "missing_scope"
+
 // Store wraps the database.
 type Store struct {
 	db  *sql.DB
@@ -54,6 +58,9 @@ type Turn struct {
 	StartedAt  time.Time  `json:"started_at"`
 	FinishedAt *time.Time `json:"finished_at,omitempty"`
 	CostUSD    float64    `json:"cost_usd,omitempty"`
+	// FileProblem is FileProblemMissingScope when attached files could not
+	// be handed over because the Slack app lacks files:read.
+	FileProblem string `json:"file_problem,omitempty"`
 	// Permalink is the thread's link (from the threads table).
 	Permalink string `json:"permalink,omitempty"`
 }
@@ -106,6 +113,10 @@ func Open(path string) (*Store, error) {
 	}
 	db.SetMaxOpenConns(1) // SQLite: serialize writes, avoid SQLITE_BUSY churn
 	if _, err := db.Exec(schema); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("migrate: %w", err)
+	}
+	if err := addColumn(db, "turns", "file_problem", "TEXT NOT NULL DEFAULT ''"); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
@@ -195,6 +206,12 @@ func (s *Store) FinishTurn(ctx context.Context, id int64, status, errMsg string,
 	return err
 }
 
+// SetFileProblem records why a turn's attached files were not handed over.
+func (s *Store) SetFileProblem(ctx context.Context, id int64, problem string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE turns SET file_problem = ? WHERE id = ?`, problem, id)
+	return err
+}
+
 // RunningTurns returns turns still marked as running.
 func (s *Store) RunningTurns(ctx context.Context) ([]Turn, error) {
 	return s.queryTurns(ctx, `WHERE status = ? ORDER BY id`, StatusRunning)
@@ -212,7 +229,7 @@ func (s *Store) ListRouteTurns(ctx context.Context, route string, limit int) ([]
 
 func (s *Store) queryTurns(ctx context.Context, tail string, args ...any) ([]Turn, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id, channel, thread_ts, message_ts, route, status, error,
-		started_at, finished_at, cost_usd, COALESCE((SELECT permalink FROM threads th
+		started_at, finished_at, cost_usd, file_problem, COALESCE((SELECT permalink FROM threads th
 		WHERE th.channel = turns.channel AND th.thread_ts = turns.thread_ts), '') FROM turns `+tail, args...)
 	if err != nil {
 		return nil, err
@@ -227,7 +244,7 @@ func (s *Store) queryTurns(ctx context.Context, tail string, args ...any) ([]Tur
 			finished sql.NullInt64
 		)
 		if err := rows.Scan(&t.ID, &t.Channel, &t.ThreadTS, &msgTS, &t.Route, &t.Status, &t.Error,
-			&started, &finished, &t.CostUSD, &t.Permalink); err != nil {
+			&started, &finished, &t.CostUSD, &t.FileProblem, &t.Permalink); err != nil {
 			return nil, err
 		}
 		_ = json.Unmarshal([]byte(msgTS), &t.MessageTS)
@@ -287,4 +304,28 @@ func scanThread(sc scanner) (*Thread, error) {
 	t.CreatedAt = time.Unix(created, 0)
 	t.LastActiveAt = time.Unix(active, 0)
 	return &t, nil
+}
+
+// addColumn adds a column to a table made by an earlier version.
+func addColumn(db *sql.DB, table, column, def string) error {
+	rows, err := db.Query(`SELECT name FROM pragma_table_info(?)`, table)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return err
+		}
+		if name == column {
+			return nil
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	rows.Close()
+	_, err = db.Exec(`ALTER TABLE ` + table + ` ADD COLUMN ` + column + ` ` + def)
+	return err
 }

@@ -125,7 +125,7 @@ Post `echo hello` in the channel: SockDock reacts with 👀, runs the handler an
 
 With the app you do not need steps 3–5 above or any YAML. Open SockDock from Applications (built from source: `open dist/SockDock.app` or `mise run gui`):
 
-1. **Setup** (first launch): *Open api.slack.com* opens Slack's "create an app" page with the manifest filled in. Install the app, generate an App-Level Token with `connections:write`, then paste both tokens and press **Connect to Slack**. The tokens are checked with Slack first and saved to the Keychain only if both work. To use a Slack app you already have, open **Use a Slack app you already have** in setup: it lists the settings (Socket Mode, the `message.channels`/`message.groups` events, Bot Token scopes, and for DMs the optional `message.im` event, `im:history` scope and Messages tab) and copies the part to add to its App Manifest. With Socket Mode on, that app's events go only to SockDock. If required scopes are missing, **Connect to Slack** names them.
+1. **Setup** (first launch): *Open api.slack.com* opens Slack's "create an app" page with the manifest filled in. Install the app, generate an App-Level Token with `connections:write`, then paste both tokens and press **Connect to Slack**. The tokens are checked with Slack first and saved to the Keychain only if both work. To use a Slack app you already have, open **Use a Slack app you already have** in setup: it lists the settings (Socket Mode, the `message.channels`/`message.groups` events, Bot Token scopes, for DMs the optional `message.im` event, `im:history` scope and Messages tab, and for attached files the optional `files:read` scope) and copies the part to add to its App Manifest. With Socket Mode on, that app's events go only to SockDock. If required scopes are missing, **Connect to Slack** names them.
 2. **Rules → Add Rule**: pick the channel (channels the Slack app has been added to are listed; without the `channels:read`/`groups:read` scopes, enter a channel ID or link) or **DM**, choose who can run it (everyone in the channel, or people you choose by name), choose which posts it reacts to (starting with, containing, a regular expression, or all; tick *Only when mentioned* to need a mention of the Slack app), and choose what runs — an AI agent (Claude Code) in a working folder, with instructions and what it may do, or a program. The list is grouped by channel and shows each rule's last run. Within a channel the rule higher up comes first; drag ⠿ to reorder. Open a rule for recent runs, thread links and **Stop**.
 3. Post something like `<keyword> …` in the channel.
 
@@ -168,6 +168,24 @@ Every handler receives this JSON (on stdin for command handlers):
 
 `groups` holds the values taken from the first message (see the table above) and is passed on every turn of the thread.
 
+### Attached files
+
+Files attached to a post or a thread reply (screenshots, logs, PDFs, …) are handed over with it, so you can ask "look at this screenshot". A message with files gets a `files` list:
+
+```json
+"messages": [{ "ts": "1762920000.000100", "user": "U0123", "text": "check this log",
+  "files": [
+    { "name": "app.log", "mimetype": "text/plain", "size": 18233, "path": "/Users/me/Library/Caches/sockdock/files/812/app.log" },
+    { "name": "build.zip", "mimetype": "application/zip", "size": 73400320, "skipped": "too_large" }
+  ] }]
+```
+
+- The files are saved for this run only (in `~/Library/Caches/sockdock/files/`, outside the rule's folder) and deleted when it ends. Copy them if you need them later.
+- A file that is not handed over has `skipped` instead of `path`: `too_large` (over `settings.max_file_mb`, 20 MB by default), `external` (stored outside Slack, e.g. Google Drive), `unsupported` (Slack posts and canvases), `no_scope` (the Slack app lacks `files:read`) or `failed`. The run goes ahead with the text and the other files; SockDock posts nothing about it, so the handler decides whether to mention it.
+- Only files of posts that start or continue a run are fetched. Posts from people a rule does not allow are never fetched.
+- This needs the `files:read` Bot Token scope, which the bundled manifest includes. If you created your Slack app earlier, add `files:read` and reinstall the app; until then the rule's recent runs say the files were not passed on. `files:read` can read files in the channels and DMs the Slack app is in; SockDock reads only the files of posts that run a rule.
+- File contents are untrusted input, just like the post text: a screenshot or a log can contain instructions aimed at the agent.
+
 ### command
 
 ```yaml
@@ -198,6 +216,7 @@ handler:
 - Runs `claude -p --output-format json --permission-mode dontAsk` with your `allowed_tools`; anything else that needs approval is denied. Read, Glob and Grep are available; MCP tools are off unless `allow_mcp: true`.
 - Each thread keeps its session and resumes it on the next reply. If it cannot be resumed, a new conversation starts and the thread is told so.
 - Messages that arrive while Claude is working are handed over together in the next turn.
+- Attached files are listed in the prompt with their paths, and for that turn the agent may read their folder (`Read(//…/**)` is added to the allowed tools). Claude Code's Read shows images and PDFs too. Files from earlier turns are gone, but what the agent read stays in the conversation.
 - Claude Code uses your own login. Because `--bare` is not used, the project's `.claude/settings.json`, `CLAUDE.md` and hooks apply too — take them into account when deciding what a route may do.
 - Set `settings.claude_command` to an absolute path: version-manager shims (mise, asdf, …) often fail when SockDock starts Claude Code. The menu bar app gives handlers your login shell's `PATH`; `sockdock service install` records the `PATH` it was run with.
 
@@ -242,6 +261,7 @@ Codes are accepted for 10 minutes after you start, and five wrong codes end it. 
 settings:
   max_concurrency: 3        # handlers running at the same time (restart to change)
   thread_ttl_days: 30       # how long a thread stays bound to its route
+  max_file_mb: 20           # larger attached files are not handed over
   ack_reaction: eyes
   claude_command: claude    # string or list; per-route `command` overrides it
   language: auto            # canned replies posted to Slack: auto, en, ja
@@ -274,7 +294,7 @@ settings:
 | `sockdock manifest` | Print the Slack app manifest |
 | `sockdock mcp` | Serve MCP over stdio (see "MCP" below) |
 
-Files: data and the control socket are in `~/Library/Application Support/sockdock/`, logs in `~/Library/Logs/sockdock/`.
+Files: data and the control socket are in `~/Library/Application Support/sockdock/`, logs in `~/Library/Logs/sockdock/`, attached files (only while a run uses them) in `~/Library/Caches/sockdock/files/`.
 
 ## MCP
 

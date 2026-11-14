@@ -21,6 +21,12 @@ export class Turn {
     "cost_usd"?: number;
 
     /**
+     * FileProblem is FileProblemMissingScope when attached files could not
+     * be handed over because the Slack app lacks files:read.
+     */
+    "file_problem"?: string;
+
+    /**
      * Permalink is the thread's link (from the threads table).
      */
     "permalink"?: string;

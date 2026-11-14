@@ -14,6 +14,10 @@ type Dirs struct {
 	ConfigFile string // config.yaml
 	DataDir    string // database, lock file, control socket
 	LogDir     string
+	// FilesDir holds attached files while a turn runs (docs/design.md §3.6).
+	// It is under Caches so the path has no spaces and can be written into
+	// Claude Code's permission rules as is.
+	FilesDir string
 }
 
 // Default resolves directories for the current platform.
@@ -32,6 +36,7 @@ func Default() Dirs {
 			ConfigFile: filepath.Join(base, "config.yaml"),
 			DataDir:    base,
 			LogDir:     filepath.Join(home, "Library", "Logs", appName),
+			FilesDir:   filepath.Join(home, "Library", "Caches", appName, "files"),
 		}
 	default:
 		cfgHome := envOr("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
@@ -40,6 +45,7 @@ func Default() Dirs {
 			ConfigFile: filepath.Join(cfgHome, appName, "config.yaml"),
 			DataDir:    filepath.Join(stateHome, appName),
 			LogDir:     filepath.Join(stateHome, appName, "logs"),
+			FilesDir:   filepath.Join(envOr("XDG_CACHE_HOME", filepath.Join(home, ".cache")), appName, "files"),
 		}
 	}
 	if v := os.Getenv("SOCKDOCK_CONFIG"); v != "" {
@@ -48,6 +54,7 @@ func Default() Dirs {
 	if v := os.Getenv("SOCKDOCK_DATA_DIR"); v != "" {
 		d.DataDir = v
 		d.LogDir = filepath.Join(v, "logs")
+		d.FilesDir = filepath.Join(v, "files")
 	}
 	if v := os.Getenv("SOCKDOCK_LOG_DIR"); v != "" {
 		d.LogDir = v

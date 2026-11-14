@@ -191,10 +191,16 @@ func (t *tools) checkRule(ctx context.Context, _ *mcp.CallToolRequest, in NameIn
 	turns, err := t.b.RouteTurns(ctx, in.Name, 5)
 	if err == nil {
 		var failed []string
+		noFiles := false
 		for _, tr := range turns {
 			if tr.Status == store.StatusError || tr.Status == store.StatusTimeout {
 				failed = append(failed, runOf(tr).Status+": "+runOf(tr).Error)
 			}
+			noFiles = noFiles || tr.FileProblem == store.FileProblemMissingScope
+		}
+		if noFiles {
+			out.Findings = append(out.Findings, Finding{OK: false, Check: "attached files",
+				Message: "A recent post had attached files, but they were not handed to the rule because the Slack app lacks the files:read scope. The rule still ran with the text. Ask the user to add files:read to the Slack app and reinstall it."})
 		}
 		switch {
 		case len(turns) == 0:

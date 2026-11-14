@@ -33,6 +33,9 @@ type Options struct {
 	Log              *slog.Logger
 	SystemPromptFile string
 	Version          string
+	// FilesDir is where turns keep attached files while they run
+	// (docs/design.md §3.6).
+	FilesDir string
 
 	// Overridable for tests.
 	RunCommand func(context.Context, *config.Route, handler.Input, handler.Env) (handler.Result, error)
@@ -193,6 +196,7 @@ func (g *Gateway) Start(ctx context.Context) error {
 	g.mu.Unlock()
 
 	g.recoverInterrupted(ctx)
+	g.clearFiles()
 	return nil
 }
 
@@ -355,10 +359,6 @@ func (g *Gateway) process(key string, batch []event.Message) {
 	g.setRunning(key, &rt)
 	g.broadcast(Event{Type: "turn_started", Data: rt})
 
-	in := handler.Input{
-		Route: r.Name, Turn: th.Turns + 1, Channel: channel, ThreadTS: threadTS,
-		Permalink: permalink, Groups: th.Groups, Messages: inMsgs,
-	}
 	env := handler.Env{Path: cfg.SearchPath()}
 	turnCtx, cancelTurn := context.WithCancel(g.runCtx)
 	defer cancelTurn()
@@ -366,20 +366,60 @@ func (g *Gateway) process(key string, batch []event.Message) {
 	g.stops[turnID] = cancelTurn
 	g.mu.Unlock()
 	log := g.log.With("route", r.Name, "turn", turnID, "channel", channel, "thread_ts", threadTS)
-	log.Info("handler started", "type", r.Handler.Type, "messages", len(batch))
 	start := g.opts.Now()
 
+	// Attached files are fetched within the turn's time limit and removed
+	// when the turn ends (docs/design.md §3.6).
+	fetchCtx, cancelFetch := context.WithCancel(turnCtx)
+	if r.Handler.TimeoutSec > 0 {
+		cancelFetch()
+		fetchCtx, cancelFetch = context.WithTimeout(turnCtx, time.Duration(r.Handler.TimeoutSec)*time.Second)
+	}
+	files := g.fetchFiles(fetchCtx, turnID, batch, cfg.Settings.MaxFileMB, log)
+	timedOut := fetchCtx.Err() == context.DeadlineExceeded
+	cancelFetch()
+	if files.dir != "" {
+		defer func() {
+			if err := os.RemoveAll(files.dir); err != nil {
+				log.Warn("could not remove attached files", "err", err)
+			}
+		}()
+	}
+	if files.problem != "" {
+		if err := g.opts.Store.SetFileProblem(ctx, turnID, files.problem); err != nil {
+			log.Warn("could not record the file problem", "err", err)
+		}
+	}
+	for i := range inMsgs {
+		inMsgs[i].Files = files.byTS[inMsgs[i].TS]
+	}
+	in := handler.Input{
+		Route: r.Name, Turn: th.Turns + 1, Channel: channel, ThreadTS: threadTS,
+		Permalink: permalink, Groups: th.Groups, Messages: inMsgs,
+	}
+	// The handler gets what is left of the time limit.
+	run := r
+	if spent := g.opts.Now().Sub(start); spent >= time.Second && r.Handler.TimeoutSec > 0 {
+		rc := *r
+		rc.Handler.TimeoutSec = max(1, r.Handler.TimeoutSec-int(spent/time.Second))
+		run = &rc
+	}
+	log.Info("handler started", "type", r.Handler.Type, "messages", len(batch), "files_dir", files.dir)
+
 	var res handler.Result
-	switch r.Handler.Type {
-	case config.TypeClaude:
-		res, err = g.opts.RunClaude(turnCtx, r, in, handler.ClaudeOptions{
+	switch {
+	case timedOut:
+		err = handler.ErrTimeout
+	case r.Handler.Type == config.TypeClaude:
+		res, err = g.opts.RunClaude(turnCtx, run, in, handler.ClaudeOptions{
 			Command:          cfg.ClaudeCommandFor(r),
 			SystemPromptFile: g.opts.SystemPromptFile,
 			SessionID:        th.SessionID,
 			InstructionsFile: g.instructionsFile(r, log),
+			FilesDir:         files.dir,
 		}, env)
 	default:
-		res, err = g.opts.RunCommand(turnCtx, r, in, env)
+		res, err = g.opts.RunCommand(turnCtx, run, in, env)
 	}
 	g.mu.Lock()
 	stoppedByUser := g.stopped[turnID]

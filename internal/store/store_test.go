@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"path/filepath"
 	"testing"
 	"time"
@@ -93,5 +94,39 @@ func TestTurnsAndState(t *testing.T) {
 	_ = s.SetState(ctx, "k", []string{"b"})
 	if ok, _ := s.GetState(ctx, "k", &v); !ok || len(v) != 1 || v[0] != "b" {
 		t.Fatalf("state = %v", v)
+	}
+}
+
+func TestFileProblemColumnAddedToOldDatabase(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "old.db")
+	db, err := sql.Open("sqlite", "file:"+path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// turns as created before file_problem existed.
+	if _, err := db.Exec(`CREATE TABLE turns (id INTEGER PRIMARY KEY AUTOINCREMENT, channel TEXT NOT NULL,
+		thread_ts TEXT NOT NULL, message_ts TEXT NOT NULL DEFAULT '[]', route TEXT NOT NULL, status TEXT NOT NULL,
+		error TEXT NOT NULL DEFAULT '', started_at INTEGER NOT NULL, finished_at INTEGER, cost_usd REAL NOT NULL DEFAULT 0);
+		INSERT INTO turns(channel, thread_ts, route, status, started_at) VALUES ('C1', '1.1', 'r', 'ok', 1);`); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+
+	s, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if err := s.SetFileProblem(ctx, 1, FileProblemMissingScope); err != nil {
+		t.Fatal(err)
+	}
+	turns, err := s.ListTurns(ctx, 1)
+	if err != nil || len(turns) != 1 || turns[0].FileProblem != FileProblemMissingScope {
+		t.Fatalf("turns = %+v, err %v", turns, err)
+	}
+	s.Close()
+	if s, err = Open(path); err != nil { // opening again must not add it twice
+		t.Fatal(err)
 	}
 }

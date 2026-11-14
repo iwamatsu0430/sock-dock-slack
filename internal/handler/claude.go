@@ -21,6 +21,9 @@ type ClaudeOptions struct {
 	SessionID string
 	// InstructionsFile holds the route's inline instructions, if any.
 	InstructionsFile string
+	// FilesDir is the folder of this turn's attached files ("" when none).
+	// The agent may read it for this turn only.
+	FilesDir string
 }
 
 // claudeResult is the subset of `claude -p --output-format json` we use.
@@ -114,9 +117,14 @@ func ClaudeArgs(h config.Handler, opts ClaudeOptions) []string {
 	if tools := claudeTools(h); tools != "" {
 		args = append(args, "--tools", tools)
 	}
-	if len(h.AllowedTools) > 0 {
+	allowed := append([]string{}, h.AllowedTools...)
+	if opts.FilesDir != "" {
+		// An absolute path in a permission rule starts with "//".
+		allowed = append(allowed, "Read(/"+opts.FilesDir+"/**)")
+	}
+	if len(allowed) > 0 {
 		args = append(args, "--allowedTools")
-		args = append(args, h.AllowedTools...)
+		args = append(args, allowed...)
 	}
 	if !h.AllowMCP {
 		args = append(args, "--disallowedTools", "mcp__*")
@@ -176,6 +184,13 @@ func ClaudePrompt(in Input) string {
 	}
 	for _, m := range in.Messages {
 		fmt.Fprintf(&b, "<slack_message ts=%q user=%q>\n%s\n", m.TS, m.User, escapeTag(m.Text))
+		for _, f := range m.Files {
+			if f.Path != "" {
+				fmt.Fprintf(&b, "<slack_file name=%q type=%q size=\"%d\" path=%q />\n", f.Name, f.Mimetype, f.Size, f.Path)
+			} else {
+				fmt.Fprintf(&b, "<slack_file name=%q type=%q size=\"%d\" skipped=%q />\n", f.Name, f.Mimetype, f.Size, f.Skipped)
+			}
+		}
 		b.WriteString("</slack_message>\n")
 	}
 	return b.String()

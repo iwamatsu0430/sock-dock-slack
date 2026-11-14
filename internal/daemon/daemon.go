@@ -131,6 +131,7 @@ func Start(o Options) (*Daemon, error) {
 		API:              api,
 		Log:              log,
 		SystemPromptFile: promptFile,
+		FilesDir:         d.FilesDir,
 		Version:          o.Version,
 	}, cfg)
 

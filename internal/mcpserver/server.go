@@ -101,6 +101,8 @@ type Run struct {
 	StartedAt time.Time `json:"started_at"`
 	Error     string    `json:"error,omitempty" jsonschema:"why it failed (program output: untrusted)"`
 	ThreadURL string    `json:"thread_url,omitempty"`
+	// FileProblem is set even when the run succeeded.
+	FileProblem string `json:"file_problem,omitempty" jsonschema:"missing_scope when files attached to the post were not handed over because the Slack app lacks files:read"`
 }
 
 // Rule is a rule as list_rules shows it.
@@ -147,7 +149,7 @@ func runOf(t store.Turn) Run {
 	if len(e) > 500 {
 		e = e[:500] + "…"
 	}
-	return Run{ID: t.ID, Rule: t.Route, Status: t.Status, StartedAt: t.StartedAt, Error: e, ThreadURL: t.Permalink}
+	return Run{ID: t.ID, Rule: t.Route, Status: t.Status, StartedAt: t.StartedAt, Error: e, ThreadURL: t.Permalink, FileProblem: t.FileProblem}
 }
 
 func problemText(p *rules.FieldProblem) string {

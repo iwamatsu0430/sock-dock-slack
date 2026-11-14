@@ -65,6 +65,9 @@ type Settings struct {
 	// notice for every failed run.
 	NotifyDM         bool `yaml:"notify_dm"`
 	NotifyDMFailures bool `yaml:"notify_dm_failures"`
+	// MaxFileMB is the size limit of one attached file handed to handlers
+	// (docs/design.md §3.6).
+	MaxFileMB int `yaml:"max_file_mb"`
 
 	// ResolvedLanguage is Language after resolving "auto".
 	ResolvedLanguage string `yaml:"-"`
@@ -158,6 +161,7 @@ const (
 	DefaultAckReaction       = "eyes"
 	DefaultCommandTimeoutSec = 300
 	DefaultClaudeTimeoutSec  = 600
+	DefaultMaxFileMB         = 20
 )
 
 // DefaultMessages are the English canned replies.
@@ -306,6 +310,9 @@ func (c *Config) applyDefaults() {
 	}
 	if s.ThreadTTLDays <= 0 {
 		s.ThreadTTLDays = DefaultThreadTTLDays
+	}
+	if s.MaxFileMB <= 0 {
+		s.MaxFileMB = DefaultMaxFileMB
 	}
 	if s.AckReaction == "" {
 		s.AckReaction = DefaultAckReaction

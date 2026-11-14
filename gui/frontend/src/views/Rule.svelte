@@ -419,6 +419,7 @@
                     {:else if r.status === "error" && r.error === reasonSignedOut}<div class="muted">{t("runs.signedOut")}</div>
                     {:else if r.status === "error" && r.error}<div class="muted reason">{r.error}</div>{/if}
                   {/if}
+                  {#if r.file_problem === "missing_scope"}<div class="muted"><Rich key="runs.filesNoScope" /></div>{/if}
                 </td>
                 <td class="nowrap actions">
                   {#if r.status === "running"}<button class="small" onclick={() => stop(r.id)}>{t("runs.stop")}</button>{/if}

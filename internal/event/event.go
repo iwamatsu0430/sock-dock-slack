@@ -12,6 +12,24 @@ type Message struct {
 	Text     string `json:"text"`
 	// ChannelType is Slack's channel_type: "channel", "group", "im" or "mpim".
 	ChannelType string `json:"channel_type,omitempty"`
+	// Files are the files attached to the message (docs/design.md §3.6).
+	Files []File `json:"files,omitempty"`
+}
+
+// File is a file attached to a message, as Slack describes it in the event.
+type File struct {
+	ID       string `json:"id"`
+	Name     string `json:"name,omitempty"`
+	Mimetype string `json:"mimetype,omitempty"`
+	Size     int    `json:"size,omitempty"`
+	// Mode is Slack's mode: "hosted", "snippet", "external", "post", ...
+	Mode       string `json:"mode,omitempty"`
+	IsExternal bool   `json:"is_external,omitempty"`
+	// URL is url_private_download.
+	URL string `json:"url,omitempty"`
+	// FileAccess is "check_file_info" when Slack left the details out of
+	// the event (Slack Connect); they are then read with files.info.
+	FileAccess string `json:"file_access,omitempty"`
 }
 
 // IsIM reports whether the message is a DM to the Slack app.

@@ -19,6 +19,7 @@ import (
 	"github.com/iwamatsu0430/sock-dock-slack/internal/control"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/secret"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/service"
+	"github.com/iwamatsu0430/sock-dock-slack/internal/store"
 )
 
 func client(g *globals) *control.Client { return control.NewClient(g.dirs.SocketPath()) }
@@ -311,7 +312,12 @@ func turnsCmd(g *globals) *cobra.Command {
 				if t.FinishedAt != nil {
 					dur = t.FinishedAt.Sub(t.StartedAt).String()
 				}
-				fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%s\n", t.ID, t.StartedAt.Format("01-02 15:04:05"), dur, t.Route, t.Status, truncate(t.Error, 60))
+				msg := truncate(t.Error, 60)
+				if t.FileProblem == store.FileProblemMissingScope {
+					// Attached files were not handed over (docs/design.md §3.6).
+					msg = strings.TrimSpace(msg + " (files not passed: no files:read scope)")
+				}
+				fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%s\n", t.ID, t.StartedAt.Format("01-02 15:04:05"), dur, t.Route, t.Status, msg)
 			}
 			return w.Flush()
 		},

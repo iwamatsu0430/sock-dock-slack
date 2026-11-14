@@ -26,6 +26,7 @@ oauth_config:
       - groups:read
       - users:read      # lets you choose who can run a rule by name
       - im:history      # receives DMs sent to the app (DM rules, registering yourself)
+      - files:read      # hands files attached to a post to the rule that runs
 settings:
   event_subscriptions:
     bot_events:

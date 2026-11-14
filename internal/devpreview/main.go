@@ -8,15 +8,20 @@
 //
 //	curl 'http://127.0.0.1:8766/dm?text=123456'
 //
+// Add file=<name> to attach a file to the DM.
+//
 // Environment: SOCKDOCK_DATA_DIR (required), SOCKDOCK_CONFIG (default
 // <data>/config.yaml, written with sample rules when missing),
-// PREVIEW_NO_IM=1 (the Slack app lacks im:history), PREVIEW_DM_ADDR
+// PREVIEW_NO_IM=1 (the Slack app lacks im:history), PREVIEW_NO_FILES=1 (it
+// lacks files:read), PREVIEW_DM_ADDR
 // (default 127.0.0.1:8766).
 package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -65,6 +70,18 @@ func (fakeSlack) ChannelInfo(_ context.Context, id string) (slackio.Channel, err
 	return slackio.Channel{ID: id, Name: "dev-help"}, nil
 }
 func (f fakeSlack) Scopes(context.Context) ([]string, error) { return f.scopes, nil }
+func (f fakeSlack) FileInfo(context.Context, string) (event.File, error) {
+	return event.File{}, errors.New("not in the preview")
+}
+
+// DownloadFile writes a short text, or fails like Slack without files:read.
+func (f fakeSlack) DownloadFile(_ context.Context, _ string, w io.Writer) error {
+	if len(slackio.MissingScopes(f.scopes, []string{slackio.ScopeFilesRead})) > 0 {
+		return slackio.ErrNoFileAccess
+	}
+	_, err := io.WriteString(w, "preview file")
+	return err
+}
 
 const sampleConfig = `settings:
   language: auto
@@ -127,12 +144,17 @@ func run() error {
 	}
 	defer db.Close()
 
-	scopes := append(append([]string{}, slackio.RequiredBotScopes...), slackio.OptionalBotScopes...)
-	if os.Getenv("PREVIEW_NO_IM") != "" {
-		scopes = scopes[:len(scopes)-1] // OptionalBotScopes ends with im:history
+	var scopes []string
+	for _, sc := range append(append([]string{}, slackio.RequiredBotScopes...), slackio.OptionalBotScopes...) {
+		if sc == slackio.ScopeIMHistory && os.Getenv("PREVIEW_NO_IM") != "" ||
+			sc == slackio.ScopeFilesRead && os.Getenv("PREVIEW_NO_FILES") != "" {
+			continue
+		}
+		scopes = append(scopes, sc)
 	}
 	gw := gateway.New(gateway.Options{
 		ConfigPath: dirs.ConfigFile, Store: db, API: fakeSlack{log: log, scopes: scopes}, Log: log, Version: "preview",
+		FilesDir: dirs.FilesDir,
 	}, cfg)
 	if err := gw.Start(context.Background()); err != nil {
 		return err
@@ -154,7 +176,12 @@ func run() error {
 	go func() {
 		_ = http.ListenAndServe(addr, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ts := fmt.Sprintf("%d.%06d", time.Now().Unix(), n.Add(1))
-			gw.HandleMessage(event.Message{Channel: "D0TARO", ChannelType: "im", TS: ts, User: "U02TARO", Text: r.URL.Query().Get("text")})
+			m := event.Message{Channel: "D0TARO", ChannelType: "im", TS: ts, User: "U02TARO", Text: r.URL.Query().Get("text")}
+			if name := r.URL.Query().Get("file"); name != "" {
+				m.SubType = "file_share"
+				m.Files = []event.File{{ID: "F" + ts, Name: name, Mimetype: "text/plain", Size: 12, Mode: "hosted", URL: "https://files.slack.com/preview/" + name}}
+			}
+			gw.HandleMessage(m)
 			fmt.Fprintln(w, "sent")
 		}))
 	}()

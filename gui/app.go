@@ -345,6 +345,7 @@ oauth_config:
       - groups:read
       - users:read
       - im:history
+      - files:read
 settings:
   event_subscriptions:
     bot_events:

@@ -163,5 +163,11 @@ func convert(m *slackevents.MessageEvent) event.Message {
 	if m.Message != nil && out.Text == "" {
 		out.Text = m.Message.Text
 	}
+	// slackevents fills Message for new messages too; the files are there.
+	if m.Message != nil {
+		for _, f := range m.Message.Files {
+			out.Files = append(out.Files, convertFile(f))
+		}
+	}
 	return out
 }
