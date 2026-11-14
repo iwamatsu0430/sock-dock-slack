@@ -22,6 +22,13 @@ const (
 	TypeClaude  = "claude"
 )
 
+// ChannelDM is the channel of rules that react to DMs to the Slack app, from
+// anyone (docs/design.md §3.5).
+const ChannelDM = "dm"
+
+// IsDM reports whether the route reacts to DMs.
+func (r *Route) IsDM() bool { return r.Channel == ChannelDM }
+
 // Config is the whole config file.
 type Config struct {
 	Settings Settings `yaml:"settings"`
@@ -51,13 +58,20 @@ type Settings struct {
 	// the system), "en" or "ja".
 	Language string   `yaml:"language"`
 	Messages Messages `yaml:"messages"`
+	// Owner is the member ID of the person who uses SockDock ("本人"),
+	// registered with a code sent by DM (docs/design.md §3.5).
+	Owner string `yaml:"owner"`
+	// NotifyDM sends notices to the owner by DM; NotifyDMFailures adds a
+	// notice for every failed run.
+	NotifyDM         bool `yaml:"notify_dm"`
+	NotifyDMFailures bool `yaml:"notify_dm_failures"`
 
 	// ResolvedLanguage is Language after resolving "auto".
 	ResolvedLanguage string `yaml:"-"`
 }
 
 // Messages are the canned replies posted by the gateway. Placeholders:
-// {route}, {timeout_sec}.
+// {route}, {timeout_sec}; in the owner's DM also {rule}, {reason}, {link}.
 type Messages struct {
 	Timeout      string `yaml:"timeout"`
 	Error        string `yaml:"error"`
@@ -66,6 +80,13 @@ type Messages struct {
 	RouteMissing string `yaml:"route_missing"`
 	RoutePaused  string `yaml:"route_paused"`
 	ResumeFailed string `yaml:"resume_failed"`
+
+	// Sent to the owner by DM (docs/ia.md §3「本人への DM」).
+	WrongCode       string `yaml:"wrong_code"`
+	Registered      string `yaml:"registered"`
+	ClaudeSignedOut string `yaml:"claude_signed_out"`
+	RuleChangedMCP  string `yaml:"rule_changed_mcp"`
+	RunFailed       string `yaml:"run_failed"`
 }
 
 // Route binds a condition on top-level posts in a channel to a handler. The
@@ -78,6 +99,9 @@ type Route struct {
 	Contains   string `yaml:"contains"`
 	Match      string `yaml:"match"`
 	AllPosts   bool   `yaml:"all_posts"`
+	// MentionOnly limits the route to posts that mention the Slack app
+	// ("メンションされたときだけ").
+	MentionOnly bool `yaml:"mention_only"`
 	// AllowedUsers are the Slack member IDs who may run the route ("実行できる
 	// 人"). Empty means everyone in the channel (docs/design.md §3.4).
 	AllowedUsers []string `yaml:"allowed_users"`
@@ -149,6 +173,12 @@ var defaultMessages = map[string]Messages{
 		RouteMissing: "⚠️ The rule for this thread has been deleted.",
 		RoutePaused:  "⏸ The rule for this thread is turned off.",
 		ResumeFailed: "ℹ️ Couldn't pick up the previous conversation, so this started a new one.",
+
+		WrongCode:       "⚠️ That code isn't right.",
+		Registered:      "✅ You're registered. Notices from SockDock will come to this DM.",
+		ClaudeSignedOut: "⚠️ Claude Code isn't signed in, so AI agent rules can't run. Sign in from SockDock on the Mac.",
+		RuleChangedMCP:  "{rule} was changed through MCP",
+		RunFailed:       "⚠️ {rule} failed. {reason} {link}",
 	},
 	"ja": {
 		Timeout:      "⏱ 上限時間（{timeout_sec} 秒）を超えたため停止しました。内容を分けて送ってください。",
@@ -158,6 +188,12 @@ var defaultMessages = map[string]Messages{
 		RouteMissing: "⚠️ このスレッドのルールは削除されています。",
 		RoutePaused:  "⏸ このスレッドのルールはオフになっています。",
 		ResumeFailed: "ℹ️ 前の会話を引き継げなかったため、新しい会話として始めました。",
+
+		WrongCode:       "⚠️ コードが違います。",
+		Registered:      "✅ 登録しました。SockDock からのお知らせは、この DM に届きます。",
+		ClaudeSignedOut: "⚠️ Claude Code にサインインしていないため、AI エージェントのルールが動きません。Mac の SockDock でサインインしてください。",
+		RuleChangedMCP:  "MCP から {rule} を変更しました",
+		RunFailed:       "⚠️ {rule} の処理が失敗しました。{reason} {link}",
 	},
 }
 
@@ -285,6 +321,8 @@ func (c *Config) applyDefaults() {
 	}{
 		{&m.Timeout, d.Timeout}, {&m.Error, d.Error}, {&m.Stopped, d.Stopped}, {&m.Interrupted, d.Interrupted},
 		{&m.RouteMissing, d.RouteMissing}, {&m.RoutePaused, d.RoutePaused}, {&m.ResumeFailed, d.ResumeFailed},
+		{&m.WrongCode, d.WrongCode}, {&m.Registered, d.Registered}, {&m.ClaudeSignedOut, d.ClaudeSignedOut},
+		{&m.RuleChangedMCP, d.RuleChangedMCP}, {&m.RunFailed, d.RunFailed},
 	} {
 		if *p.v == "" {
 			*p.v = p.def
@@ -308,6 +346,9 @@ func (c *Config) prepare(lookupEnv func(string) (string, bool)) (global []string
 
 	if !locale.Valid(c.Settings.Language) {
 		add("settings.language: %q is not supported (use auto, %s)", c.Settings.Language, strings.Join(locale.Supported, ", "))
+	}
+	if o := c.Settings.Owner; o != "" && !IsMemberID(o) {
+		add("settings.owner: %q is not a Slack member ID (like U0123ABCD)", o)
 	}
 
 	// Settings may only reference the process environment.
@@ -405,6 +446,9 @@ func (c *Config) prepare(lookupEnv func(string) (string, bool)) (global []string
 
 		if r.Channel == "" {
 			add("%s: channel is required", label)
+		}
+		if r.MentionOnly && r.IsDM() {
+			add("%s: mention_only can't be used with channel: dm (a DM is already addressed to the Slack app)", label)
 		}
 		if p := r.conditionProblem(); p != "" {
 			add("%s: %s", label, p)

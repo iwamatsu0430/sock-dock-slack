@@ -58,6 +58,11 @@ func NewServer(gw *gateway.Gateway, log *slog.Logger, logFile string) *Server {
 	mux.HandleFunc("GET /v1/channels", s.channels)
 	mux.HandleFunc("GET /v1/users", s.users)
 	mux.HandleFunc("POST /v1/claude/check", s.checkClaude)
+	mux.HandleFunc("GET /v1/owner", s.getOwner)
+	mux.HandleFunc("DELETE /v1/owner", s.clearOwner)
+	mux.HandleFunc("POST /v1/owner/registration", s.startRegistration)
+	mux.HandleFunc("DELETE /v1/owner/registration", s.cancelRegistration)
+	mux.HandleFunc("PUT /v1/notify", s.setNotify)
 	s.srv = &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	s.closing = make(chan struct{})
 	s.srv.RegisterOnShutdown(func() { close(s.closing) })
@@ -267,6 +272,9 @@ type MatchRequest struct {
 	// User is the poster's member ID. When it is empty, who posted is not
 	// considered, and AllowedUsers tells whether the rule is restricted.
 	User string `json:"user,omitempty"`
+	// Mentioned treats the post as mentioning the Slack app. Channel "dm"
+	// tries a DM to the Slack app.
+	Mentioned bool `json:"mentioned,omitempty"`
 }
 
 // MatchResult is the answer to MatchRequest.
@@ -280,7 +288,7 @@ type MatchResult struct {
 
 // MatchConfig evaluates a message against a config.
 func MatchConfig(cfg *config.Config, req MatchRequest) MatchResult {
-	r, groups := cfg.MatchWith(req.Channel, req.Text, config.MatchOptions{ByUser: req.User != "", User: req.User})
+	r, groups := cfg.MatchWith(req.Channel, req.Text, config.MatchOptions{ByUser: req.User != "", User: req.User, Mentioned: req.Mentioned})
 	return matchResult(r, groups)
 }
 
@@ -306,7 +314,7 @@ func (s *Server) match(w http.ResponseWriter, r *http.Request) {
 	}
 	route, groups := s.gw.Config().MatchWith(req.Channel, req.Text, config.MatchOptions{
 		BotUserID: st.Identity.UserID, Skip: func(n string) bool { return off[n] },
-		ByUser: req.User != "", User: req.User,
+		ByUser: req.User != "", User: req.User, Mentioned: req.Mentioned,
 	})
 	writeJSON(w, http.StatusOK, matchResult(route, groups))
 }

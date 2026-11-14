@@ -32,6 +32,27 @@ type Status struct {
 	// ClaudeSignedIn is whether Claude Code is signed in, when known.
 	ClaudeSignedIn *bool `json:"claude_signed_in,omitempty"`
 	Pending        int   `json:"pending"`
+	// Scopes are the Bot Token's scopes (absent when unknown).
+	Scopes []string `json:"scopes,omitempty"`
+	// Owner is the registered owner's member ID; NotifyDM and
+	// NotifyDMFailures are the DM notice settings.
+	Owner            string `json:"owner,omitempty"`
+	NotifyDM         bool   `json:"notify_dm"`
+	NotifyDMFailures bool   `json:"notify_dm_failures"`
+}
+
+// HasScope reports whether the Bot Token has the scope. It is true when the
+// scopes are not known, so nothing is reported missing by mistake.
+func (s Status) HasScope(scope string) bool {
+	if s.Scopes == nil {
+		return true
+	}
+	for _, x := range s.Scopes {
+		if x == scope {
+			return true
+		}
+	}
+	return false
 }
 
 // RouteStatus summarizes a route.
@@ -78,6 +99,8 @@ func (g *Gateway) Status(pid int) Status {
 	}
 	sort.Strings(s.Heard)
 	s.ClaudeSignedIn = g.claudeSignedInLocked()
+	s.Scopes = g.scopes
+	s.Owner, s.NotifyDM, s.NotifyDMFailures = cfg.Settings.Owner, cfg.Settings.NotifyDM, cfg.Settings.NotifyDMFailures
 	return s
 }
 

@@ -38,6 +38,46 @@ export class Event {
 }
 
 /**
+ * Registration is what the app shows while registering the owner.
+ */
+export class Registration {
+    /**
+     * Active is true while codes are accepted.
+     */
+    "active": boolean;
+
+    /**
+     * Code is the current code; NextChange is when it changes.
+     */
+    "code"?: string;
+    "next_change"?: string | null;
+    "step_sec"?: number;
+
+    /**
+     * Ended is how the last registration ended: "registered", "expired",
+     * "wrong_codes" or "cancelled". The app does not show it; the CLI does.
+     */
+    "ended"?: string;
+
+    /** Creates a new Registration instance. */
+    constructor($$source: Partial<Registration> = {}) {
+        if (!("active" in $$source)) {
+            this["active"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Registration instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Registration {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Registration($$parsedSource as Partial<Registration>);
+    }
+}
+
+/**
  * RouteStatus summarizes a route.
  */
 export class RouteStatus {
@@ -156,6 +196,19 @@ export class Status {
     "claude_signed_in"?: boolean | null;
     "pending": number;
 
+    /**
+     * Scopes are the Bot Token's scopes (absent when unknown).
+     */
+    "scopes"?: string[];
+
+    /**
+     * Owner is the registered owner's member ID; NotifyDM and
+     * NotifyDMFailures are the DM notice settings.
+     */
+    "owner"?: string;
+    "notify_dm": boolean;
+    "notify_dm_failures": boolean;
+
     /** Creates a new Status instance. */
     constructor($$source: Partial<Status> = {}) {
         if (!("version" in $$source)) {
@@ -188,6 +241,12 @@ export class Status {
         if (!("pending" in $$source)) {
             this["pending"] = 0;
         }
+        if (!("notify_dm" in $$source)) {
+            this["notify_dm"] = false;
+        }
+        if (!("notify_dm_failures" in $$source)) {
+            this["notify_dm_failures"] = false;
+        }
 
         Object.assign(this, $$source);
     }
@@ -201,6 +260,7 @@ export class Status {
         const $$createField11_0 = $$createType4;
         const $$createField12_0 = $$createType6;
         const $$createField13_0 = $$createType7;
+        const $$createField16_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("identity" in $$parsedSource) {
             $$parsedSource["identity"] = $$createField8_0($$parsedSource["identity"]);
@@ -216,6 +276,9 @@ export class Status {
         }
         if ("heard" in $$parsedSource) {
             $$parsedSource["heard"] = $$createField13_0($$parsedSource["heard"]);
+        }
+        if ("scopes" in $$parsedSource) {
+            $$parsedSource["scopes"] = $$createField16_0($$parsedSource["scopes"]);
         }
         return new Status($$parsedSource as Partial<Status>);
     }

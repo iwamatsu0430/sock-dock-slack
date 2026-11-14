@@ -36,6 +36,7 @@ type Backend interface {
 	StopTurn(ctx context.Context, id int64) error
 	CheckClaude(ctx context.Context, force bool) (*bool, error)
 	Users(ctx context.Context, q string, limit int) (control.UsersResult, error)
+	Owner(ctx context.Context) (control.OwnerInfo, error)
 }
 
 // New builds the MCP server.
@@ -108,12 +109,13 @@ type Rule struct {
 	ChannelID   string     `json:"channel_id"`
 	ChannelName string     `json:"channel_name,omitempty"`
 	Condition   Condition  `json:"condition"`
+	MentionOnly bool       `json:"mention_only,omitempty" jsonschema:"true when the rule runs only for posts that mention the Slack app"`
 	Runs        Runs       `json:"runs"`
 	Enabled     bool       `json:"enabled"`
 	Problem     string     `json:"problem,omitempty" jsonschema:"why the rule cannot run, if it cannot"`
 	ShadowedBy  *Condition `json:"shadowed_by,omitempty" jsonschema:"an earlier rule in the channel that always matches first, so this rule never runs"`
 	// AllowedUsers are the only people who may run the rule (absent: everyone in the channel).
-	AllowedUsers []Person `json:"allowed_users,omitempty" jsonschema:"the only people who may run the rule; absent means everyone in the channel. Posts and thread replies from anyone else are ignored without a reply"`
+	AllowedUsers []Person `json:"allowed_users,omitempty" jsonschema:"the only people who may run the rule; absent means everyone in the channel (for a DM rule, everyone in the workspace). Posts and thread replies from anyone else are ignored without a reply"`
 	// PostsArrived is false when no post from the rule's channel has reached
 	// SockDock since it connected (nil when unknown).
 	PostsArrived *bool `json:"posts_arrived,omitempty" jsonschema:"whether a post from this channel has reached SockDock since it last connected; false only matters if someone has posted there since; left out when SockDock is not connected"`
@@ -159,9 +161,9 @@ func ruleOf(ri control.RuleInfo) Rule {
 	f := ri.Form
 	r := Rule{
 		Name: f.Name, ChannelID: f.Channel, ChannelName: ri.ChannelName,
-		Condition: Condition{Type: f.Trigger, Keyword: f.Keyword},
-		Runs:      Runs{Type: "agent", Folder: f.Folder},
-		Enabled:   !ri.Off, Problem: problemText(ri.Problem),
+		Condition: Condition{Type: f.Trigger, Keyword: f.Keyword}, MentionOnly: f.MentionOnly,
+		Runs:    Runs{Type: "agent", Folder: f.Folder},
+		Enabled: !ri.Off, Problem: problemText(ri.Problem),
 	}
 	if f.Type == config.TypeCommand {
 		r.Runs = Runs{Type: "program", Folder: f.Folder, Program: f.Program, Args: f.Args}
@@ -203,6 +205,9 @@ type StatusOut struct {
 	PostsArrivedFrom []string `json:"posts_arrived_from" jsonschema:"channel IDs whose posts have reached SockDock since it connected"`
 	// ClaudeSignedIn is whether the Claude Code that agent rules run is signed in.
 	ClaudeSignedIn *bool `json:"claude_signed_in,omitempty" jsonschema:"whether the Claude Code that agent rules run is signed in; left out when unknown or no rule runs Claude Code"`
+	// Owner is the person notices go to by DM.
+	Owner     *Person `json:"owner,omitempty" jsonschema:"the person who uses SockDock (registered in the app); new DM rules are limited to them, and notices go to them by DM when dm_notices is true. Absent when nobody is registered"`
+	DMNotices bool    `json:"dm_notices" jsonschema:"whether notices also go to the owner by Slack DM"`
 }
 
 func (t *tools) getStatus(ctx context.Context, _ *mcp.CallToolRequest, _ none) (*mcp.CallToolResult, StatusOut, error) {
@@ -219,6 +224,10 @@ func (t *tools) getStatus(ctx context.Context, _ *mcp.CallToolRequest, _ none) (
 	}
 	if v, err := t.b.CheckClaude(ctx, false); err == nil {
 		out.ClaudeSignedIn = v
+	}
+	if o, err := t.b.Owner(ctx); err == nil && o.Owner != nil {
+		out.Owner = &Person{ID: o.Owner.ID, Name: o.Owner.Name, RealName: o.Owner.RealName}
+		out.DMNotices = o.NotifyDM
 	}
 	return nil, out, nil
 }
@@ -324,9 +333,10 @@ func (t *tools) listRuns(ctx context.Context, _ *mcp.CallToolRequest, in RunsIn)
 
 // Channel is a Slack channel.
 type Channel struct {
-	ID      string `json:"id"`
+	ID      string `json:"id" jsonschema:"channel ID, or dm for DMs to the Slack app"`
 	Name    string `json:"name"`
 	Private bool   `json:"private"`
+	Problem string `json:"problem,omitempty" jsonschema:"for dm: missing_scope when DMs cannot reach SockDock (the Slack app lacks im:history)"`
 }
 
 // ChannelsOut is list_channels's result.
@@ -342,16 +352,19 @@ func (t *tools) listChannels(ctx context.Context, _ *mcp.CallToolRequest, _ none
 	}
 	out := ChannelsOut{Channels: []Channel{}, Problem: res.Problem}
 	for _, c := range res.Channels {
-		out.Channels = append(out.Channels, Channel{ID: c.ID, Name: c.Name, Private: c.Private})
+		out.Channels = append(out.Channels, Channel{ID: c.ID, Name: c.Name, Private: c.Private, Problem: c.Problem})
 	}
 	return nil, out, nil
 }
 
-// resolveChannel accepts a channel ID, a link or a name ("#ask", "ask").
+// resolveChannel accepts a channel ID, a link, a name ("#ask", "ask") or dm.
 func (t *tools) resolveChannel(ctx context.Context, s string) (string, error) {
 	id := rules.NormalizeChannel(s)
 	if rules.IsChannelID(id) || id == "" {
 		return id, nil
+	}
+	if strings.EqualFold(id, config.ChannelDM) {
+		return config.ChannelDM, nil
 	}
 	name := strings.TrimPrefix(strings.TrimPrefix(strings.TrimSpace(s), "#"), "🔒")
 	res, err := t.b.Channels(ctx)
@@ -371,9 +384,10 @@ func (t *tools) resolveChannel(ctx context.Context, s string) (string, error) {
 
 // MatchIn is a post to test.
 type MatchIn struct {
-	Channel string `json:"channel" jsonschema:"channel name (#dev-help or dev-help) or ID; must be in sockdock_list_channels"`
+	Channel string `json:"channel" jsonschema:"channel name (#dev-help or dev-help) or ID; must be in sockdock_list_channels. dm for a DM to the Slack app"`
 	Text    string `json:"text" jsonschema:"the post's text"`
 	User    string `json:"user,omitempty" jsonschema:"the poster's Slack member ID (from sockdock_find_users); rules this person may not run are passed over, as for a real post. Omit to ignore who posts"`
+	Mention bool   `json:"mention,omitempty" jsonschema:"true when the post mentions the Slack app (@app); rules with mention_only run only then"`
 }
 
 // MatchOut is test_match's result.
@@ -390,7 +404,7 @@ func (t *tools) testMatch(ctx context.Context, _ *mcp.CallToolRequest, in MatchI
 	if err != nil {
 		return nil, MatchOut{}, err
 	}
-	res, err := t.b.Match(ctx, control.MatchRequest{Channel: ch, Text: in.Text, User: strings.TrimSpace(in.User)})
+	res, err := t.b.Match(ctx, control.MatchRequest{Channel: ch, Text: in.Text, User: strings.TrimSpace(in.User), Mentioned: in.Mention})
 	if err != nil {
 		return nil, MatchOut{}, errText(err)
 	}
@@ -426,9 +440,10 @@ func (t *tools) findUsers(ctx context.Context, _ *mcp.CallToolRequest, in FindIn
 // SaveIn adds or changes a rule. For a change, omitted fields keep their values.
 type SaveIn struct {
 	Name            string    `json:"name,omitempty" jsonschema:"the rule to change; omit to add a rule"`
-	Channel         *string   `json:"channel,omitempty" jsonschema:"channel name (#dev-help or dev-help) or ID; must be in sockdock_list_channels"`
+	Channel         *string   `json:"channel,omitempty" jsonschema:"channel name (#dev-help or dev-help) or ID; must be in sockdock_list_channels. dm for DMs to the Slack app"`
 	ConditionType   *string   `json:"condition_type,omitempty" jsonschema:"starts_with (default for a new rule), contains, match or all_posts"`
 	Keyword         *string   `json:"keyword,omitempty" jsonschema:"the keyword, or the regular expression (RE2) for match; not used for all_posts"`
+	MentionOnly     *bool     `json:"mention_only,omitempty" jsonschema:"true to run only for posts that mention the Slack app (@app); not used for dm"`
 	Runs            *string   `json:"runs,omitempty" jsonschema:"agent (Claude Code, default for a new rule) or program"`
 	Folder          *string   `json:"folder,omitempty" jsonschema:"working folder (absolute or ~/...); for a program, defaults to the program's folder"`
 	Instructions    *string   `json:"instructions,omitempty" jsonschema:"agent: instructions added to its system prompt"`
@@ -451,13 +466,17 @@ type SaveOut struct {
 	Warning        string    `json:"warning,omitempty" jsonschema:"saved, but tell the user this"`
 }
 
-func saveOut(r control.RuleSaveResult) SaveOut {
+func saveOut(r control.RuleSaveResult, dm bool) SaveOut {
 	out := SaveOut{OK: r.OK, Name: r.Name, Problems: problemsOf(r.Problems), ConfigProblems: r.ConfigProblems}
+	who := "Everyone in this channel"
+	if dm {
+		who = "Everyone in the workspace (by DM)"
+	}
 	switch r.OpenToAll {
 	case "commands":
-		out.Warning = "Everyone in this channel can make this Mac run the allowed commands. If that is not what the user wants, set allowed_users to the people who may run the rule."
+		out.Warning = who + " can make this Mac run the allowed commands. If that is not what the user wants, set allowed_users to the people who may run the rule."
 	case "edit":
-		out.Warning = "Everyone in this channel can make the agent change files in the working folder. If that is not what the user wants, set allowed_users to the people who may run the rule."
+		out.Warning = who + " can make the agent change files in the working folder. If that is not what the user wants, set allowed_users to the people who may run the rule."
 	}
 	return out
 }
@@ -485,6 +504,9 @@ func (t *tools) saveRule(ctx context.Context, _ *mcp.CallToolRequest, in SaveIn)
 	}
 	set(&f.Trigger, in.ConditionType)
 	set(&f.Keyword, in.Keyword)
+	if in.MentionOnly != nil {
+		f.MentionOnly = *in.MentionOnly
+	}
 	if in.Runs != nil {
 		switch *in.Runs {
 		case "agent":
@@ -509,6 +531,16 @@ func (t *tools) saveRule(ctx context.Context, _ *mcp.CallToolRequest, in SaveIn)
 	if in.AllowedUsers != nil {
 		f.AllowedUsers = *in.AllowedUsers
 		f.Restricted = len(f.AllowedUsers) > 0
+	} else if in.Name == "" && f.Channel == config.ChannelDM {
+		// A new DM rule starts limited to the owner, as in the app.
+		o, err := t.b.Owner(ctx)
+		if err != nil {
+			return nil, SaveOut{}, errText(err)
+		}
+		if o.Owner == nil {
+			return nil, SaveOut{Problems: []Problem{{Field: "allowed_users", Message: "Nobody is registered as the owner, so say who may run this DM rule: list member IDs in allowed_users (find them with sockdock_find_users), or pass [] to let everyone in the workspace run it by DM."}}}, nil
+		}
+		f.AllowedUsers, f.Restricted = []string{o.Owner.ID}, true
 	}
 	set(&f.Model, in.Model)
 	set(&f.Program, in.Program)
@@ -523,7 +555,7 @@ func (t *tools) saveRule(ctx context.Context, _ *mcp.CallToolRequest, in SaveIn)
 	if err != nil {
 		return nil, SaveOut{}, errText(err)
 	}
-	return nil, saveOut(res), nil
+	return nil, saveOut(res, f.Channel == config.ChannelDM), nil
 }
 
 // ChangeOut is the result of a delete or reorder.

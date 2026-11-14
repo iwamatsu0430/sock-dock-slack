@@ -90,6 +90,12 @@ export class Form {
     "keyword": string;
 
     /**
+     * MentionOnly limits the rule to posts that mention the Slack app
+     * ("メンションされたときだけ"). Not used for DM rules.
+     */
+    "mention_only": boolean;
+
+    /**
      * Restricted is true when only AllowedUsers may run the rule ("実行できる
      * 人": 選んだ人); false means everyone in the channel (全員).
      */
@@ -153,6 +159,9 @@ export class Form {
         if (!("keyword" in $$source)) {
             this["keyword"] = "";
         }
+        if (!("mention_only" in $$source)) {
+            this["mention_only"] = false;
+        }
         if (!("restricted" in $$source)) {
             this["restricted"] = false;
         }
@@ -203,18 +212,18 @@ export class Form {
      * Creates a new Form instance from a string or object.
      */
     static createFrom($$source: any = {}): Form {
-        const $$createField6_0 = $$createType0;
-        const $$createField12_0 = $$createType0;
+        const $$createField7_0 = $$createType0;
         const $$createField13_0 = $$createType0;
+        const $$createField14_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("allowed_users" in $$parsedSource) {
-            $$parsedSource["allowed_users"] = $$createField6_0($$parsedSource["allowed_users"]);
+            $$parsedSource["allowed_users"] = $$createField7_0($$parsedSource["allowed_users"]);
         }
         if ("commands" in $$parsedSource) {
-            $$parsedSource["commands"] = $$createField12_0($$parsedSource["commands"]);
+            $$parsedSource["commands"] = $$createField13_0($$parsedSource["commands"]);
         }
         if ("other_tools" in $$parsedSource) {
-            $$parsedSource["other_tools"] = $$createField13_0($$parsedSource["other_tools"]);
+            $$parsedSource["other_tools"] = $$createField14_0($$parsedSource["other_tools"]);
         }
         return new Form($$parsedSource as Partial<Form>);
     }

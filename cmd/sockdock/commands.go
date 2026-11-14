@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -70,19 +71,21 @@ func checkCmd(g *globals) *cobra.Command {
 
 func matchCmd(g *globals) *cobra.Command {
 	var user string
+	var mention bool
 	cmd := &cobra.Command{
-		Use:   "match <channel-id> <text>",
+		Use:   "match <channel-id|dm> <text>",
 		Short: "Show which route a top-level message would start",
-		Long: "Show which route a top-level message would start.\n\n" +
+		Long: "Show which route a top-level message would start. Use dm as the channel for a DM to the Slack app.\n\n" +
 			"With --user, routes that member may not run (allowed_users) are passed over, as for a real post. " +
-			"Without it, who posted is not considered and the route's allowed users are shown.",
+			"Without it, who posted is not considered and the route's allowed users are shown. " +
+			"With --mention, the message counts as mentioning the Slack app (for mention_only routes).",
 		Args: cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.Load(g.dirs.ConfigFile)
 			if err != nil {
 				return err
 			}
-			res := control.MatchConfig(cfg, control.MatchRequest{Channel: args[0], Text: strings.Join(args[1:], " "), User: user})
+			res := control.MatchConfig(cfg, control.MatchRequest{Channel: args[0], Text: strings.Join(args[1:], " "), User: user, Mentioned: mention})
 			if !res.Matched {
 				return &exitError{code: 1, msg: "no route matches"}
 			}
@@ -102,7 +105,100 @@ func matchCmd(g *globals) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&user, "user", "", "the poster's Slack member ID (U…)")
+	cmd.Flags().BoolVar(&mention, "mention", false, "treat the message as mentioning the Slack app")
 	return cmd
+}
+
+func ownerCmd(g *globals) *cobra.Command {
+	show := func(o control.OwnerInfo) {
+		if o.Owner == nil {
+			fmt.Println("owner: (not registered)")
+			return
+		}
+		name := o.Owner.Name
+		if name == "" {
+			name = o.Owner.ID
+		} else {
+			name += " (" + o.Owner.ID + ")"
+		}
+		fmt.Println("owner:", name)
+		fmt.Println("DM notices:", onOff(o.NotifyDM), "/ failed runs:", onOff(o.NotifyDMFailures))
+	}
+	cmd := &cobra.Command{
+		Use:   "owner",
+		Short: "Show the owner (the person notices go to by DM)",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			o, err := client(g).Owner(cmd.Context())
+			if err != nil {
+				return err
+			}
+			show(o)
+			return nil
+		},
+	}
+	cmd.AddCommand(&cobra.Command{
+		Use:   "register",
+		Short: "Register the owner: send the code shown here to the Slack app by DM",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			c := client(g)
+			ctx := cmd.Context()
+			o, err := c.StartRegistration(ctx)
+			if err != nil {
+				return err
+			}
+			if o.Problem == "missing_scope" {
+				_, _ = c.CancelRegistration(context.Background())
+				return errors.New("DMs can't reach SockDock: add im:history, the message.im event and the Messages tab to the Slack app, then reinstall it")
+			}
+			defer func() { _, _ = c.CancelRegistration(context.Background()) }()
+			fmt.Println("Send this code to the Slack app by DM (it changes every 30 seconds):")
+			last := ""
+			tick := time.NewTicker(time.Second)
+			defer tick.Stop()
+			for {
+				switch {
+				case o.Registration.Ended == "registered":
+					show(o)
+					return nil
+				case o.Registration.Ended == "wrong_codes":
+					return &exitError{code: 1, msg: "5 wrong codes arrived; run it again to get a new code"}
+				case !o.Registration.Active:
+					return &exitError{code: 1, msg: "no code arrived within 10 minutes; run it again to get a new code"}
+				case o.Registration.Code != last:
+					last = o.Registration.Code
+					fmt.Println(" ", last[:3], last[3:])
+				}
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-tick.C:
+				}
+				if o, err = c.Owner(ctx); err != nil {
+					return err
+				}
+			}
+		},
+	})
+	cmd.AddCommand(&cobra.Command{
+		Use:   "clear",
+		Short: "Remove the owner (DM notices stop)",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			o, err := client(g).ClearOwner(cmd.Context())
+			if err != nil {
+				return err
+			}
+			show(o)
+			return nil
+		},
+	})
+	return cmd
+}
+
+func onOff(b bool) string {
+	if b {
+		return "on"
+	}
+	return "off"
 }
 
 func statusCmd(g *globals) *cobra.Command {

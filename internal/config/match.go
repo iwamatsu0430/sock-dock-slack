@@ -45,14 +45,17 @@ func (r *Route) Pattern() string {
 	return ""
 }
 
-// Condition describes the condition as written in the config ("starts_with: entry").
+// Condition describes the condition as written in the config ("starts_with:
+// entry", with ", mention_only" for a rule that needs a mention).
 func (r *Route) Condition() string {
-	switch k := r.Kind(); k {
-	case "", KindAllPosts:
-		return k
-	default:
-		return k + ": " + r.Pattern()
+	c := r.Kind()
+	if c != "" && c != KindAllPosts {
+		c += ": " + r.Pattern()
 	}
+	if r.MentionOnly {
+		c += ", mention_only"
+	}
+	return c
 }
 
 // conditionProblem checks that exactly one condition is set and compiles a regex.
@@ -94,6 +97,12 @@ func (r *Route) upgradeLegacy() {
 type MatchOptions struct {
 	// BotUserID is the Slack app's user ID; a leading mention of it is ignored.
 	BotUserID string
+	// IM is true for a DM to the Slack app: it is matched against the rules
+	// of channel "dm" (passing channel "dm" does the same).
+	IM bool
+	// Mentioned treats the post as mentioning the Slack app (for trying a
+	// post without knowing the app's user ID).
+	Mentioned bool
 	// Skip reports routes to pass over (turned off).
 	Skip func(name string) bool
 	// ByUser passes over routes that User may not run (allowed_users). When
@@ -128,8 +137,17 @@ func (c *Config) Match(channel, text string) (*Route, map[string]string) {
 // MatchWith is Match with options. Routes are tried in config order.
 func (c *Config) MatchWith(channel, text string, o MatchOptions) (*Route, map[string]string) {
 	body := postBody(text, o.BotUserID)
+	if o.IM {
+		channel = ChannelDM
+	}
+	mentioned := o.Mentioned || Mentions(text, o.BotUserID)
 	for _, r := range c.Routes {
 		if r.Channel != channel || (o.Skip != nil && o.Skip(r.Name)) || (o.ByUser && !r.Allows(o.User)) {
+			continue
+		}
+		// A rule for mentions only is passed over, like one that is off,
+		// when the post does not mention the Slack app.
+		if r.MentionOnly && !mentioned {
 			continue
 		}
 		if g, ok := r.matchBody(body); ok {
@@ -179,6 +197,14 @@ func (r *Route) matchBody(body string) (map[string]string, bool) {
 }
 
 var slackEntities = strings.NewReplacer("&lt;", "<", "&gt;", ">", "&amp;", "&")
+
+// Mentions reports whether Slack text mentions the Slack app anywhere.
+func Mentions(text, botUserID string) bool {
+	if botUserID == "" {
+		return false
+	}
+	return strings.Contains(text, "<@"+botUserID+">") || strings.Contains(text, "<@"+botUserID+"|")
+}
 
 // postBody is the text conditions look at: Slack's &amp;/&lt;/&gt; turned
 // back into characters, without a leading mention of the Slack app.
@@ -284,9 +310,10 @@ func contains(body, keyword string) bool {
 // ShadowedBy reports whether every post that matches later also matches
 // earlier, so later can never run while earlier comes first and is on.
 // Regexes are only compared for equality. An earlier route that only some
-// people may run lets everyone else's posts through, so it shadows nothing.
+// people may run lets everyone else's posts through, so it shadows nothing;
+// likewise an earlier route for mentions only lets other posts through.
 func ShadowedBy(earlier, later *Route) bool {
-	if earlier.Channel != later.Channel || earlier.Restricted() {
+	if earlier.Channel != later.Channel || earlier.Restricted() || (earlier.MentionOnly && !later.MentionOnly) {
 		return false
 	}
 	ek, lk := earlier.Kind(), later.Kind()

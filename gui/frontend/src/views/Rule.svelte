@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { App, errorText, type ChannelList, type FieldProblem, type Member, type RouteForm, type Turn } from "../lib/api";
-  import { live, reasonSignedOut, signInClaude } from "../lib/live.svelte";
+  import { hasScope, live, reasonSignedOut, signInClaude } from "../lib/live.svelte";
   import { i18n, t } from "../lib/i18n/index.svelte";
   import type { MessageKey } from "../lib/i18n/en";
   import Rich from "../lib/Rich.svelte";
@@ -12,7 +12,7 @@
 
   const blank = (): RouteForm =>
     ({
-      original_name: "", name: "", channel: "", trigger: "starts_with", keyword: "", restricted: false, allowed_users: [],
+      original_name: "", name: "", channel: "", trigger: "starts_with", keyword: "", mention_only: false, restricted: false, allowed_users: [],
       type: "claude", folder: "",
       instructions: "", allow_web: false, allow_edit: false, commands: [], other_tools: [], model: "", prompt_file: "",
       program: "", args: "", timeout_sec: 0,
@@ -40,11 +40,14 @@
   let membersChecked = false;
   let loadedProgram = "";
   // The saved condition, for the "no runs yet" hint (not the one being edited).
-  let saved = $state({ trigger: "", keyword: "", channel: "" });
+  let saved = $state({ trigger: "", keyword: "", channel: "", mention: false });
+  // The owner ("本人"): a new DM rule starts with them chosen.
+  let owner = $state<Member | null>(null);
 
   onMount(async () => {
-    const [list, chs] = await Promise.all([name ? App.ListRules() : null, App.ListChannels()]);
+    const [list, chs, own] = await Promise.all([name ? App.ListRules() : null, App.ListChannels(), App.GetOwner().catch(() => null)]);
     channels = chs;
+    owner = own?.owner ?? null;
     const row = list?.rules?.find((r) => r.form.name === name);
     if (row) {
       f = structuredClone($state.snapshot(row.form)) as RouteForm;
@@ -52,7 +55,7 @@
       commandsText = (f.commands ?? []).join("\n");
       people = (row.users ?? []).map((u) => ({ ...u }));
       loadedProgram = f.program;
-      saved = { trigger: f.trigger, keyword: f.keyword, channel: f.channel };
+      saved = { trigger: f.trigger, keyword: f.keyword, channel: f.channel, mention: !!f.mention_only };
     }
     choosePasteMode();
     loaded = true;
@@ -61,7 +64,27 @@
   // Paste an ID or link when the list is empty or the rule's channel is not in it.
   function choosePasteMode() {
     const ids = (channels?.channels ?? []).map((c) => c.id);
-    pasteMode = ids.length === 0 || (!!f.channel && !ids.includes(f.channel));
+    pasteMode = f.channel !== "dm" && (ids.length === 0 || (!!f.channel && !ids.includes(f.channel)));
+  }
+
+  // DMs to the Slack app (docs/ia.md「DM とメンション」): a new DM rule starts
+  // with the owner chosen, or with nobody chosen when there is no owner.
+  const isDM = $derived(f.channel === "dm");
+  function channelChanged() {
+    if (f.channel === "dm" && !name && !f.restricted) {
+      f.restricted = true;
+      people = owner ? [owner] : [];
+    }
+  }
+  let dmCopied = $state(false);
+  async function copyDMSettings() {
+    try {
+      await App.CopyDMSettings();
+      dmCopied = true;
+      setTimeout(() => (dmCopied = false), 2000);
+    } catch (e) {
+      error = errorText(e);
+    }
   }
 
   // After adding the Slack app to a channel, show the list without reopening.
@@ -148,6 +171,7 @@
   const triggers = ["starts_with", "contains", "match", "all_posts"];
   const channelShown = $derived(
     (() => {
+      if (saved.channel === "dm") return t("rule.channelDM");
       const c = channels?.channels?.find((x) => x.id === saved.channel);
       return c ? (c.private ? "🔒" : "#") + c.name : resolved || saved.channel;
     })(),
@@ -172,6 +196,7 @@
     const out = { ...$state.snapshot(f) } as RouteForm;
     out.commands = commandsText.split("\n").map((x) => x.trim()).filter(Boolean);
     out.allowed_users = people.map((p) => p.id);
+    if (out.channel === "dm") out.mention_only = false;
     if (out.type === "command" && (!out.folder || out.program !== loadedProgram)) {
       // A new program runs in its own folder (an existing cwd is kept).
       const p = out.program.trim();
@@ -219,12 +244,29 @@
     <h2>{t("rule.channel")}</h2>
     <div class="ctl">
       {#if !pasteMode}
-        <select bind:value={f.channel}>
+        <select bind:value={f.channel} onchange={channelChanged}>
           <option value="" disabled>{t("rule.channelPick")}</option>
+          <option value="dm">{t("rule.channelDM")}</option>
+          <option disabled>──────────</option>
           {#each channels?.channels ?? [] as c (c.id)}<option value={c.id}>{c.private ? "🔒" : "#"}{c.name}</option>{/each}
         </select>
-        <p class="small muted">{t("rule.channelListHelp")}</p>
+        {#if !isDM}<p class="small muted">{t("rule.channelListHelp")}</p>
+        {:else if !hasScope(live.snap, "im:history")}
+          <p class="small bad-t">{t("rule.dmNoScope")}</p>
+          <div><button class="small" onclick={copyDMSettings}>{dmCopied ? t("settings.mcpCopied") : t("setup.copySettings")}</button></div>
+        {/if}
       {:else}
+        <!-- DMs do not need the channel list, so they can be chosen here too. -->
+        <select class="narrow" value={isDM ? "dm" : "other"}
+          onchange={(e) => { if ((e.currentTarget as HTMLSelectElement).value === "dm") { f.channel = "dm"; channelChanged(); } else f.channel = ""; }}>
+          <option value="dm">{t("rule.channelDM")}</option>
+          <option value="other">{t("rule.channelOther")}</option>
+        </select>
+      {/if}
+      {#if pasteMode && isDM && !hasScope(live.snap, "im:history")}
+        <p class="small bad-t">{t("rule.dmNoScope")}</p>
+        <div><button class="small" onclick={copyDMSettings}>{dmCopied ? t("settings.mcpCopied") : t("setup.copySettings")}</button></div>
+      {:else if pasteMode && !isDM}
         <input type="text" bind:value={f.channel} placeholder="C0123456789" class:invalid={problem("channel")} />
         {#if resolved}<p class="small muted">{resolved}</p>{/if}
         {#if channels?.problem === "missing_scope"}<p class="small muted"><Rich key="rule.channelNoScope" /></p>
@@ -243,9 +285,9 @@
         <button class:on={f.restricted} onclick={() => (f.restricted = true)}>{t("rule.whoPicked")}</button>
       </div>
       {#if !f.restricted}
-        {#if openToAll === "commands"}<p class="small bad-t">{t("rule.openCommands")}</p>
-        {:else if openToAll === "edit"}<p class="small bad-t">{t("rule.openEdit")}</p>
-        {:else}<p class="small">{t("rule.channelMembers")}</p>{/if}
+        {#if openToAll === "commands"}<p class="small bad-t">{isDM ? t("rule.openCommandsDM") : t("rule.openCommands")}</p>
+        {:else if openToAll === "edit"}<p class="small bad-t">{isDM ? t("rule.openEditDM") : t("rule.openEdit")}</p>
+        {:else}<p class="small">{isDM ? t("rule.workspaceMembers") : t("rule.channelMembers")}</p>{/if}
       {:else}
         <div class="chips" class:invalid={problem("allowed_users")}>
           {#each people as p (p.id)}
@@ -282,7 +324,8 @@
             placeholder={f.trigger === "match" ? t("rule.regexPlaceholder") : t("rule.keywordPlaceholder")} />
         {/if}
       </div>
-      {#if f.trigger === "all_posts"}<p class="small muted">{t("rule.allPostsHelp")}</p>
+      {#if !isDM}<label class="check"><input type="checkbox" bind:checked={f.mention_only} /> {t("rule.mentionOnly")}</label>{/if}
+      {#if f.trigger === "all_posts"}<p class="small muted">{isDM ? t("rule.allPostsDMHelp") : f.mention_only ? t("rule.allPostsMentionHelp") : t("rule.allPostsHelp")}</p>
       {:else if problem("keyword")}<p class="small bad-t">{problem("keyword")}</p>{/if}
     </div>
   </div>
@@ -351,15 +394,21 @@
   {#if name && saved.trigger && !turns.length}
     <div class="runs">
       <h2>{t("runs.title")}</h2>
-      <p class="small muted">{t(`runs.empty.${saved.trigger}` as MessageKey, { channel: channelShown, keyword: saved.keyword })}</p>
+      <p class="small muted">{t(`${saved.channel === "dm" ? "runs.emptyDM" : saved.mention ? "runs.emptyMention" : "runs.empty"}.${saved.trigger}` as MessageKey, { channel: channelShown, keyword: saved.keyword })}</p>
       {#if notHeard}
-        <p class="small bad-t heard">{t("runs.notHeard")}</p>
+        <p class="small bad-t heard">{saved.channel === "dm" ? t("runs.notHeardDM") : t("runs.notHeard")}</p>
         <details class="hint small">
           <summary>{t("runs.notHeardHelp")}</summary>
           <ul>
-            <li>{t("runs.checkInvite")}</li>
-            <li>{t("runs.checkSameApp")}</li>
-            <li><Rich key="runs.checkEvents" /></li>
+            {#if saved.channel === "dm"}
+              <li>{t("runs.checkMessagesTab")}</li>
+              <li>{t("runs.checkSameApp")}</li>
+              <li><Rich key="runs.checkEventsDM" /></li>
+            {:else}
+              <li>{t("runs.checkInvite")}</li>
+              <li>{t("runs.checkSameApp")}</li>
+              <li><Rich key="runs.checkEvents" /></li>
+            {/if}
           </ul>
         </details>
       {/if}

@@ -27,6 +27,15 @@ type fake struct {
 	paused map[string]bool
 	// noUsers simulates a Slack app without users:read.
 	noUsers bool
+	// owner is the registered owner's member ID ("" for none).
+	owner string
+}
+
+func (f *fake) Owner(context.Context) (control.OwnerInfo, error) {
+	if f.owner == "" {
+		return control.OwnerInfo{}, f.err()
+	}
+	return control.OwnerInfo{Owner: &slackio.Member{ID: f.owner, Name: "田中 太郎"}, NotifyDM: true}, f.err()
 }
 
 func (f *fake) err() error {
@@ -367,10 +376,46 @@ func TestAllowedUsersTools(t *testing.T) {
 }
 
 func TestSaveWarning(t *testing.T) {
-	if w := saveOut(control.RuleSaveResult{OK: true, OpenToAll: "commands"}).Warning; !strings.Contains(w, "run the allowed commands") {
+	if w := saveOut(control.RuleSaveResult{OK: true, OpenToAll: "commands"}, false).Warning; !strings.Contains(w, "run the allowed commands") {
 		t.Errorf("warning = %q", w)
 	}
-	if w := saveOut(control.RuleSaveResult{OK: true}).Warning; w != "" {
+	if w := saveOut(control.RuleSaveResult{OK: true, OpenToAll: "edit"}, true).Warning; !strings.Contains(w, "Everyone in the workspace") {
+		t.Errorf("DM warning = %q", w)
+	}
+	if w := saveOut(control.RuleSaveResult{OK: true}, false).Warning; w != "" {
 		t.Errorf("no warning expected, got %q", w)
+	}
+}
+
+func TestDMRuleAndMention(t *testing.T) {
+	f := sample()
+	cs := connect(t, f)
+
+	// Without an owner, a new DM rule must say who may run it.
+	var out SaveOut
+	call(t, cs, "sockdock_save_rule", map[string]any{"channel": "dm", "keyword": "todo", "runs": "agent", "folder": "~/notes"}, &out)
+	if out.OK || len(out.Problems) != 1 || out.Problems[0].Field != "allowed_users" || f.saved != nil {
+		t.Fatalf("no owner: %+v", out)
+	}
+	// With an owner, it is limited to them.
+	f.owner = "U01TARO"
+	call(t, cs, "sockdock_save_rule", map[string]any{"channel": "DM", "keyword": "todo", "runs": "agent", "folder": "~/notes"}, &out)
+	if !out.OK || f.saved == nil || f.saved.Channel != "dm" || !f.saved.Restricted || len(f.saved.AllowedUsers) != 1 || f.saved.AllowedUsers[0] != "U01TARO" {
+		t.Fatalf("owner: %+v %+v", out, f.saved)
+	}
+	// [] opens it to everyone.
+	call(t, cs, "sockdock_save_rule", map[string]any{"channel": "dm", "keyword": "todo", "runs": "agent", "folder": "~/notes", "allowed_users": []string{}}, &out)
+	if f.saved.Restricted {
+		t.Errorf("[] should open the rule: %+v", f.saved)
+	}
+	call(t, cs, "sockdock_save_rule", map[string]any{"channel": "C0123ASK", "keyword": "review", "runs": "agent", "folder": "~/app", "mention_only": true}, &out)
+	if !f.saved.MentionOnly {
+		t.Errorf("mention_only not passed: %+v", f.saved)
+	}
+
+	var st StatusOut
+	call(t, cs, "sockdock_get_status", nil, &st)
+	if st.Owner == nil || st.Owner.ID != "U01TARO" || !st.DMNotices {
+		t.Errorf("status owner = %+v", st)
 	}
 }

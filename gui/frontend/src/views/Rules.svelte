@@ -31,7 +31,8 @@
       rows.push(r);
       m.set(r.form.channel, rows);
     }
-    return [...m].map(([key, rows]) => ({ key, title: rows[0].channel, rows }));
+    // DM rules come after the channels (docs/ia.md「ルールの一覧」).
+    return [...m].map(([key, rows]) => ({ key, title: rows[0].channel, rows })).sort((a, b) => Number(a.key === "dm") - Number(b.key === "dm"));
   });
 
   async function toggle(r: RuleRow, e: Event) {
@@ -46,7 +47,11 @@
 
   const target = (r: RuleRow) =>
     r.form.type === "claude" ? t("rules.toAgent", { agent: t("agent.claude"), folder: r.form.folder }) : r.form.program;
-  const condition = (r: RuleRow) => t(`rules.cond.${r.form.trigger}` as MessageKey, { keyword: r.form.keyword });
+  const condition = (r: RuleRow) => {
+    if (r.form.mention_only && r.form.trigger === "all_posts") return t("rules.cond.mention_all");
+    const cond = t(`rules.cond.${r.form.trigger}` as MessageKey, { keyword: r.form.keyword });
+    return r.form.mention_only ? t("rules.condMention", { cond }) : cond;
+  };
   const problem = (r: RuleRow) => {
     if (r.off) return "";
     if (r.problem) return problemText(r.problem);

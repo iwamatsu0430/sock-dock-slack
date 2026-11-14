@@ -31,7 +31,20 @@ type Identity struct {
 // WebAPI implements API with slack-go.
 type WebAPI struct {
 	c          *slack.Client
+	botToken   string
 	maxRetries int
+}
+
+// ScopeLister reports the Bot Token's scopes.
+type ScopeLister interface {
+	Scopes(ctx context.Context) ([]string, error)
+}
+
+// Scopes returns the scopes granted to the bot token (nil when Slack does
+// not say).
+func (w *WebAPI) Scopes(ctx context.Context) ([]string, error) {
+	_, scopes, err := AuthTestScopes(ctx, w.botToken)
+	return scopes, err
 }
 
 // NewWebAPI creates a Web API client for the bot token. The app-level token is
@@ -39,6 +52,7 @@ type WebAPI struct {
 func NewWebAPI(botToken, appToken string) *WebAPI {
 	return &WebAPI{
 		c:          slack.New(botToken, slack.OptionAppLevelToken(appToken)),
+		botToken:   botToken,
 		maxRetries: 3,
 	}
 }

@@ -14,6 +14,7 @@ export {
     GatewayState,
     MCPSetup,
     MemberList,
+    OwnerState,
     Prefs,
     RouteForm,
     RouteSaveResult,

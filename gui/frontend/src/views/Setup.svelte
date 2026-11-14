@@ -40,9 +40,11 @@
       <table class="need small">
         <tbody>
           <tr><th>Socket Mode</th><td>{t("setup.existingOn")}</td></tr>
-          <tr><th>{t("setup.existingEvents")}</th><td><code>message.channels</code> <code>message.groups</code></td></tr>
+          <tr><th>{t("setup.existingEvents")}</th><td><code>message.channels</code> <code>message.groups</code>
+            <div class="muted"><Rich key="setup.existingEventsOptional" /></div></td></tr>
           <tr><th>{t("setup.existingScopes")}</th><td><code>channels:history</code> <code>groups:history</code> <code>chat:write</code> <code>reactions:write</code>
             <div class="muted"><Rich key="setup.existingOptional" /></div></td></tr>
+          <tr><th>{t("setup.existingMessagesTab")}</th><td>{t("setup.existingMessagesTabValue")}</td></tr>
         </tbody>
       </table>
       <div class="row copy">

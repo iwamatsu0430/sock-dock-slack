@@ -6,6 +6,8 @@ export const live = $state({
   snap: null as Snapshot | null,
   /** Bumps when runs, rules or their state change, so views reload. */
   changes: 0,
+  /** Bumps when the owner, the registration or DM notices change. */
+  ownerChanges: 0,
   now: Date.now(),
 });
 
@@ -25,6 +27,7 @@ export function startLive() {
     const t = (ev.data as { type?: string })?.type;
     if (t === "turn_started" || t === "turn_finished" || t === "config_reloaded" || t === "route_paused") live.changes++;
     if (t === "config_reloaded") checkClaude();
+    if (t === "owner" || t === "config_reloaded") live.ownerChanges++;
   });
   setInterval(() => (live.now = Date.now()), 1000);
   // Claude Code's sign-in is checked when the window comes back (docs/ia.md §11-21).
@@ -45,6 +48,12 @@ function checkClaude() {
 export async function signInClaude() {
   signingIn = true;
   await App.SignInClaude();
+}
+
+/** True unless the Slack app's Bot Token is known to lack the scope. */
+export function hasScope(snap: Snapshot | null, scope: string): boolean {
+  const scopes = snap?.status?.scopes;
+  return !scopes || scopes.includes(scope);
 }
 
 /** True when Claude Code is signed out and a rule that is on runs it. */

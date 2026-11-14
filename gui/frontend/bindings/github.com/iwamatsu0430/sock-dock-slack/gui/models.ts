@@ -246,6 +246,62 @@ export class MemberList {
 }
 
 /**
+ * OwnerState is the owner ("本人") section of Settings, or why it cannot be
+ * shown (the gateway is not running).
+ */
+export class OwnerState {
+    /**
+     * Owner is the registered owner; absent when nobody is registered. Name
+     * is "" when users:read is missing or Slack does not know the ID.
+     */
+    "owner"?: slackio$0.Member | null;
+    "registration": gateway$0.Registration;
+
+    /**
+     * NotifyDM and NotifyDMFailures are the DM notice settings.
+     */
+    "notify_dm": boolean;
+    "notify_dm_failures": boolean;
+
+    /**
+     * Problem is "missing_scope" when DMs cannot reach SockDock (im:history).
+     */
+    "problem"?: string;
+    "error"?: string;
+
+    /** Creates a new OwnerState instance. */
+    constructor($$source: Partial<OwnerState> = {}) {
+        if (!("registration" in $$source)) {
+            this["registration"] = (new gateway$0.Registration());
+        }
+        if (!("notify_dm" in $$source)) {
+            this["notify_dm"] = false;
+        }
+        if (!("notify_dm_failures" in $$source)) {
+            this["notify_dm_failures"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new OwnerState instance from a string or object.
+     */
+    static createFrom($$source: any = {}): OwnerState {
+        const $$createField0_0 = $$createType6;
+        const $$createField1_0 = $$createType7;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("owner" in $$parsedSource) {
+            $$parsedSource["owner"] = $$createField0_0($$parsedSource["owner"]);
+        }
+        if ("registration" in $$parsedSource) {
+            $$parsedSource["registration"] = $$createField1_0($$parsedSource["registration"]);
+        }
+        return new OwnerState($$parsedSource as Partial<OwnerState>);
+    }
+}
+
+/**
  * Prefs are GUI preferences.
  */
 export class Prefs {
@@ -327,8 +383,8 @@ export class RouteSaveResult {
      * Creates a new RouteSaveResult instance from a string or object.
      */
     static createFrom($$source: any = {}): RouteSaveResult {
-        const $$createField1_0 = $$createType7;
-        const $$createField2_0 = $$createType8;
+        const $$createField1_0 = $$createType9;
+        const $$createField2_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("problems" in $$parsedSource) {
             $$parsedSource["problems"] = $$createField1_0($$parsedSource["problems"]);
@@ -360,7 +416,7 @@ export class RuleList {
      * Creates a new RuleList instance from a string or object.
      */
     static createFrom($$source: any = {}): RuleList {
-        const $$createField0_0 = $$createType10;
+        const $$createField0_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rules" in $$parsedSource) {
             $$parsedSource["rules"] = $$createField0_0($$parsedSource["rules"]);
@@ -433,10 +489,10 @@ export class RuleRow {
      * Creates a new RuleRow instance from a string or object.
      */
     static createFrom($$source: any = {}): RuleRow {
-        const $$createField0_0 = $$createType11;
-        const $$createField2_0 = $$createType12;
-        const $$createField3_0 = $$createType14;
-        const $$createField6_0 = $$createType16;
+        const $$createField0_0 = $$createType13;
+        const $$createField2_0 = $$createType14;
+        const $$createField3_0 = $$createType16;
+        const $$createField6_0 = $$createType18;
         const $$createField7_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("form" in $$parsedSource) {
@@ -487,8 +543,8 @@ export class Snapshot {
      * Creates a new Snapshot instance from a string or object.
      */
     static createFrom($$source: any = {}): Snapshot {
-        const $$createField2_0 = $$createType18;
-        const $$createField3_0 = $$createType19;
+        const $$createField2_0 = $$createType20;
+        const $$createField3_0 = $$createType21;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("status" in $$parsedSource) {
             $$parsedSource["status"] = $$createField2_0($$parsedSource["status"]);
@@ -534,17 +590,19 @@ const $$createType2 = TokenProblem.createFrom;
 const $$createType3 = $Create.Nullable($$createType2);
 const $$createType4 = slackio$0.Member.createFrom;
 const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = rules$0.FieldProblem.createFrom;
-const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = $Create.Array($Create.Any);
-const $$createType9 = RuleRow.createFrom;
-const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = rules$0.Form.createFrom;
-const $$createType12 = $Create.Nullable($$createType6);
-const $$createType13 = rules$0.Condition.createFrom;
-const $$createType14 = $Create.Nullable($$createType13);
-const $$createType15 = store$0.Turn.createFrom;
+const $$createType6 = $Create.Nullable($$createType4);
+const $$createType7 = gateway$0.Registration.createFrom;
+const $$createType8 = rules$0.FieldProblem.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = $Create.Array($Create.Any);
+const $$createType11 = RuleRow.createFrom;
+const $$createType12 = $Create.Array($$createType11);
+const $$createType13 = rules$0.Form.createFrom;
+const $$createType14 = $Create.Nullable($$createType8);
+const $$createType15 = rules$0.Condition.createFrom;
 const $$createType16 = $Create.Nullable($$createType15);
-const $$createType17 = gateway$0.Status.createFrom;
+const $$createType17 = store$0.Turn.createFrom;
 const $$createType18 = $Create.Nullable($$createType17);
-const $$createType19 = GatewayState.createFrom;
+const $$createType19 = gateway$0.Status.createFrom;
+const $$createType20 = $Create.Nullable($$createType19);
+const $$createType21 = GatewayState.createFrom;

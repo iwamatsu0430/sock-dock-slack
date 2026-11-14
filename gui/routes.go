@@ -197,6 +197,9 @@ func (a *AppService) ChannelName(idOrLink string) string {
 
 // channelLabel is "#name" when the channel's name is known, else the ID.
 func (a *AppService) channelLabel(id string) string {
+	if id == config.ChannelDM {
+		return "DM"
+	}
 	if ch := a.ChannelName(id); ch != "" {
 		return ch
 	}

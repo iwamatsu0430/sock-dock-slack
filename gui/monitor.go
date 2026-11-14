@@ -59,6 +59,8 @@ func (m *monitor) run() {
 				m.maybeNotifyTurn(e)
 			case "rule_changed":
 				m.notifyRuleChange(e)
+			case "claude_auth":
+				m.maybeNotifyClaude(e)
 			}
 			m.refresh()
 		})
@@ -225,6 +227,33 @@ func (m *monitor) maybeNotifyTurn(e gateway.Event) {
 	}
 	route, _ := data["route"].(string)
 	notify("SockDock", m.svc.tr("notify.failed", m.svc.labelFor(route)))
+}
+
+// maybeNotifyClaude tells the user that Claude Code is signed out, when a
+// rule runs it (docs/ia.md §8「通知」).
+func (m *monitor) maybeNotifyClaude(e gateway.Event) {
+	data, ok := e.Data.(map[string]bool)
+	if !ok {
+		if d, ok2 := e.Data.(map[string]any); ok2 {
+			v, _ := d["signed_in"].(bool)
+			data = map[string]bool{"signed_in": v}
+		} else {
+			return
+		}
+	}
+	if data["signed_in"] || !m.svc.GetPrefs().Notifications {
+		return
+	}
+	snap := m.svc.GetSnapshot()
+	if snap.Status == nil {
+		return
+	}
+	for _, r := range snap.Status.Routes {
+		if r.Type == config.TypeClaude && !r.Paused {
+			notify("SockDock", m.svc.tr("notify.claude"))
+			return
+		}
+	}
 }
 
 // notifyRuleChange tells the user about a rule changed through MCP. It is

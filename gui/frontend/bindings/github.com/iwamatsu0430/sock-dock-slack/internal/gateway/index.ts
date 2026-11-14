@@ -3,6 +3,7 @@
 
 export {
     Event,
+    Registration,
     RouteStatus,
     RunningTurn,
     Status

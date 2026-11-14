@@ -1,12 +1,13 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { App, errorText, type MCPSetup, type Prefs } from "../lib/api";
+  import { App, errorText, type MCPSetup, type OwnerState, type Prefs } from "../lib/api";
   import { live, needsSetup } from "../lib/live.svelte";
   import { languageNames, setLocale, t } from "../lib/i18n/index.svelte";
   import TokenFields from "../lib/TokenFields.svelte";
   import Rich from "../lib/Rich.svelte";
 
-  // The settings view of the window (⌘,): Slack, General, MCP and reset (docs/ia.md「設定」).
+  // The settings view of the window (⌘,): Slack, General, Notifications, MCP
+  // and reset (docs/ia.md「設定」).
   let prefs = $state<Prefs | null>(null);
   let atLogin = $state(false);
   let version = $state("");
@@ -88,6 +89,48 @@
       resetting = false;
     }
   }
+  // The owner ("本人", docs/ia.md「本人」): registered with a code sent by DM.
+  let owner = $state<OwnerState | null>(null);
+  let dmCopied = $state(false);
+  async function loadOwner() {
+    owner = await App.GetOwner().catch(() => null);
+  }
+  $effect(() => {
+    live.ownerChanges;
+    if (!setup) loadOwner();
+    else owner = null;
+  });
+  // The code changes every 30 seconds: fetch the next one when it does.
+  $effect(() => {
+    const next = owner?.registration?.next_change;
+    if (!owner?.registration?.active || !next) return;
+    const timer = setTimeout(loadOwner, Math.max(new Date(next).getTime() - Date.now() + 200, 500));
+    return () => clearTimeout(timer);
+  });
+  const reg = $derived(owner?.registration?.active ? owner.registration : null);
+  const codeLeft = $derived(
+    reg?.next_change ? Math.max(0, Math.min(1, (new Date(reg.next_change).getTime() - live.now) / ((reg.step_sec || 30) * 1000))) : 0,
+  );
+  async function ownerAction(f: () => Promise<OwnerState>) {
+    error = "";
+    try {
+      const o = await f();
+      if (o.error) error = o.error;
+      else owner = o;
+    } catch (e) {
+      error = errorText(e);
+    }
+  }
+  async function copyDMSettings() {
+    try {
+      await App.CopyDMSettings();
+      dmCopied = true;
+      setTimeout(() => (dmCopied = false), 2000);
+    } catch (e) {
+      error = errorText(e);
+    }
+  }
+
   async function disconnect() {
     if (!confirm(t("settings.disconnectConfirm"))) return;
     try {
@@ -115,6 +158,30 @@
           <button class="small danger" onclick={disconnect}>{t("settings.disconnect")}</button>
         {/if}
       </div>
+      {#if !setup && owner && !owner.error}
+        <div class="item owner">
+          {#if owner.owner}
+            <span class="olbl">{t("settings.owner")}</span>
+            <span class="lbl">{owner.owner.name || owner.owner.id}</span>
+            <button class="small" onclick={() => ownerAction(App.ClearOwner)}>{t("settings.ownerRemove")}</button>
+          {:else if owner.problem === "missing_scope"}
+            <div class="lbl ostack">
+              <span class="small bad-t">{t("settings.ownerNoScope")}</span>
+              <div class="row"><button class="small" onclick={copyDMSettings}>{dmCopied ? t("settings.mcpCopied") : t("setup.copySettings")}</button>
+                <button class="small" disabled>{t("settings.ownerRegister")}</button></div>
+            </div>
+          {:else if reg}
+            <div class="lbl ostack">
+              <div class="code"><b>{(reg.code ?? "").slice(0, 3)} {(reg.code ?? "").slice(3)}</b><span class="ring" style="--left: {codeLeft * 100}%"></span></div>
+              <span class="small">{t("settings.ownerCode")}</span>
+              <div><button class="small" onclick={() => ownerAction(App.CancelOwnerRegistration)}>{t("settings.ownerCancel")}</button></div>
+            </div>
+          {:else}
+            <span class="lbl small">{t("settings.ownerIntro")}</span>
+            <button class="small" onclick={() => ownerAction(App.StartOwnerRegistration)}>{t("settings.ownerRegister")}</button>
+          {/if}
+        </div>
+      {/if}
       {#if replacing && !setup}
         <div class="item stack replace">
           <TokenFields backLabel={t("settings.cancel")} onback={() => (replacing = false)} onconnected={() => (replacing = false)} />
@@ -128,15 +195,31 @@
     <div class="card">
       <div class="item"><span class="lbl">{t("settings.login")}</span>
         <button class="switch" class:on={atLogin} aria-label={t("settings.login")} aria-pressed={atLogin} onclick={toggleLogin}></button></div>
-      <div class="item"><span class="lbl">{t("settings.notify")}</span>
-        <button class="switch" class:on={prefs?.notifications} aria-label={t("settings.notify")} aria-pressed={!!prefs?.notifications}
-          disabled={!prefs} onclick={() => prefs && savePrefs({ ...prefs, notifications: !prefs.notifications })}></button></div>
       <div class="item"><span class="lbl">{t("settings.language")}</span>
         <select class="lang" value={prefs?.language ?? "auto"} disabled={!prefs}
           onchange={(e) => prefs && savePrefs({ ...prefs, language: (e.currentTarget as HTMLSelectElement).value })}>
           <option value="auto">{t("settings.languageAuto")}</option>
           {#each Object.entries(languageNames) as [code, label]}<option value={code}>{label}</option>{/each}
         </select></div>
+    </div>
+  </div>
+
+  <div>
+    <h2>{t("settings.notifications")}</h2>
+    <div class="card">
+      <div class="item"><span class="lbl">{t("settings.notifyMac")}</span>
+        <button class="switch" class:on={prefs?.notifications} aria-label={t("settings.notifyMac")} aria-pressed={!!prefs?.notifications}
+          disabled={!prefs} onclick={() => prefs && savePrefs({ ...prefs, notifications: !prefs.notifications })}></button></div>
+      <div class="item"><span class="lbl">{t("settings.notifyDM")}
+          {#if !owner?.owner}<span class="sub small muted">{t("settings.notifyDMNeedsOwner")}</span>{/if}</span>
+        <button class="switch" class:on={!!owner?.owner && owner.notify_dm} aria-label={t("settings.notifyDM")} aria-pressed={!!owner?.owner && owner.notify_dm}
+          disabled={!owner?.owner} onclick={() => owner && ownerAction(() => App.SetNotifyDM("notify_dm", !owner!.notify_dm))}></button></div>
+      {#if owner?.owner && owner.notify_dm}
+        <div class="item indent"><span class="lbl">{t("settings.notifyFailures")}
+            <span class="sub small muted">{t("settings.notifyFailuresNote")}</span></span>
+          <button class="switch" class:on={owner.notify_dm_failures} aria-label={t("settings.notifyFailures")} aria-pressed={owner.notify_dm_failures}
+            onclick={() => owner && ownerAction(() => App.SetNotifyDM("notify_dm_failures", !owner!.notify_dm_failures))}></button></div>
+      {/if}
     </div>
   </div>
 
@@ -200,4 +283,12 @@
   .lang { width: 180px; }
   .mcp { align-items: stretch; gap: 6px; }
   .client { width: auto; }
+  .owner { align-items: center; }
+  .olbl { width: 44px; flex: none; }
+  .ostack { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+  .code { display: flex; align-items: center; gap: 10px; }
+  .code b { font: 600 26px/1.2 ui-monospace, Menlo, monospace; letter-spacing: .06em; }
+  .ring { width: 16px; height: 16px; border-radius: 50%; flex: none; background: conic-gradient(var(--accent) var(--left, 0%), var(--border) 0); }
+  .sub { display: block; }
+  .indent { padding-left: 28px; }
 </style>

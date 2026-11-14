@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SockDock モック: DM とメンション</title>
+<!-- docs/ia.md §3「本人への DM」、§8「DM とメンション」「本人」「通知」。docs/design.md §3.5。承認されたら docs/mock/index.html に入れる。スタイルは index.html と同じ -->
+<style>
+:root {
+  --bg: #f6f6f8; --panel: #fff; --panel-2: #f0f0f4; --text: #1c1c22; --muted: #6b6b78;
+  --border: #e2e2e8; --accent: #4f46e5; --accent-text: #fff; --ok: #16a34a;
+  --bad: #dc2626; --code-bg: #f3f3f7; --desk: #d9dbe3; --menu: rgba(246,246,248,.96);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1b1b20; --panel: #24242b; --panel-2: #2c2c35; --text: #ececf1; --muted: #9a9aa8;
+    --border: #3a3a44; --accent: #818cf8; --accent-text: #11111a; --ok: #4ade80;
+    --bad: #f87171; --code-bg: #1e1e24; --desk: #111114; --menu: rgba(40,40,48,.96);
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--desk); color: var(--text);
+  font: 13px/1.55 -apple-system, BlinkMacSystemFont, "Hiragino Sans", system-ui, sans-serif; }
+h1, h2, p { margin: 0; }
+h1 { font-size: 20px; font-weight: 600; } h2 { font-size: 13px; font-weight: 600; }
+code { font: 12px ui-monospace, Menlo, monospace; background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
+button { font: inherit; border: 1px solid var(--border); background: var(--panel); color: var(--text);
+  border-radius: 6px; padding: 4px 12px; cursor: pointer; white-space: nowrap; }
+button:hover { background: var(--panel-2); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+button.danger { color: var(--bad); }
+button.small { padding: 1px 8px; font-size: 12px; }
+button.link { border: none; background: none; padding: 0; color: var(--accent); }
+button.link:hover { text-decoration: underline; }
+input[type=text], input[type=password], select, textarea { font: inherit; width: 100%; border: 1px solid var(--border);
+  background: var(--panel); color: var(--text); border-radius: 6px; padding: 5px 8px; }
+input.invalid { border-color: var(--bad); }
+label.f { display: block; font-weight: 500; margin-bottom: 4px; }
+.muted { color: var(--muted); } .small { font-size: 12px; }
+.ok-t { color: var(--ok); } .bad-t { color: var(--bad); }
+.row { display: flex; align-items: center; gap: 8px; } .spacer { flex: 1; }
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
+.check { display: flex; gap: 8px; align-items: center; }
+.switch { width: 30px; height: 18px; border-radius: 9px; background: var(--border); position: relative; flex: none; cursor: pointer; }
+.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left .15s; }
+.switch.on { background: var(--ok); } .switch.on::after { left: 14px; }
+[hidden] { display: none !important; }
+
+/* mock chrome */
+.picker { position: sticky; top: 0; z-index: 10; background: var(--panel); border-bottom: 1px solid var(--border);
+  padding: 8px 16px; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.picker strong { margin-right: 6px; }
+.picker .grp { font-size: 11px; color: var(--muted); margin-left: 8px; }
+.picker button { font-size: 12px; padding: 1px 9px; }
+.picker button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.stage { padding: 24px 16px 48px; display: flex; justify-content: center; align-items: flex-start; }
+
+/* window */
+.win { width: 720px; max-width: 100%; height: 560px; background: var(--bg); border-radius: 10px; overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0,0,0,.25); border: 1px solid var(--border); display: flex; flex-direction: column; }
+.win.narrow { width: 520px; height: auto; min-height: 0; }
+.titlebar { height: 34px; flex: none; display: flex; align-items: center; gap: 7px; padding: 0 14px; position: relative; }
+.titlebar i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; }
+.titlebar i:nth-child(2) { background: #febc2e; } .titlebar i:nth-child(3) { background: #28c840; }
+.titlebar span { position: absolute; left: 0; right: 0; text-align: center; font-size: 12px; font-weight: 600; color: var(--muted); pointer-events: none; }
+.content { flex: 1; overflow-y: auto; padding: 8px 28px 24px; }
+.banner { display: flex; gap: 10px; align-items: center; padding: 9px 12px; border-radius: 8px; margin-bottom: 14px;
+  background: color-mix(in srgb, var(--bad) 10%, var(--panel)); border: 1px solid color-mix(in srgb, var(--bad) 40%, var(--border)); }
+
+/* setup */
+.setup { padding: 28px 44px 24px; display: flex; flex-direction: column; gap: 16px; }
+.setup .stepno { font-size: 12px; color: var(--muted); }
+.setup .big { font-size: 20px; font-weight: 600; }
+.setupnav { display: flex; gap: 8px; margin-top: 8px; }
+details.existing { border-top: 1px solid var(--border); padding-top: 10px; }
+details.existing summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+details.existing > p:first-of-type { margin: 8px 0 4px; }
+table.need { border-collapse: collapse; width: 100%; }
+table.need th { text-align: left; font-weight: 500; color: var(--muted); white-space: nowrap; vertical-align: top; padding: 4px 12px 4px 0; border-bottom: 1px solid var(--border); }
+table.need td { padding: 4px 0; border-bottom: 1px solid var(--border); }
+.check-list { margin: 4px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.check-list .scopes { margin-top: 4px; }
+details.hint { margin-top: 6px; }
+details.hint summary { cursor: pointer; color: var(--muted); }
+.todo { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+.todo li > div { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.scopes { list-style: none; margin: 2px 0 0; padding: 0; display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; color: var(--muted); align-items: baseline; }
+.scopes li { display: contents; }
+.scopes li > :first-child, .scopes li > code + code { justify-self: start; }
+
+/* routes */
+.list { overflow: hidden; }
+.group + .group { margin-top: 16px; }
+.ghead { display: flex; align-items: baseline; gap: 10px; margin: 0 2px 6px; }
+.route { display: flex; align-items: center; gap: 12px; padding: 11px 14px 11px 8px; cursor: pointer; }
+.route.dragging { opacity: .35; }
+.handle { cursor: grab; color: var(--muted); font-size: 14px; line-height: 1; padding: 0 2px; user-select: none; -webkit-user-select: none; }
+.route + .route { border-top: 1px solid var(--border); }
+.route:hover { background: color-mix(in srgb, var(--text) 3%, transparent); }
+.route .what { flex: 1; min-width: 0; }
+.route .ln { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.route.off .what { opacity: .45; }
+.last { font-size: 12px; white-space: nowrap; }
+.empty { text-align: center; padding: 48px 24px; display: flex; flex-direction: column; gap: 14px; align-items: center; }
+.foot { margin-top: 14px; font-size: 12px; }
+
+/* route page */
+.back { border: none; background: none; padding: 0; color: var(--accent); }
+.sec { padding: 14px 0; border-top: 1px solid var(--border); display: grid; grid-template-columns: 110px 1fr; gap: 6px 16px; }
+.sec.first { border-top: none; }
+.sec > h2 { padding-top: 5px; }
+.ctl { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; width: fit-content; }
+.seg button { border: none; border-radius: 0; padding: 4px 14px; }
+.seg button + button { border-left: 1px solid var(--border); }
+.seg button.on { background: var(--accent); color: var(--accent-text); }
+details.more summary { cursor: pointer; color: var(--muted); font-size: 12px; padding: 10px 0; }
+.formfoot { display: flex; gap: 8px; padding: 14px 0; border-top: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th { text-align: left; font-weight: 500; color: var(--muted); padding: 6px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+td { padding: 7px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+
+/* settings (a view of the main window) */
+.set { display: flex; flex-direction: column; gap: 18px; max-width: 560px; margin: 4px auto 0; padding-bottom: 8px; }
+.topnav { flex: none; display: flex; justify-content: center; padding: 0 0 8px; }
+.topnav .seg button { padding: 3px 18px; }
+.win.main { position: relative; }
+.overlay { position: absolute; inset: 0; background: rgba(0,0,0,.28); display: flex; align-items: flex-start; justify-content: center; padding-top: 70px; }
+.dialog { width: 380px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 16px 40px rgba(0,0,0,.3); }
+.dialog .big { font-size: 15px; font-weight: 600; }
+button.danger-fill { background: var(--bad); border-color: var(--bad); color: #fff; }
+.set h2 { color: var(--muted); font-weight: 500; margin-bottom: 6px; }
+.item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; }
+.item + .item { border-top: 1px solid var(--border); }
+.item .lbl { flex: 1; }
+
+/* menu */
+.menuwrap { width: 300px; }
+.menubar { height: 24px; display: flex; justify-content: flex-end; align-items: center; gap: 14px; font-size: 12px; padding-right: 6px; }
+.menubar .ico { display: flex; padding: 2px 5px; border-radius: 4px; background: color-mix(in srgb, var(--text) 16%, transparent); }
+.menu { margin-top: 2px; background: var(--menu); border: 1px solid var(--border); border-radius: 8px; padding: 5px;
+  box-shadow: 0 12px 32px rgba(0,0,0,.22); font-size: 13px; }
+.menu .mi { padding: 3px 10px; border-radius: 4px; display: flex; gap: 8px; }
+.menu .mi:hover { background: var(--accent); color: var(--accent-text); }
+.menu .mi.dis { color: var(--muted); } .menu .mi.dis:hover { background: none; color: var(--muted); }
+.menu .mi .r { margin-left: auto; color: var(--muted); }
+.menu .mi:hover .r { color: inherit; }
+.menu hr { border: none; border-top: 1px solid var(--border); margin: 5px 8px; }
+.menu .hd { padding: 3px 10px; font-size: 11px; color: var(--muted); }
+/* icons */
+.icons { display: flex; flex-direction: column; gap: 16px; width: 520px; max-width: 100%; }
+.icons .row { display: flex; gap: 20px; align-items: center; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.icons .bar { flex-direction: column; align-items: stretch; gap: 8px; }
+.icons .bar > div { display: flex; gap: 28px; padding: 8px 14px; border-radius: 6px; }
+.icons .bar span { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; }
+.icons .cap { font-size: 11px; color: var(--muted); }
+/* slack */
+.slack { width: 560px; max-width: 100%; background: var(--panel); border-radius: 10px; overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0,0,0,.25); border: 1px solid var(--border); }
+.slack .ch { padding: 10px 16px; font-weight: 600; border-bottom: 1px solid var(--border); }
+.thread { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+.thread + .thread { border-top: 1px solid var(--border); }
+.thread .cap { font-size: 11px; color: var(--muted); }
+.msg { display: flex; gap: 10px; }
+.msg .av { width: 32px; height: 32px; border-radius: 6px; flex: none; background: var(--panel-2); display: grid; place-items: center; font-size: 13px; overflow: hidden; }
+.msg .who { font-weight: 600; } .msg .who .app { font-size: 10px; font-weight: 500; color: var(--muted); border: 1px solid var(--border); border-radius: 3px; padding: 0 3px; margin-left: 4px; }
+.msg .who .tm { font-weight: 400; font-size: 11px; color: var(--muted); margin-left: 6px; }
+.reply { margin-left: 42px; padding-left: 10px; border-left: 2px solid var(--border); }
+.react { display: inline-block; margin-top: 4px; font-size: 12px; padding: 0 7px; border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel)); border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border)); }
+</style>
+<style>
+/* 実行できる人 */
+.chips { position: relative; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; border: 1px solid var(--border);
+  border-radius: 6px; padding: 4px 6px; background: var(--panel); }
+.chips.invalid { border-color: var(--bad); }
+.chip { display: inline-flex; align-items: center; background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px; padding: 0 0 0 8px; font-size: 12px; }
+.chip.id { font-family: ui-monospace, Menlo, monospace; }
+.chip button { border: none; background: none; padding: 0 6px; color: var(--muted); font-size: 12px; }
+.chips input[type=text] { border: none; flex: 1; min-width: 140px; padding: 2px 2px; background: transparent; }
+.chips input[type=text]:focus { outline: none; }
+.sugg { position: absolute; left: -1px; right: -1px; top: calc(100% + 4px); z-index: 5; background: var(--panel); border: 1px solid var(--border);
+  border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,.15); padding: 4px; }
+.sugg div { padding: 4px 8px; border-radius: 4px; cursor: pointer; }
+.sugg div:hover { background: var(--accent); color: var(--accent-text); }
+.sugg div:hover .muted { color: inherit; }
+.note-only { font-size: 11px; color: var(--muted); }
+.ignored { opacity: .55; }
+</style>
+<style>
+/* DM とメンション */
+select optgroup { color: var(--muted); }
+.copybox { display: flex; gap: 8px; align-items: center; margin-top: 2px; }
+.ownerrow { display: flex; flex-direction: column; gap: 4px; }
+.item.owner { align-items: flex-start; }
+.item .sub { font-size: 12px; color: var(--muted); }
+.switch.dis { opacity: .4; cursor: default; }
+.dm .ch { display: flex; gap: 8px; align-items: center; }
+.code { display: flex; align-items: center; gap: 10px; }
+.code b { font: 600 26px/1.2 ui-monospace, Menlo, monospace; letter-spacing: .06em; }
+.ring { width: 16px; height: 16px; border-radius: 50%; flex: none;
+  background: conic-gradient(var(--accent) var(--left, 70%), var(--border) 0); }
+.tag { font-size: 10px; color: var(--muted); border: 1px solid var(--border); border-radius: 3px; padding: 0 4px; font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div class="picker">
+  <strong>DM とメンション モック</strong>
+  <span class="grp">ルールの画面</span>
+  <button data-go="dm-new">DM・新しいルール</button>
+  <button data-go="dm-all">DM・全員でコマンドを許可</button>
+  <button data-go="dm-noscope">DM・im:history がない</button>
+  <button data-go="mention">メンションされたときだけ</button>
+  <span class="grp">一覧</span>
+  <button data-go="list">ルール</button>
+  <span class="grp">設定</span>
+  <button data-go="set-none">本人: 未登録</button>
+  <button data-go="set-code">本人: コードを表示</button>
+  <button data-go="set-done">本人: 登録済み</button>
+  <button data-go="set-noscope">本人: im:history がない</button>
+  <span class="grp">Slack</span>
+  <button data-go="slack-dm">DM</button>
+  <button data-go="slack-mention">#dev-help</button>
+</div>
+
+<div class="stage">
+
+  <!-- ============ ルールの画面 ============ -->
+  <div class="win main" data-screen="dm-new dm-all dm-noscope mention" style="height:660px">
+    <div class="titlebar"><i></i><i></i><i></i><span>SockDock</span></div>
+    <div class="topnav"><div class="seg"><button class="on">ルール</button><button>設定</button></div></div>
+    <div class="content">
+      <div style="min-height:28px"><button class="back">← ルール</button></div>
+      <h1 style="margin-bottom:6px" id="title">新しいルール</h1>
+
+      <div class="sec first">
+        <h2>チャンネル</h2>
+        <div class="ctl">
+          <select id="channel">
+            <option value="dm">DM</option>
+            <option disabled>──────────</option>
+            <option value="dev">#dev-help</option><option value="gen">#general</option><option value="ops">🔒ops</option>
+          </select>
+          <p class="small muted" id="chNote">一覧に出るのは、Slack アプリを追加したチャンネルです。</p>
+          <div id="dmScope" hidden>
+            <p class="small bad-t">DM を受け取るには、Slack アプリに設定を足して、再インストールしてください。</p>
+            <div class="copybox"><button class="small">設定をコピー</button></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h2>実行できる人</h2>
+        <div class="ctl">
+          <div class="seg" id="who"><button data-who="all">全員</button><button data-who="picked">選んだ人</button></div>
+          <p class="small" id="allNote"></p>
+          <p class="small bad-t" id="riskCmd" hidden></p>
+          <div id="pickedBody" hidden>
+            <div class="chips" id="chips"><input type="text" id="addPerson" placeholder="名前で追加" autocomplete="off"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h2>反応する投稿</h2>
+        <div class="ctl">
+          <div class="row">
+            <select id="kind" style="width:auto;flex:none"><option value="sw">〜で始まる投稿</option><option value="ct">〜を含む投稿</option><option value="re">正規表現に一致する投稿</option><option value="all">すべての投稿</option></select>
+            <input type="text" id="kw" value="review" style="flex:1;min-width:0;max-width:240px">
+          </div>
+          <label class="check" id="mentionRow"><input type="checkbox" id="mentionOnly"> メンションされたときだけ</label>
+          <p class="small muted" id="allPostsNote" hidden></p>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h2>実行するもの</h2>
+        <div class="ctl">
+          <div class="seg"><button class="on">AI エージェント</button><button>プログラム</button></div>
+          <div class="stack" style="gap:10px;margin-top:4px">
+            <div><label class="f small">作業フォルダ</label><div class="row"><input type="text" value="~/projects/web-app"><button>選ぶ…</button></div></div>
+            <div><label class="f small">エージェントに許可する操作</label>
+              <label class="check"><input type="checkbox" checked> Web 検索</label>
+              <label class="check"><input type="checkbox"> フォルダ内のファイル編集</label>
+              <label class="f small" style="margin-top:8px;font-weight:normal">実行してよいコマンド</label>
+              <input type="text" id="cmd" placeholder="例: npm test">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h2>最近の処理</h2>
+        <div class="ctl">
+          <p class="small muted" id="tryIt"></p>
+          <p class="small" id="notYet"></p>
+        </div>
+      </div>
+
+      <div class="formfoot">
+        <span class="spacer"></span><button>キャンセル</button><button class="primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 一覧 ============ -->
+  <div class="win main" data-screen="list">
+    <div class="titlebar"><i></i><i></i><i></i><span>SockDock</span></div>
+    <div class="topnav"><div class="seg"><button class="on">ルール</button><button>設定</button></div></div>
+    <div class="content">
+      <div class="row" style="margin:6px 0 14px"><h1>ルール</h1><span class="spacer"></span><button class="primary">ルールを追加</button></div>
+      <div class="group">
+        <div class="ghead"><h2>#dev-help</h2><span class="small muted">上のルールが優先されます。</span></div>
+        <div class="card list">
+          <div class="route"><span class="handle">⠿</span><div class="what"><div class="ln"><code>メンションして「review」で始まる → Claude Code（~/projects/web-app）</code></div></div><span class="last muted">成功 · 3分前</span><span class="switch on"></span></div>
+          <div class="route"><span class="handle">⠿</span><div class="what"><div class="ln"><code>「deploy」で始まる → プログラム（~/scripts/deploy.sh）</code></div></div><span class="last muted">成功 · 昨日</span><span class="switch on"></span></div>
+        </div>
+      </div>
+      <div class="group">
+        <div class="ghead"><h2>DM</h2></div>
+        <div class="card list">
+          <div class="route"><span class="handle">⠿</span><div class="what"><div class="ln"><code>「todo」で始まる → Claude Code（~/notes）</code></div></div><span class="last muted">成功 · 10分前</span><span class="switch on"></span></div>
+          <div class="route"><span class="handle">⠿</span><div class="what"><div class="ln"><code>すべての投稿 → Claude Code（~/projects/web-app）</code></div></div><span class="last muted">—</span><span class="switch on"></span></div>
+        </div>
+      </div>
+      <p class="foot"><button class="link">設定ファイルを開く</button></p>
+    </div>
+  </div>
+
+  <!-- ============ 設定 ============ -->
+  <div class="win main" data-screen="set-none set-code set-done set-noscope" style="height:600px">
+    <div class="titlebar"><i></i><i></i><i></i><span>SockDock</span></div>
+    <div class="topnav"><div class="seg"><button>ルール</button><button class="on">設定</button></div></div>
+    <div class="content">
+      <div class="set">
+        <div>
+          <h2>Slack</h2>
+          <div class="card">
+            <div class="item"><span class="lbl"><span class="ok-t">●</span> acme に接続済み</span>
+              <button class="small">トークンを再設定</button><button class="small danger">接続を解除</button></div>
+            <div class="item owner">
+              <span style="width:44px;flex:none" id="ownerLbl">本人</span>
+              <div class="lbl ownerrow" id="ownerBody"></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <h2>一般</h2>
+          <div class="card">
+            <div class="item"><span class="lbl">ログイン時に起動</span><span class="switch on"></span></div>
+            <div class="item"><span class="lbl">言語</span><select style="width:180px"><option>システムに合わせる</option><option>English</option><option>日本語</option></select></div>
+          </div>
+        </div>
+        <div>
+          <h2>通知</h2>
+          <div class="card">
+            <div class="item"><span class="lbl">Mac</span><span class="switch on" data-toggle></span></div>
+            <div class="item"><span class="lbl">Slack の DM<div class="sub" id="dmSub">本人を登録すると使えます。</div></span><span class="switch" id="dmSwitch"></span></div>
+            <div class="item" id="failRow" style="padding-left:28px"><span class="lbl">処理の失敗も送る<div class="sub">処理が失敗するたびに届くので、数が多くなることがあります。</div></span><span class="switch" id="failSwitch"></span></div>
+          </div>
+        </div>
+        <div>
+          <h2>MCP</h2>
+          <div class="card"><div class="item"><select style="width:auto"><option>Claude Code</option></select><span class="spacer"></span><button class="small">コマンドをコピー</button></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Slack: DM ============ -->
+  <div class="slack dm" data-screen="slack-dm">
+    <div class="ch">dev-bot <span class="tag">アプリ</span></div>
+    <div class="thread">
+      <div class="cap">本人の登録 — Mac に出たコードを DM で送る。合えば、その場で登録する</div>
+      <div class="msg"><div class="av">太</div><div><div class="who">田中 太郎<span class="tm">10:02</span></div><div>482 931</div></div></div>
+      <div class="msg"><div class="av" style="background:#3C3489;color:#fff">SD</div><div><div class="who">dev-bot<span class="app">アプリ</span><span class="tm">10:02</span></div><div>⚠️ コードが違います。</div></div></div>
+      <div class="msg"><div class="av">太</div><div><div class="who">田中 太郎<span class="tm">10:02</span></div><div>482 913</div></div></div>
+      <div class="msg"><div class="av" style="background:#3C3489;color:#fff">SD</div><div><div class="who">dev-bot<span class="app">アプリ</span><span class="tm">10:03</span></div><div>✅ 登録しました。SockDock からのお知らせは、この DM に届きます。</div><div class="note-only">（Mac の設定の「本人」に名前が出る。違う人なら、そこで解除する）</div></div></div>
+    </div>
+    <div class="thread">
+      <div class="cap">DM のルール — チャンネルと同じく、スレッドで返す</div>
+      <div class="msg"><div class="av">太</div><div><div class="who">田中 太郎<span class="tm">10:20</span></div><div>todo 牛乳を買う</div></div></div>
+      <div class="msg reply"><div class="av" style="background:#3C3489;color:#fff">SD</div><div><div class="who">dev-bot<span class="app">アプリ</span><span class="tm">10:20</span></div><div>~/notes/todo.md に「牛乳を買う」を足しました。</div></div></div>
+    </div>
+    <div class="thread">
+      <div class="cap">通知 — 本人との DM のトップレベルに届く</div>
+      <div class="msg"><div class="av" style="background:#3C3489;color:#fff">SD</div><div><div class="who">dev-bot<span class="app">アプリ</span><span class="tm">13:40</span></div><div>⚠️ Claude Code にサインインしていないため、AI エージェントのルールが動きません。Mac の SockDock でサインインしてください。</div></div></div>
+      <div class="msg"><div class="av" style="background:#3C3489;color:#fff">SD</div><div><div class="who">dev-bot<span class="app">アプリ</span><span class="tm">15:12</span></div><div>MCP から <code>#dev-help「review」</code> を変更しました</div></div></div>
+      <div class="msg"><div class="av" style="background:#3C3489;color:#fff">SD</div><div><div class="who">dev-bot<span class="app">アプリ</span><span class="tm">16:05</span></div><div>⚠️ <code>#dev-help「review」</code> の処理が失敗しました。上限時間（600 秒）を超えたため停止しました。 <a href="#">スレッド ↗</a></div><div class="note-only">（設定の「通知」で「処理の失敗も送る」をオンにしたときだけ）</div></div></div>
+    </div>
+  </div>
+
+  <!-- ============ Slack: メンション ============ -->
+  <div class="slack" data-screen="slack-mention">
+    <div class="ch"># dev-help</div>
+    <div class="thread"><div class="note-only">ルール #dev-help「review」 ・ メンションされたときだけ</div></div>
+    <div class="thread">
+      <div class="cap">メンションした投稿 — 動く</div>
+      <div class="msg"><div class="av">al</div><div><div class="who">alex<span class="tm">13:58</span></div><div><span style="color:var(--accent)">@dev-bot</span> review src/api.ts</div></div></div>
+      <div class="msg reply"><div class="av" style="background:#3C3489;color:#fff">SD</div><div><div class="who">dev-bot<span class="app">アプリ</span><span class="tm">13:59</span></div><div>42 行目で fetch の失敗を握りつぶしています。</div></div></div>
+    </div>
+    <div class="thread">
+      <div class="cap">メンションのない投稿 — 何も起きない</div>
+      <div class="msg"><div class="av">al</div><div><div class="who">alex<span class="tm">14:01</span></div><div>review は明日にしよう</div></div></div>
+    </div>
+    <div class="thread">
+      <div class="cap">ほかの投稿のスレッドの途中でメンション — 何も起きない（ルールを始めるのはトップレベルの投稿だけ）</div>
+      <div class="msg"><div class="av">sa</div><div><div class="who">sam<span class="tm">14:05</span></div><div>リリースの段取りどうする？</div></div></div>
+      <div class="msg reply ignored"><div class="av">al</div><div><div class="who">alex<span class="tm">14:07</span></div><div><span style="color:var(--accent)">@dev-bot</span> review src/release.ts</div></div></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const $ = (q) => document.querySelector(q);
+const $$ = (q) => [...document.querySelectorAll(q)];
+const has = (list, id) => list.split(" ").includes(id);
+let st = {};
+
+function go(id) {
+  $$("[data-screen]").forEach((el) => (el.hidden = !has(el.dataset.screen, id)));
+  $$(".picker [data-go]").forEach((b) => b.classList.toggle("on", b.dataset.go === id));
+  if (["dm-new", "dm-all", "dm-noscope", "mention"].includes(id)) {
+    st = {
+      ch: id === "mention" ? "dev" : "dm",
+      who: id === "dm-all" || id === "mention" ? "all" : "picked",
+      picked: id === "dm-new" || id === "dm-noscope" ? ["田中 太郎"] : [],
+      scope: id !== "dm-noscope",
+      mention: id === "mention",
+      cmd: id === "dm-all" ? "npm test" : "",
+    };
+    $("#channel").value = st.ch;
+    $("#mentionOnly").checked = st.mention;
+    $("#cmd").value = st.cmd;
+    $("#kind").value = "sw";
+    $("#title").textContent = id === "mention" ? "#dev-help「review」" : "新しいルール";
+    renderRule();
+  }
+  if (id.startsWith("set-")) renderSettings(id);
+  try { history.replaceState(null, "", "#" + id); } catch {}
+}
+
+function renderRule() {
+  const dm = $("#channel").value === "dm";
+  const chName = $("#channel").selectedOptions[0].textContent;
+  $("#chNote").hidden = dm;
+  $("#dmScope").hidden = !(dm && !st.scope);
+  $$("#who button").forEach((b) => b.classList.toggle("on", b.dataset.who === st.who));
+  const all = st.who === "all", cmd = $("#cmd").value.trim() !== "";
+  $("#allNote").hidden = !all || cmd;
+  $("#allNote").textContent = dm ? "ワークスペースのメンバーなら誰でも、DM で実行できます。" : "このチャンネルのメンバーなら誰でも実行できます。";
+  $("#riskCmd").hidden = !all || !cmd;
+  $("#riskCmd").textContent = dm ? "ワークスペースのメンバー全員が、この Mac でコマンドを実行させられます。" : "チャンネルのメンバー全員が、この Mac でコマンドを実行させられます。";
+  $("#pickedBody").hidden = all;
+  const chips = $("#chips");
+  chips.querySelectorAll(".chip").forEach((c) => c.remove());
+  st.picked.forEach((name) => {
+    const c = document.createElement("span");
+    c.className = "chip";
+    c.innerHTML = `${name}<button title="外す">×</button>`;
+    c.querySelector("button").onclick = () => { st.picked = st.picked.filter((x) => x !== name); renderRule(); };
+    chips.insertBefore(c, $("#addPerson"));
+  });
+  $("#mentionRow").hidden = dm;
+  const kind = $("#kind").value, mention = !dm && $("#mentionOnly").checked;
+  $("#kw").hidden = kind === "all";
+  $("#allPostsNote").hidden = kind !== "all";
+  $("#allPostsNote").textContent = dm ? "Slack アプリへのすべての DM で動きます。"
+    : mention ? `${chName} の、Slack アプリをメンションした投稿で動きます。` : `${chName} のすべての投稿で動きます。`;
+  const kw = $("#kw").value.trim() || "review";
+  const ex = kind === "sw" ? `「${kw} 〜」と` : kind === "ct" ? `「〜${kw}〜」と` : "";
+  $("#tryIt").textContent = dm ? `Slack アプリに${ex || ""}DM すると、ここに表示されます。`
+    : mention ? `${chName} で Slack アプリをメンションして${ex}投稿すると、ここに表示されます。`
+    : `${chName} に${ex}投稿すると、ここに表示されます。`;
+  $("#notYet").textContent = dm ? "DM は、まだ届いていません。" : "";
+  $("#notYet").hidden = !dm;
+}
+
+function renderSettings(id) {
+  const body = $("#ownerBody");
+  const done = id === "set-done";
+  const html = {
+    "set-none": `<div class="row"><span class="small">通知を Slack の DM で受け取れます。</span><span class="spacer"></span><button class="small" id="start">本人を登録</button></div>`,
+    "set-code": `<div class="code"><b id="codeNum">482 913</b><span class="ring" id="ring"></span></div>
+      <span class="small">このコードを、Slack アプリに DM で送ってください。</span><div><button class="small" id="cancel">キャンセル</button></div>`,
+    "set-done": `<div class="row"><span>田中 太郎</span><span class="spacer"></span><button class="small" id="unreg">解除</button></div>`,
+    "set-noscope": `<span class="small bad-t">本人を登録するには、Slack アプリに設定を足して、再インストールしてください。</span>
+      <div class="row"><button class="small">設定をコピー</button><button class="small" disabled style="opacity:.4">本人を登録</button></div>`,
+  }[id];
+  body.innerHTML = html;
+  $("#ownerLbl").hidden = !done;
+  $("#dmSwitch").classList.toggle("dis", !done);
+  $("#dmSwitch").classList.toggle("on", done);
+  $("#dmSub").hidden = done;
+  syncFail();
+  const on = (q, f) => { const el = $(q); if (el) el.onclick = f; };
+  on("#start", () => go("set-code"));
+  on("#cancel", () => go("set-none"));
+  on("#unreg", () => go("set-none"));
+  clearInterval(tick);
+  if (id === "set-code") {
+    // 30 秒ごとに変わるコード（モックなので数字は適当）
+    let left = 21;
+    const draw = () => { $("#ring").style.setProperty("--left", (left / 30 * 100) + "%"); };
+    draw();
+    tick = setInterval(() => {
+      if (!$("#ring")) return clearInterval(tick);
+      if (--left <= 0) { left = 30; const n = String(Math.floor(Math.random() * 1e6)).padStart(6, "0"); $("#codeNum").textContent = n.slice(0, 3) + " " + n.slice(3); }
+      draw();
+    }, 1000);
+  }
+}
+let tick;
+
+// 「処理の失敗も送る」は、Slack の DM がオンのときだけ出す
+function syncFail() { $("#failRow").hidden = !$("#dmSwitch").classList.contains("on"); }
+$("#dmSwitch").onclick = () => { if (!$("#dmSwitch").classList.contains("dis")) { $("#dmSwitch").classList.toggle("on"); syncFail(); } };
+$("#failSwitch").onclick = () => $("#failSwitch").classList.toggle("on");
+$$("[data-toggle]").forEach((s) => (s.onclick = () => s.classList.toggle("on")));
+$("#channel").addEventListener("change", () => {
+  // 新しい DM のルールは、本人を選んだ状態で始まる
+  if ($("#channel").value === "dm" && st.picked.length === 0 && st.who === "all") { st.who = "picked"; st.picked = ["田中 太郎"]; }
+  renderRule();
+});
+$$("#who button").forEach((b) => (b.onclick = () => { st.who = b.dataset.who; renderRule(); }));
+["#kind", "#mentionOnly"].forEach((q) => $(q).addEventListener("change", renderRule));
+["#kw", "#cmd"].forEach((q) => $(q).addEventListener("input", renderRule));
+$$(".picker [data-go]").forEach((b) => (b.onclick = () => go(b.dataset.go)));
+go((location.hash || "#dm-new").slice(1));
+</script>
+</body>
+</html>

@@ -11,6 +11,10 @@ features:
   bot_user:
     display_name: SockDock
     always_online: true
+  app_home:                 # lets people send DMs to the app
+    home_tab_enabled: false
+    messages_tab_enabled: true
+    messages_tab_read_only_enabled: false
 oauth_config:
   scopes:
     bot:
@@ -21,11 +25,13 @@ oauth_config:
       - channels:read   # lets the app list the channels the bot is in
       - groups:read
       - users:read      # lets you choose who can run a rule by name
+      - im:history      # receives DMs sent to the app (DM rules, registering yourself)
 settings:
   event_subscriptions:
     bot_events:
       - message.channels
       - message.groups
+      - message.im
   interactivity:
     is_enabled: false
   org_deploy_enabled: false

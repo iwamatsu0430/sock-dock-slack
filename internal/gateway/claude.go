@@ -68,6 +68,11 @@ func (g *Gateway) setClaudeSignedIn(signedIn bool) {
 	g.mu.Unlock()
 	if changed {
 		g.broadcast(Event{Type: "claude_auth", Data: map[string]bool{"signed_in": signedIn}})
+		if signedIn {
+			g.clearClaudeNotice()
+		} else {
+			go g.noticeClaudeSignedOut()
+		}
 	}
 }
 

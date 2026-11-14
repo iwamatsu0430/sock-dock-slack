@@ -33,12 +33,13 @@ func ParseRaw(data []byte) (*Config, error) {
 
 // routeOut and handlerOut control how routes are written: empty fields are left out.
 type routeOut struct {
-	Name       string `yaml:"name"`
-	Channel    string `yaml:"channel"`
-	StartsWith string `yaml:"starts_with,omitempty"`
-	Contains   string `yaml:"contains,omitempty"`
-	Match      string `yaml:"match,omitempty"`
-	AllPosts   bool   `yaml:"all_posts,omitempty"`
+	Name        string `yaml:"name"`
+	Channel     string `yaml:"channel"`
+	StartsWith  string `yaml:"starts_with,omitempty"`
+	Contains    string `yaml:"contains,omitempty"`
+	Match       string `yaml:"match,omitempty"`
+	AllPosts    bool   `yaml:"all_posts,omitempty"`
+	MentionOnly bool   `yaml:"mention_only,omitempty"`
 	// AllowedUsers is written in flow style: allowed_users: [U0123ABCD].
 	AllowedUsers []string   `yaml:"allowed_users,omitempty,flow"`
 	Handler      handlerOut `yaml:"handler"`
@@ -70,7 +71,7 @@ func RenderRoutes(routes []*Route) ([]byte, error) {
 		h := r.Handler
 		out = append(out, routeOut{
 			Name: r.Name, Channel: r.Channel, StartsWith: r.StartsWith, Contains: r.Contains, Match: r.Match, AllPosts: r.AllPosts,
-			AllowedUsers: r.AllowedUsers,
+			MentionOnly: r.MentionOnly, AllowedUsers: r.AllowedUsers,
 			Handler: handlerOut{
 				Type: h.Type, Cwd: h.Cwd, EnvFile: h.EnvFile, Env: h.Env, Command: h.Command,
 				Prompt: h.Prompt, Instructions: h.Instructions, AllowedTools: h.AllowedTools, Tools: h.Tools,
@@ -137,6 +138,11 @@ func ReplaceRoutes(data []byte, routes []*Route) ([]byte, error) {
 // SetSetting sets `settings.<key>: <value>` (value is written as a YAML
 // scalar), adding the settings block or the key when missing.
 func SetSetting(data []byte, key, value string) ([]byte, error) {
+	return SetSettingValue(data, key, value)
+}
+
+// SetSettingValue is SetSetting for any scalar (a bool is written as true/false).
+func SetSettingValue(data []byte, key string, value any) ([]byte, error) {
 	scalar, err := yaml.Marshal(value)
 	if err != nil {
 		return nil, err
@@ -165,6 +171,29 @@ func SetSetting(data []byte, key, value string) ([]byte, error) {
 	}
 	lines = append(lines[:start+1], append([]string{entry}, lines[start+1:]...)...)
 	return []byte(strings.Join(lines, "\n") + "\n"), nil
+}
+
+// DeleteSetting removes `settings.<key>` when present.
+func DeleteSetting(data []byte, key string) []byte {
+	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+	start := -1
+	for i, l := range lines {
+		if strings.HasPrefix(l, "settings:") {
+			start = i
+			break
+		}
+	}
+	if start == -1 {
+		return data
+	}
+	keyRe := regexp.MustCompile(`^\s{2}` + regexp.QuoteMeta(key) + `\s*:`)
+	for i := start + 1; i < len(lines) && !topLevelKey.MatchString(lines[i]); i++ {
+		if keyRe.MatchString(lines[i]) {
+			lines = append(lines[:i], lines[i+1:]...)
+			return []byte(strings.Join(lines, "\n") + "\n")
+		}
+	}
+	return data
 }
 
 // KeywordMatch builds the regex older versions of the app wrote for "a

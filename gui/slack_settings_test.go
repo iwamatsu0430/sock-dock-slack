@@ -11,6 +11,12 @@ import (
 )
 
 type manifestParts struct {
+	Features struct {
+		AppHome struct {
+			MessagesTab         bool `yaml:"messages_tab_enabled"`
+			MessagesTabReadOnly bool `yaml:"messages_tab_read_only_enabled"`
+		} `yaml:"app_home"`
+	} `yaml:"features"`
 	OAuthConfig struct {
 		Scopes struct {
 			Bot []string `yaml:"bot"`
@@ -47,6 +53,20 @@ func TestSlackSettingsSnippetMatchesManifest(t *testing.T) {
 	for _, s := range append(slices.Clone(slackio.RequiredBotScopes), slackio.OptionalBotScopes...) {
 		if !slices.Contains(man.OAuthConfig.Scopes.Bot, s) {
 			t.Errorf("%s is not in the manifest", s)
+		}
+	}
+	// DMs need the Messages tab, im:history and message.im, in both
+	// snippets and the manifest.
+	var dm manifestParts
+	if err := yaml.Unmarshal([]byte(dmSettingsSnippet), &dm); err != nil {
+		t.Fatal(err)
+	}
+	for name, p := range map[string]manifestParts{"manifest": man, "snippet": snip, "dm snippet": dm} {
+		if !p.Features.AppHome.MessagesTab || p.Features.AppHome.MessagesTabReadOnly {
+			t.Errorf("%s: the Messages tab must allow messages", name)
+		}
+		if !slices.Contains(p.OAuthConfig.Scopes.Bot, slackio.ScopeIMHistory) || !slices.Contains(p.Settings.EventSubscriptions.BotEvents, "message.im") {
+			t.Errorf("%s: im:history and message.im are needed for DMs", name)
 		}
 	}
 }

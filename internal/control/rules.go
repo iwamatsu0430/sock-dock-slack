@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/iwamatsu0430/sock-dock-slack/internal/config"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/gateway"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/rules"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/slackio"
@@ -156,6 +157,9 @@ func (s *Server) announce(r *http.Request, c RuleChange) {
 	c.Channel = rules.NormalizeChannel(c.Channel)
 	s.log.Info("rule changed", "source", c.Source, "action", c.Action, "rule", c.Rule)
 	s.gw.Announce(gateway.Event{Type: "rule_changed", Data: c})
+	if c.Source == "mcp" {
+		s.gw.NotifyRuleChanged(c.Channel, c.Trigger, c.Keyword)
+	}
 }
 
 func changeOf(f rules.Form) RuleChange {
@@ -199,7 +203,7 @@ func (s *Server) channelNames(ctx context.Context) map[string]string {
 	if s.rules.chNames != nil && time.Now().Before(s.rules.chExpiry) {
 		return s.rules.chNames
 	}
-	names := map[string]string{}
+	names := map[string]string{config.ChannelDM: "DM"}
 	if l, ok := s.gw.API().(slackio.ChannelLister); ok {
 		if chs, err := l.Channels(ctx); err == nil {
 			for _, c := range chs {
@@ -353,6 +357,12 @@ func (s *Server) channels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	chs, err := l.Channels(r.Context())
+	// DMs to the Slack app come first (docs/ia.md §8: the first choice is DM).
+	dm := slackio.Channel{ID: config.ChannelDM, Name: "DM"}
+	if !s.gw.Status(os.Getpid()).HasScope(slackio.ScopeIMHistory) {
+		dm.Problem = "missing_scope"
+	}
+	chs = append([]slackio.Channel{dm}, chs...)
 	if err != nil {
 		problem := "error"
 		if errors.Is(err, context.Canceled) {

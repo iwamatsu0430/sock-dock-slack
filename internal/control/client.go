@@ -201,7 +201,36 @@ func (c *Client) Channels(ctx context.Context) (ChannelsResult, error) {
 	return out, c.do(ctx, http.MethodGet, "/v1/channels", nil, &out)
 }
 
-// Config returns the config file content.
+// Owner returns the owner and the registration in progress.
+func (c *Client) Owner(ctx context.Context) (OwnerInfo, error) {
+	var out OwnerInfo
+	return out, c.do(ctx, http.MethodGet, "/v1/owner", nil, &out)
+}
+
+// ClearOwner removes the owner.
+func (c *Client) ClearOwner(ctx context.Context) (OwnerInfo, error) {
+	var out OwnerInfo
+	return out, c.do(ctx, http.MethodDelete, "/v1/owner", nil, &out)
+}
+
+// StartRegistration starts accepting the owner's code by DM.
+func (c *Client) StartRegistration(ctx context.Context) (OwnerInfo, error) {
+	var out OwnerInfo
+	return out, c.do(ctx, http.MethodPost, "/v1/owner/registration", nil, &out)
+}
+
+// CancelRegistration stops accepting the owner's code.
+func (c *Client) CancelRegistration(ctx context.Context) (OwnerInfo, error) {
+	var out OwnerInfo
+	return out, c.do(ctx, http.MethodDelete, "/v1/owner/registration", nil, &out)
+}
+
+// SetNotify turns a DM notice setting ("notify_dm", "notify_dm_failures") on or off.
+func (c *Client) SetNotify(ctx context.Context, key string, on bool) (OwnerInfo, error) {
+	var out OwnerInfo
+	return out, c.do(ctx, http.MethodPut, "/v1/notify", NotifyRequest{Key: key, On: on}, &out)
+}
+
 // Users searches the workspace's people by name (needs users:read).
 func (c *Client) Users(ctx context.Context, q string, limit int) (UsersResult, error) {
 	var out UsersResult
@@ -210,6 +239,7 @@ func (c *Client) Users(ctx context.Context, q string, limit int) (UsersResult, e
 	return out, err
 }
 
+// Config returns the config file content.
 func (c *Client) Config(ctx context.Context) (ConfigBody, error) {
 	var out ConfigBody
 	return out, c.do(ctx, http.MethodGet, "/v1/config", nil, &out)

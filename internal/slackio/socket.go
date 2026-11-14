@@ -157,6 +157,8 @@ func convert(m *slackevents.MessageEvent) event.Message {
 		BotID:    m.BotID,
 		SubType:  m.SubType,
 		Text:     m.Text,
+
+		ChannelType: m.ChannelType,
 	}
 	if m.Message != nil && out.Text == "" {
 		out.Text = m.Message.Text

@@ -9,12 +9,15 @@ import (
 )
 
 // RequiredBotScopes are the Bot Token scopes SockDock cannot work without;
-// OptionalBotScopes only enable the channel list and choosing people by name
-// for "who can run it" (docs/ia.md §3).
+// OptionalBotScopes only enable the channel list, choosing people by name
+// for "who can run it" and DMs (docs/ia.md §3).
 var (
 	RequiredBotScopes = []string{"channels:history", "groups:history", "chat:write", "reactions:write"}
-	OptionalBotScopes = []string{"channels:read", "groups:read", "users:read"}
+	OptionalBotScopes = []string{"channels:read", "groups:read", "users:read", ScopeIMHistory}
 )
+
+// ScopeIMHistory lets the Slack app receive DMs sent to it.
+const ScopeIMHistory = "im:history"
 
 // authTestURL is overridden in tests.
 var authTestURL = "https://slack.com/api/auth.test"

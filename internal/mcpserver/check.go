@@ -23,9 +23,9 @@ func problemMessage(p rules.FieldProblem) string {
 	d := p.Detail
 	switch p.Field + "/" + p.Code {
 	case "channel/required":
-		return "Choose a channel the Slack app is in (see sockdock_list_channels)."
+		return "Choose a channel the Slack app is in (see sockdock_list_channels), or dm for DMs to the Slack app."
 	case "channel/bad_channel":
-		return "Use a channel name from sockdock_list_channels, a channel ID like C0123ABCD, or a channel link."
+		return "Use a channel name from sockdock_list_channels, a channel ID like C0123ABCD, a channel link, or dm."
 	case "keyword/required":
 		return "Give a keyword, or use condition_type all_posts to react to every post."
 	case "keyword/bad_regex":
@@ -132,6 +132,10 @@ func (t *tools) checkRule(ctx context.Context, _ *mcp.CallToolRequest, in NameIn
 			}
 		}
 	}
+	if f.MentionOnly {
+		out.Findings = append(out.Findings, Finding{OK: true, Check: "mention only",
+			Message: "This rule runs only for posts that mention the Slack app (@app). A post without the mention does nothing (or goes to a later rule); that is expected."})
+	}
 	if f.Restricted {
 		var who []string
 		for _, p := range ruleOf(ri).AllowedUsers {
@@ -150,7 +154,26 @@ func (t *tools) checkRule(ctx context.Context, _ *mcp.CallToolRequest, in NameIn
 	} else {
 		add(true, "order", "No earlier rule in the channel hides this one.")
 	}
-	if st.Connected {
+	isDM := f.Channel == config.ChannelDM
+	if isDM && !st.HasScope("im:history") {
+		add(false, "DM scope", "The Slack app lacks the im:history scope, so DMs cannot reach SockDock. Ask the user to add im:history, the message.im event and the App Home Messages tab (allowing messages) to the Slack app, then reinstall it.")
+	}
+	if st.Connected && isDM {
+		heard := false
+		for _, ch := range st.Heard {
+			heard = heard || ch == config.ChannelDM
+		}
+		if heard {
+			add(true, "posts arrive", "DMs to the Slack app reach SockDock.")
+		} else {
+			add(false, "posts arrive", "No DM to the Slack app has reached SockDock since it connected. If the user has sent one since, check with them: "+
+				"(1) the Slack app's App Home Messages tab allows sending messages; "+
+				"(2) both tokens in SockDock come from the same Slack app; "+
+				"(3) the Slack app subscribes to the message.im event. "+
+				"If nobody has sent a DM yet, ask the user to send a matching one and check again.")
+		}
+	}
+	if st.Connected && !isDM {
 		heard := false
 		for _, ch := range st.Heard {
 			heard = heard || ch == f.Channel

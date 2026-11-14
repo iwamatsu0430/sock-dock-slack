@@ -67,6 +67,17 @@ type Gateway struct {
 	subs    map[chan Event]struct{}
 	started time.Time
 	ident   slackio.Identity
+	// scopes are the Bot Token's scopes (nil when unknown).
+	scopes []string
+	// reg is the owner registration in progress; ownerDM is the owner's DM
+	// channel (owner.go).
+	reg      *registration
+	regEnded string
+	ownerDM  ownerDM
+	// cfgWrite serializes the gateway's own edits of the config file;
+	// claudeNotice serializes the Claude Code sign-out notice.
+	cfgWrite     sync.Mutex
+	claudeNotice sync.Mutex
 
 	// lastPrune is only touched by the Watch goroutine.
 	lastPrune time.Time
@@ -151,9 +162,24 @@ func (g *Gateway) Start(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("slack auth.test failed (check SLACK_BOT_TOKEN): %w", err)
 	}
+	var scopes []string
+	if l, ok := g.opts.API.(slackio.ScopeLister); ok {
+		if scopes, err = l.Scopes(ctx); err != nil {
+			g.log.Warn("could not read the bot token's scopes", "err", err)
+		}
+	}
 	g.mu.Lock()
 	g.ident = id
 	g.self = router.Self{UserID: id.UserID, BotID: id.BotID}
+	g.scopes = scopes
+	g.mu.Unlock()
+
+	var dm ownerDM
+	if _, err := g.opts.Store.GetState(ctx, stateKeyOwnerDM, &dm); err != nil {
+		g.log.Warn("could not read the owner's DM channel", "err", err)
+	}
+	g.mu.Lock()
+	g.ownerDM = dm
 	g.mu.Unlock()
 
 	var paused []string
@@ -193,8 +219,11 @@ func (g *Gateway) HandleMessage(m event.Message) {
 	g.mu.Lock()
 	self := g.self
 	// Remember that posts from this channel reach SockDock at all, so the app
-	// can tell "nothing arrived" apart from "nothing matched".
-	if m.Channel != "" {
+	// can tell "nothing arrived" apart from "nothing matched". DMs count as
+	// one channel, "dm".
+	if m.IsIM() {
+		g.heard[config.ChannelDM] = true
+	} else if m.Channel != "" {
 		g.heard[m.Channel] = true
 	}
 	g.mu.Unlock()
@@ -214,12 +243,21 @@ func (g *Gateway) HandleMessage(m event.Message) {
 	g.mu.Unlock()
 
 	cfg := g.cfg.Load()
+	if m.IsIM() {
+		if m.User != "" && m.User == cfg.Settings.Owner {
+			g.rememberOwnerDM(ctx, m.User, m.Channel)
+		}
+		// While the owner is being registered, a DM of six digits is a code.
+		if m.IsTopLevel() && g.handleCode(ctx, m) {
+			return
+		}
+	}
 	var r *config.Route
 	if m.IsTopLevel() {
 		// Rules are tried top to bottom; a rule that is off, or that the
 		// poster may not run, is passed over.
 		route, groups := cfg.MatchWith(m.Channel, m.Text, config.MatchOptions{
-			BotUserID: self.UserID, Skip: g.isPaused, ByUser: true, User: m.User,
+			BotUserID: self.UserID, Skip: g.isPaused, ByUser: true, User: m.User, IM: m.IsIM(),
 		})
 		if route == nil {
 			return
@@ -395,6 +433,9 @@ func (g *Gateway) process(key string, batch []event.Message) {
 		_ = api.PostMessage(ctx, channel, threadTS, config.Render(msgs.Error, r.Name, r.Handler.TimeoutSec))
 	}
 	log.Info("handler finished", "status", status, "duration", g.opts.Now().Sub(start).Round(time.Millisecond))
+	if status == store.StatusError || status == store.StatusTimeout {
+		g.notifyRunFailed(ctx, cfg, r, status, err, permalink)
+	}
 
 	if uerr := g.opts.Store.UpdateThreadAfterTurn(ctx, channel, threadTS, res.SessionID, permalink); uerr != nil {
 		log.Error("could not update thread", "err", uerr)

@@ -47,8 +47,21 @@ func (g *Gateway) Watch(ctx context.Context, o WatchOptions, reconnect func()) e
 				return fmt.Errorf("not connected to Slack for %s", time.Since(since).Round(time.Second))
 			}
 			g.pruneOccasionally(ctx, now)
+			g.expireRegistration()
+			g.checkClaudeForOwner(ctx)
 		}
 	}
+}
+
+// checkClaudeForOwner asks Claude Code about its sign-in at most once an
+// hour while the owner gets DM notices, so a signed-out Claude Code is noticed
+// even when only the service runs.
+func (g *Gateway) checkClaudeForOwner(ctx context.Context) {
+	s := g.cfg.Load().Settings
+	if !s.NotifyDM || s.Owner == "" {
+		return
+	}
+	go g.CheckClaude(ctx, time.Hour)
 }
 
 func (g *Gateway) pruneOccasionally(ctx context.Context, now time.Time) {

@@ -23,6 +23,15 @@ import * as store$0 from "../internal/store/models.js";
 import * as $models from "./models.js";
 
 /**
+ * CancelOwnerRegistration stops accepting the code.
+ */
+export function CancelOwnerRegistration(): $CancellablePromise<$models.OwnerState> {
+    return $Call.ByID(3988451434).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
  * ChannelName returns "#name" (or "🔒name") for a channel ID or link, or ""
  * when it cannot be looked up (conversations.info needs channels:read).
  */
@@ -40,13 +49,29 @@ export function CheckClaude(force: boolean): $CancellablePromise<void> {
 }
 
 /**
+ * ClearOwner removes the owner (DM notices stop).
+ */
+export function ClearOwner(): $CancellablePromise<$models.OwnerState> {
+    return $Call.ByID(2404694534).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
  * ConnectSlack checks both tokens with Slack and, only if both work, saves
  * them in the Keychain and (re)starts the gateway. Nothing is saved before.
  */
 export function ConnectSlack(appToken: string, botToken: string): $CancellablePromise<$models.ConnectResult> {
     return $Call.ByID(3459895432, appToken, botToken).then(($result: any) => {
-        return $$createType0($result);
+        return $$createType1($result);
     });
+}
+
+/**
+ * CopyDMSettings copies the settings DMs need, as a manifest snippet.
+ */
+export function CopyDMSettings(): $CancellablePromise<void> {
+    return $Call.ByID(1291982161);
 }
 
 /**
@@ -70,7 +95,7 @@ export function CopySlackSettings(): $CancellablePromise<void> {
  */
 export function DeleteRoute(name: string): $CancellablePromise<$models.RouteSaveResult> {
     return $Call.ByID(2895378542, name).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
@@ -82,11 +107,21 @@ export function DisconnectSlack(): $CancellablePromise<void> {
 }
 
 /**
+ * GetOwner returns the owner, the registration in progress and the DM
+ * notice settings.
+ */
+export function GetOwner(): $CancellablePromise<$models.OwnerState> {
+    return $Call.ByID(790369561).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
  * GetPrefs reads GUI preferences.
  */
 export function GetPrefs(): $CancellablePromise<$models.Prefs> {
     return $Call.ByID(762006728).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
@@ -95,7 +130,7 @@ export function GetPrefs(): $CancellablePromise<$models.Prefs> {
  */
 export function GetSnapshot(): $CancellablePromise<$models.Snapshot> {
     return $Call.ByID(3563637978).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType4($result);
     });
 }
 
@@ -120,7 +155,7 @@ export function LaunchAtLogin(): $CancellablePromise<boolean> {
  */
 export function ListChannels(): $CancellablePromise<$models.ChannelList> {
     return $Call.ByID(2742147414).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType5($result);
     });
 }
 
@@ -130,7 +165,7 @@ export function ListChannels(): $CancellablePromise<$models.ChannelList> {
  */
 export function ListMembers(query: string): $CancellablePromise<$models.MemberList> {
     return $Call.ByID(584038297, query).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType6($result);
     });
 }
 
@@ -139,7 +174,7 @@ export function ListMembers(query: string): $CancellablePromise<$models.MemberLi
  */
 export function ListRules(): $CancellablePromise<$models.RuleList> {
     return $Call.ByID(3471677289).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType7($result);
     });
 }
 
@@ -155,7 +190,7 @@ export function Locale(): $CancellablePromise<string> {
  */
 export function MCPSetup(client: string): $CancellablePromise<$models.MCPSetup> {
     return $Call.ByID(274028147, client).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType8($result);
     });
 }
 
@@ -215,7 +250,7 @@ export function PickFolder(title: string): $CancellablePromise<string> {
  */
 export function RecentTurns(limit: number): $CancellablePromise<store$0.Turn[]> {
     return $Call.ByID(2254536103, limit).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType10($result);
     });
 }
 
@@ -225,7 +260,7 @@ export function RecentTurns(limit: number): $CancellablePromise<store$0.Turn[]> 
  */
 export function ReorderRules(names: string[]): $CancellablePromise<$models.RouteSaveResult> {
     return $Call.ByID(157335092, names).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
@@ -245,7 +280,7 @@ export function ResetAll(): $CancellablePromise<void> {
  */
 export function RuleTurns(route: string): $CancellablePromise<store$0.Turn[]> {
     return $Call.ByID(3105143504, route).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType10($result);
     });
 }
 
@@ -254,7 +289,7 @@ export function RuleTurns(route: string): $CancellablePromise<store$0.Turn[]> {
  */
 export function SaveRoute(f: $models.RouteForm): $CancellablePromise<$models.RouteSaveResult> {
     return $Call.ByID(1716929756, f).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
@@ -263,6 +298,16 @@ export function SaveRoute(f: $models.RouteForm): $CancellablePromise<$models.Rou
  */
 export function SetLaunchAtLogin(on: boolean): $CancellablePromise<void> {
     return $Call.ByID(1696234941, on);
+}
+
+/**
+ * SetNotifyDM turns DM notices ("notify_dm") or DM notices of failed runs
+ * ("notify_dm_failures") on or off.
+ */
+export function SetNotifyDM(key: string, on: boolean): $CancellablePromise<$models.OwnerState> {
+    return $Call.ByID(2663397964, key, on).then(($result: any) => {
+        return $$createType0($result);
+    });
 }
 
 /**
@@ -297,6 +342,15 @@ export function SignInClaude(): $CancellablePromise<void> {
 }
 
 /**
+ * StartOwnerRegistration shows a code to send to the Slack app by DM.
+ */
+export function StartOwnerRegistration(): $CancellablePromise<$models.OwnerState> {
+    return $Call.ByID(3960027072).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
  * StopTurn stops a running run.
  */
 export function StopTurn(id: number): $CancellablePromise<void> {
@@ -308,7 +362,7 @@ export function StopTurn(id: number): $CancellablePromise<void> {
  */
 export function ValidateRoute(f: $models.RouteForm): $CancellablePromise<$models.FieldProblem[]> {
     return $Call.ByID(2577932297, f).then(($result: any) => {
-        return $$createType11($result);
+        return $$createType12($result);
     });
 }
 
@@ -320,15 +374,16 @@ export function Version(): $CancellablePromise<string> {
 }
 
 // Private type creation functions
-const $$createType0 = $models.ConnectResult.createFrom;
-const $$createType1 = $models.RouteSaveResult.createFrom;
-const $$createType2 = $models.Prefs.createFrom;
-const $$createType3 = $models.Snapshot.createFrom;
-const $$createType4 = $models.ChannelList.createFrom;
-const $$createType5 = $models.MemberList.createFrom;
-const $$createType6 = $models.RuleList.createFrom;
-const $$createType7 = $models.MCPSetup.createFrom;
-const $$createType8 = store$0.Turn.createFrom;
-const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = rules$0.FieldProblem.createFrom;
-const $$createType11 = $Create.Array($$createType10);
+const $$createType0 = $models.OwnerState.createFrom;
+const $$createType1 = $models.ConnectResult.createFrom;
+const $$createType2 = $models.RouteSaveResult.createFrom;
+const $$createType3 = $models.Prefs.createFrom;
+const $$createType4 = $models.Snapshot.createFrom;
+const $$createType5 = $models.ChannelList.createFrom;
+const $$createType6 = $models.MemberList.createFrom;
+const $$createType7 = $models.RuleList.createFrom;
+const $$createType8 = $models.MCPSetup.createFrom;
+const $$createType9 = store$0.Turn.createFrom;
+const $$createType10 = $Create.Array($$createType9);
+const $$createType11 = rules$0.FieldProblem.createFrom;
+const $$createType12 = $Create.Array($$createType11);

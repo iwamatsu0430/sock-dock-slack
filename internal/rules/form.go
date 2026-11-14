@@ -27,6 +27,9 @@ type Form struct {
 	// regex) or "all_posts". Keyword is the keyword or the regex.
 	Trigger string `json:"trigger"`
 	Keyword string `json:"keyword"`
+	// MentionOnly limits the rule to posts that mention the Slack app
+	// ("メンションされたときだけ"). Not used for DM rules.
+	MentionOnly bool `json:"mention_only"`
 	// Restricted is true when only AllowedUsers may run the rule ("実行できる
 	// 人": 選んだ人); false means everyone in the channel (全員).
 	Restricted bool `json:"restricted"`
@@ -81,6 +84,7 @@ func ToForm(r *config.Route) Form {
 		Instructions: h.Instructions, Model: h.Model, PromptFile: h.Prompt, TimeoutSec: h.TimeoutSec,
 		Commands: []string{}, OtherTools: []string{},
 		Restricted: r.Restricted(), AllowedUsers: append([]string{}, r.AllowedUsers...),
+		MentionOnly: r.MentionOnly,
 	}
 	f.Trigger, f.Keyword = r.Kind(), r.Pattern()
 	if f.Trigger == "" {
@@ -132,6 +136,7 @@ func FromForm(f Form, base *config.Route) *config.Route {
 	case config.KindAllPosts:
 		r.AllPosts = true
 	}
+	r.MentionOnly = f.MentionOnly && r.Channel != config.ChannelDM
 	r.AllowedUsers = nil
 	if f.Restricted {
 		r.AllowedUsers = cleanUsers(f.AllowedUsers)
@@ -193,7 +198,7 @@ func Validate(f Form, raw *config.Config) []FieldProblem {
 
 	if ch := NormalizeChannel(f.Channel); ch == "" {
 		add("channel", "required", "")
-	} else if !channelID.MatchString(ch) && !strings.Contains(ch, "${") {
+	} else if !channelID.MatchString(ch) && ch != config.ChannelDM && !strings.Contains(ch, "${") {
 		add("channel", "bad_channel", "")
 	}
 
@@ -281,7 +286,8 @@ func cleanUsers(ids []string) []string {
 	return out
 }
 
-// OpenToAll reports whether everyone in the channel can make an agent run
+// OpenToAll reports whether everyone in the channel (for a DM rule, everyone
+// in the workspace) can make an agent run
 // commands or edit files with this rule ("risk": the rule page and
 // sockdock_save_rule warn about it). It returns "commands", "edit" or "".
 func OpenToAll(f Form) string {

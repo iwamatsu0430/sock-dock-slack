@@ -7,11 +7,13 @@ import (
 	"github.com/slack-go/slack"
 )
 
-// Channel is a Slack channel the bot is in.
+// Channel is a Slack channel the bot is in. ID "dm" stands for DMs to the
+// Slack app; Problem is "missing_scope" when they cannot reach SockDock.
 type Channel struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
 	Private bool   `json:"private"`
+	Problem string `json:"problem,omitempty"`
 }
 
 // ChannelLister lists channels (needs the channels:read and groups:read scopes).

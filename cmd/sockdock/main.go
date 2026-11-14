@@ -49,6 +49,7 @@ func main() {
 		initCmd(g),
 		checkCmd(g),
 		matchCmd(g),
+		ownerCmd(g),
 		statusCmd(g),
 		reloadCmd(g),
 		threadsCmd(g),
