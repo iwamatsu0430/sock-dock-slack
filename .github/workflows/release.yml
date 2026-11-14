@@ -29,7 +29,7 @@ jobs:
           mise run ci
 
       - name: Build SockDock.app
-        run: ARCHS="arm64 amd64" VERSION="$TAG" ./scripts/build-app.sh
+        run: ARCHS="arm64 amd64" VERSION="$TAG" BUNDLE_ID=io.github.iwamatsu0430.sockdock ./scripts/build-app.sh
 
       - name: Package
         run: |

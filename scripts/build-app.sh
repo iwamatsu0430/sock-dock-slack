@@ -7,7 +7,10 @@ cd "$(dirname "$0")/.."
 VERSION="${VERSION:-$(git describe --tags --always --dirty 2>/dev/null || echo dev)}"
 OUT="${OUT:-dist}"
 APP="$OUT/SockDock.app"
-BUNDLE_ID="io.github.iwamatsu0430.sockdock"
+# Local builds get their own bundle ID so that installing, upgrading or
+# uninstalling the Homebrew cask (`uninstall quit:` quits by bundle ID) leaves a
+# running development copy alone. The release workflow passes the real one.
+BUNDLE_ID="${BUNDLE_ID:-io.github.iwamatsu0430.sockdock.dev}"
 export MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-13.0}"
 export CGO_CFLAGS="-mmacosx-version-min=$MACOSX_DEPLOYMENT_TARGET"
 export CGO_LDFLAGS="-mmacosx-version-min=$MACOSX_DEPLOYMENT_TARGET"
