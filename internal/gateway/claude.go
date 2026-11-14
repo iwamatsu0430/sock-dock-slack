@@ -7,8 +7,8 @@ import (
 	"github.com/iwamatsu0430/sock-dock-slack/internal/config"
 )
 
-// claudeAuth is what SockDock knows about an agent's sign-in (docs/ia.md
-// §11-21, docs/design.md §3.8). Runs update it too: a success means signed
+// claudeAuth is what SockDock knows about an agent's sign-in.
+// Runs update it too: a success means signed
 // in, an auth failure means signed out.
 type claudeAuth struct {
 	known    bool

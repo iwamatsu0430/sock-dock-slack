@@ -255,7 +255,7 @@ func (m *monitor) maybeNotifyUpdate(e gateway.Event) {
 }
 
 // maybeNotifyClaude tells the user that an agent is signed out, when a
-// rule that is on runs it (docs/ia.md §8「通知」). claude_auth events are
+// rule that is on runs it. claude_auth events are
 // Claude Code's; agent_auth events name the agent.
 func (m *monitor) maybeNotifyClaude(e gateway.Event) {
 	agent, signedIn := config.TypeClaude, false
@@ -290,8 +290,7 @@ func (m *monitor) maybeNotifyClaude(e gateway.Event) {
 }
 
 // notifyRuleChange tells the user about a rule changed through MCP. It is
-// shown even when notifications are off, so a rule never changes unnoticed
-// (docs/mcp.md §8-1).
+// shown even when notifications are off, so a rule never changes unnoticed.
 func (m *monitor) notifyRuleChange(e gateway.Event) {
 	data, ok := e.Data.(map[string]any)
 	if !ok {

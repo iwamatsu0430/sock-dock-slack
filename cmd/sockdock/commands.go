@@ -317,7 +317,7 @@ func turnsCmd(g *globals) *cobra.Command {
 				}
 				msg := truncate(t.Error, 60)
 				if t.FileProblem == store.FileProblemMissingScope {
-					// Attached files were not handed over (docs/design.md §3.6).
+					// Attached files were not handed over.
 					msg = strings.TrimSpace(msg + " (files not passed: no files:read scope)")
 				}
 				fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%s\n", t.ID, t.StartedAt.Format("01-02 15:04:05"), dur, t.Route, t.Status, msg)

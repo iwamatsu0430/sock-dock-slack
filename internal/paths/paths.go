@@ -14,7 +14,7 @@ type Dirs struct {
 	ConfigFile string // config.yaml
 	DataDir    string // database, lock file, control socket
 	LogDir     string
-	// FilesDir holds attached files while a turn runs (docs/design.md §3.6).
+	// FilesDir holds attached files while a turn runs.
 	// It is under Caches so the path has no spaces and can be written into
 	// Claude Code's permission rules as is.
 	FilesDir string

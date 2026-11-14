@@ -6,7 +6,7 @@
   import { ago, problemText, statusClass, statusLabel } from "../lib/format";
 
   // The rule list, grouped by channel. Within a channel, rules are tried top
-  // to bottom; the handle reorders them (docs/ia.md「ルールの一覧」).
+  // to bottom; the handle reorders them.
   let { connectedTo, onopen, onadd }: { connectedTo: string; onopen: (name: string) => void; onadd: () => void } = $props();
 
   let rules = $state<RuleRow[] | null>(null);
@@ -31,7 +31,7 @@
       rows.push(r);
       m.set(r.form.channel, rows);
     }
-    // DM rules come after the channels (docs/ia.md「ルールの一覧」).
+    // DM rules come after the channels.
     return [...m].map(([key, rows]) => ({ key, title: rows[0].channel, rows })).sort((a, b) => Number(a.key === "dm") - Number(b.key === "dm"));
   });
 

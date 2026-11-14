@@ -12,7 +12,7 @@ type Message struct {
 	Text     string `json:"text"`
 	// ChannelType is Slack's channel_type: "channel", "group", "im" or "mpim".
 	ChannelType string `json:"channel_type,omitempty"`
-	// Files are the files attached to the message (docs/design.md §3.6).
+	// Files are the files attached to the message.
 	Files []File `json:"files,omitempty"`
 }
 

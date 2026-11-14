@@ -79,7 +79,7 @@ func main() {
 		"CmdOrCtrl+,": func(application.Window) { svc.OpenSettings() },
 		"CmdOrCtrl+w": func(w application.Window) { w.Hide() },
 	}
-	// One window: the rule list and settings are two views of it (docs/ia.md §4).
+	// One window: the rule list and settings are two views of it.
 	main := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:        "main",
 		Title:       "SockDock",

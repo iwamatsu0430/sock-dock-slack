@@ -7,7 +7,7 @@
   import Rich from "../lib/Rich.svelte";
 
   // The settings view of the window (⌘,): Slack, General, Notifications, MCP
-  // and reset (docs/ia.md「設定」).
+  // and reset.
   let prefs = $state<Prefs | null>(null);
   let atLogin = $state(false);
   let version = $state("");
@@ -18,7 +18,7 @@
   let confirmReset = $state(false);
   let resetting = $state(false);
 
-  // MCP clients, in the order of docs/mcp.md §2.1.
+  // MCP clients, in the order the settings show them.
   const mcpClients: [string, string][] = [
     ["claude-code", "Claude Code"], ["codex", "Codex"], ["antigravity", "Antigravity"], ["vscode", "VS Code"],
     ["claude-desktop", "Claude Desktop"], ["cursor", "Cursor"], ["other", ""],
@@ -89,7 +89,7 @@
       resetting = false;
     }
   }
-  // The owner ("本人", docs/ia.md「本人」): registered with a code sent by DM.
+  // The owner ("本人"): registered with a code sent by DM.
   let owner = $state<OwnerState | null>(null);
   async function loadOwner() {
     owner = await App.GetOwner().catch(() => null);

@@ -42,8 +42,8 @@ export class Identity {
 }
 
 /**
- * Member is a person in the workspace, for choosing who may run a rule
- * (docs/design.md §3.4). It needs the users:read scope.
+ * Member is a person in the workspace, for choosing who may run a rule.
+ * It needs the users:read scope.
  */
 export class Member {
     "id": string;

@@ -4,7 +4,7 @@
   import Rich from "./Rich.svelte";
 
   // The two token fields and 「Slack に接続」. Nothing is checked or saved
-  // until the button is pressed (docs/ia.md).
+  // until the button is pressed.
   let {
     backLabel,
     onback,

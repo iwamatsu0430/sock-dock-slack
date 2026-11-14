@@ -7,7 +7,7 @@
   import Rich from "../lib/Rich.svelte";
   import { clock, elapsed, problemText, statusClass, statusLabel } from "../lib/format";
 
-  // One rule: the form and its recent runs (docs/ia.md「ルール」).
+  // One rule: the form and its recent runs.
   let { name, onclose }: { name: string; onclose: () => void } = $props();
 
   const blank = (): RouteForm =>
@@ -29,7 +29,7 @@
   let error = $state("");
   let busy = $state(false);
   let turns = $state<Turn[]>([]);
-  // 実行できる人 (docs/ia.md「実行できる人」): the chosen people, in order.
+  // 実行できる人: the chosen people, in order.
   let people = $state<Member[]>([]);
   let personQuery = $state("");
   let suggestions = $state<Member[]>([]);
@@ -67,7 +67,7 @@
     pasteMode = f.channel !== "dm" && (ids.length === 0 || (!!f.channel && !ids.includes(f.channel)));
   }
 
-  // DMs to the Slack app (docs/ia.md「DM とメンション」): a new DM rule starts
+  // DMs to the Slack app: a new DM rule starts
   // with the owner chosen, or with nobody chosen when there is no owner.
   const isDM = $derived(f.channel === "dm");
   function channelChanged() {
@@ -149,7 +149,7 @@
       people = people.slice(0, -1);
     }
   }
-  // Claude Code or Codex (docs/design.md §3.8). Switching agents keeps the
+  // Claude Code or Codex. Switching agents keeps the
   // web and edit choices; Claude Code's commands stay in commandsText.
   const isAgent = $derived(f.type === "claude" || f.type === "codex");
   let lastAgent = $state("claude");

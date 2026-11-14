@@ -20,8 +20,8 @@ import (
 )
 
 // The Claude Desktop extension (MCPB, binary type) is built on demand from the
-// CLI bundled with the app, so it always matches the running app
-// (docs/mcp.md §2.1). Spec: github.com/modelcontextprotocol/mcpb MANIFEST.md.
+// CLI bundled with the app, so it always matches the running app.
+// Spec: github.com/modelcontextprotocol/mcpb MANIFEST.md.
 
 type mcpbManifest struct {
 	ManifestVersion string               `json:"manifest_version"`

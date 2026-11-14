@@ -1,6 +1,6 @@
 import type { MessageKey } from "./en";
 
-// 日本語の UI 文言。docs/ia.md の「画面と文言」に合わせる。記法: `コード`、{引数}。
+// 日本語の UI 文言。記法: `コード`、{引数}。
 export const ja: Record<MessageKey, string> = {
   "setup.step": "{n} / 2",
   "setup.createTitle": "Slack アプリを作成",

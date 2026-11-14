@@ -30,7 +30,7 @@ export function startLive() {
     if (t === "owner" || t === "config_reloaded") live.ownerChanges++;
   });
   setInterval(() => (live.now = Date.now()), 1000);
-  // Claude Code's sign-in is checked when the window comes back (docs/ia.md §11-21).
+  // Claude Code's sign-in is checked when the window comes back.
   checkClaude();
   window.addEventListener("focus", checkClaude);
 }

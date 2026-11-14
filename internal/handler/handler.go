@@ -22,7 +22,7 @@ type InputMessage struct {
 	TS   string `json:"ts"`
 	User string `json:"user"`
 	Text string `json:"text"`
-	// Files are the files attached to the message (docs/design.md §3.6).
+	// Files are the files attached to the message.
 	Files []InputFile `json:"files,omitempty"`
 }
 

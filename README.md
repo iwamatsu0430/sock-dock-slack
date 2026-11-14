@@ -350,8 +350,6 @@ The tools show the status, rules, recent runs and channels, test which rule a po
 - Tokens and post texts are never passed to MCP.
 - `sockdock mcp` refuses to start inside a run started by SockDock (an agent answering a Slack post).
 
-See [docs/mcp.md](docs/mcp.md) for details.
-
 ## Development
 
 ```bash
@@ -367,7 +365,7 @@ mise run preview      # the same against a fake Slack, with sample rules; real d
 
 To keep development away from your real config, set `SOCKDOCK_DATA_DIR` and `SOCKDOCK_CONFIG` (see the `[env]` section of `mise.toml`).
 
-Layout: `cmd/sockdock` (CLI), `internal/` (gateway, handlers, control API, …), `gui/` (Wails v3 + Svelte), `examples/` (sample handlers), `scripts/` (app bundling, also usable without mise), `docs/` (design notes, in Japanese).
+Layout: `cmd/sockdock` (CLI), `internal/` (gateway, handlers, control API, …), `gui/` (Wails v3 + Svelte), `examples/` (sample handlers), `scripts/` (app bundling, also usable without mise).
 
 ## License
 

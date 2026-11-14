@@ -1,7 +1,7 @@
 package mcpserver
 
 // The texts an AI agent reads: the server guide (MCP "instructions") and the
-// tool descriptions. They follow docs/mcp.md §3.1: descriptions say what a
+// tool descriptions. Descriptions say what a
 // tool does, when to use it, what it returns and its caveats, and repeat what
 // a tool needs because not every client shows the guide.
 

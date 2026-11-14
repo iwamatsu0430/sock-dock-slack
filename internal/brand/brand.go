@@ -1,6 +1,6 @@
 // Package brand draws SockDock's icons in code, so no image files are needed.
 //
-// The mark is an outlet with a face (docs/ia.md §8 "アイコン"): a rounded
+// The mark is an outlet with a face: a rounded
 // square whose triangular notch on the right is the mouth (the square reads as
 // both C and K, the "-ck" of SockDock) and whose two vertical slots are the
 // eyes. Shapes are signed distance functions in a 100×100 "face" space.

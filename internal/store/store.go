@@ -24,7 +24,7 @@ const (
 )
 
 // FileProblemMissingScope: attached files were not handed over for lack of
-// the files:read scope (docs/design.md §3.6).
+// the files:read scope.
 const FileProblemMissingScope = "missing_scope"
 
 // Store wraps the database.

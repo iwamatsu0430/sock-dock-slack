@@ -16,8 +16,7 @@ import (
 	"github.com/iwamatsu0430/sock-dock-slack/internal/config"
 )
 
-// CodexOptions are gateway-level inputs for the codex handler
-// (docs/design.md §3.8).
+// CodexOptions are gateway-level inputs for the codex handler.
 type CodexOptions struct {
 	// Command is the executable and leading args (e.g. ["codex"]).
 	Command []string

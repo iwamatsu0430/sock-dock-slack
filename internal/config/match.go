@@ -8,8 +8,8 @@ import (
 	"unicode/utf8"
 )
 
-// Condition kinds: which top-level posts a route reacts to (docs/ia.md
-// 「投稿の条件」). A route has exactly one.
+// Condition kinds: which top-level posts a route reacts to.
+// A route has exactly one.
 const (
 	KindStartsWith = "starts_with"
 	KindContains   = "contains"

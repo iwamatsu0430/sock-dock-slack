@@ -357,7 +357,7 @@ func (s *Server) channels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	chs, err := l.Channels(r.Context())
-	// DMs to the Slack app come first (docs/ia.md §8: the first choice is DM).
+	// DMs to the Slack app come first: the first choice is DM.
 	dm := slackio.Channel{ID: config.ChannelDM, Name: "DM"}
 	if !s.gw.Status(os.Getpid()).HasScope(slackio.ScopeIMHistory) {
 		dm.Problem = "missing_scope"

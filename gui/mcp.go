@@ -11,10 +11,10 @@ import (
 	"github.com/iwamatsu0430/sock-dock-slack/internal/rules"
 )
 
-// MCP clients the settings window can register SockDock with
-// (docs/mcp.md §2.1). "other" copies a generic mcpServers entry.
+// MCP clients the settings window can register SockDock with.
+// "other" copies a generic mcpServers entry.
 // Antigravity replaced Gemini CLI, which stopped serving personal accounts on
-// 2026-06-18 (docs/design.md §3.8).
+// 2026-06-18.
 var mcpClients = []string{"claude-code", "codex", "antigravity", "vscode", "claude-desktop", "cursor", "other"}
 
 // MCPSetup is what the settings window copies for one MCP client.

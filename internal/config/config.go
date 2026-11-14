@@ -23,14 +23,14 @@ const (
 	TypeCodex   = "codex"
 )
 
-// IsAgent reports whether a handler type runs an AI agent (docs/design.md §3.8).
+// IsAgent reports whether a handler type runs an AI agent.
 func IsAgent(typ string) bool { return typ == TypeClaude || typ == TypeCodex }
 
 // Agents lists the AI agent handler types.
 var Agents = []string{TypeClaude, TypeCodex}
 
 // ChannelDM is the channel of rules that react to DMs to the Slack app, from
-// anyone (docs/design.md §3.5).
+// anyone.
 const ChannelDM = "dm"
 
 // IsDM reports whether the route reacts to DMs.
@@ -67,17 +67,16 @@ type Settings struct {
 	Language string   `yaml:"language"`
 	Messages Messages `yaml:"messages"`
 	// Owner is the member ID of the person who uses SockDock ("本人"),
-	// registered with a code sent by DM (docs/design.md §3.5).
+	// registered with a code sent by DM.
 	Owner string `yaml:"owner"`
 	// NotifyDM sends notices to the owner by DM; NotifyDMFailures adds a
 	// notice for every failed run.
 	NotifyDM         bool `yaml:"notify_dm"`
 	NotifyDMFailures bool `yaml:"notify_dm_failures"`
-	// CheckUpdates asks GitHub once a day whether a newer SockDock is out
-	// (docs/design.md §3.7). Unset means on.
+	// CheckUpdates asks GitHub once a day whether a newer SockDock is out.
+	// Unset means on.
 	CheckUpdates *bool `yaml:"check_updates"`
-	// MaxFileMB is the size limit of one attached file handed to handlers
-	// (docs/design.md §3.6).
+	// MaxFileMB is the size limit of one attached file handed to handlers.
 	MaxFileMB int `yaml:"max_file_mb"`
 
 	// ResolvedLanguage is Language after resolving "auto".
@@ -95,7 +94,7 @@ type Messages struct {
 	RoutePaused  string `yaml:"route_paused"`
 	ResumeFailed string `yaml:"resume_failed"`
 
-	// Sent to the owner by DM (docs/ia.md §3「本人への DM」).
+	// Sent to the owner by DM.
 	WrongCode       string `yaml:"wrong_code"`
 	Registered      string `yaml:"registered"`
 	ClaudeSignedOut string `yaml:"claude_signed_out"`
@@ -120,7 +119,7 @@ type Route struct {
 	// ("メンションされたときだけ").
 	MentionOnly bool `yaml:"mention_only"`
 	// AllowedUsers are the Slack member IDs who may run the route ("実行できる
-	// 人"). Empty means everyone in the channel (docs/design.md §3.4).
+	// 人"). Empty means everyone in the channel.
 	AllowedUsers []string `yaml:"allowed_users"`
 	Handler      Handler  `yaml:"handler"`
 
@@ -146,8 +145,8 @@ type Handler struct {
 	AllowedTools []string `yaml:"allowed_tools"`
 	Tools        []string `yaml:"tools"`
 	AllowMCP     bool     `yaml:"allow_mcp"`
-	// AllowWeb and AllowEdit are a codex route's permissions (docs/design.md
-	// §3.8). Claude Code lists tools in AllowedTools instead.
+	// AllowWeb and AllowEdit are a codex route's permissions.
+	// Claude Code lists tools in AllowedTools instead.
 	AllowWeb  bool     `yaml:"allow_web"`
 	AllowEdit bool     `yaml:"allow_edit"`
 	Model     string   `yaml:"model"`

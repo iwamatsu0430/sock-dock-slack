@@ -1,5 +1,5 @@
-// Package updates finds out whether a newer SockDock has been released
-// (docs/design.md §3.7): it asks GitHub for the latest release, compares
+// Package updates finds out whether a newer SockDock has been released:
+// it asks GitHub for the latest release, compares
 // versions and picks the release notes in the app's language.
 package updates
 

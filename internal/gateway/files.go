@@ -18,7 +18,7 @@ import (
 	"github.com/iwamatsu0430/sock-dock-slack/internal/store"
 )
 
-// turnFiles are the attached files of one turn (docs/design.md §3.6).
+// turnFiles are the attached files of one turn.
 type turnFiles struct {
 	// dir holds the saved files ("" when none were saved). It is removed
 	// when the turn ends.

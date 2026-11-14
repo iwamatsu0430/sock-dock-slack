@@ -10,8 +10,8 @@ import (
 	"time"
 )
 
-// CheckClaude asks the gateway whether Claude Code is signed in (docs/ia.md
-// §11-21). It returns at once; a changed answer reaches the UI in the
+// CheckClaude asks the gateway whether Claude Code is signed in.
+// It returns at once; a changed answer reaches the UI in the
 // snapshot. force skips the gateway's recent answer (after signing in).
 func (a *AppService) CheckClaude(force bool) {
 	go func() {

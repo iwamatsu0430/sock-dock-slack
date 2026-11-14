@@ -35,8 +35,7 @@ type Options struct {
 	Log              *slog.Logger
 	SystemPromptFile string
 	Version          string
-	// FilesDir is where turns keep attached files while they run
-	// (docs/design.md §3.6).
+	// FilesDir is where turns keep attached files while they run.
 	FilesDir string
 
 	// Overridable for tests.
@@ -316,7 +315,7 @@ func (g *Gateway) HandleMessage(m event.Message) {
 		}
 		r = cfg.Route(th.Route)
 		// Replies from people who may not run the rule are dropped: they
-		// neither start a run nor reach a later one (docs/design.md §3.4).
+		// neither start a run nor reach a later one.
 		if r != nil && !r.Allows(m.User) {
 			g.log.Debug("reply from someone the rule does not allow", "route", r.Name, "channel", m.Channel, "ts", m.TS)
 			return
@@ -396,7 +395,7 @@ func (g *Gateway) process(key string, batch []event.Message) {
 	start := g.opts.Now()
 
 	// Attached files are fetched within the turn's time limit and removed
-	// when the turn ends (docs/design.md §3.6).
+	// when the turn ends.
 	fetchCtx, cancelFetch := context.WithCancel(turnCtx)
 	if r.Handler.TimeoutSec > 0 {
 		cancelFetch()

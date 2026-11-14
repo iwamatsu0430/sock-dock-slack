@@ -10,7 +10,7 @@ import (
 
 // RequiredBotScopes are the Bot Token scopes SockDock cannot work without;
 // OptionalBotScopes only enable the channel list, choosing people by name
-// for "who can run it", DMs and attached files (docs/ia.md §3).
+// for "who can run it", DMs and attached files.
 var (
 	RequiredBotScopes = []string{"channels:history", "groups:history", "chat:write", "reactions:write"}
 	OptionalBotScopes = []string{"channels:read", "groups:read", "users:read", ScopeIMHistory, ScopeFilesRead}

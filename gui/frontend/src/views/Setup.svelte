@@ -4,8 +4,8 @@
   import Rich from "../lib/Rich.svelte";
   import TokenFields from "../lib/TokenFields.svelte";
 
-  // Setup (docs/ia.md「セットアップ 1」「セットアップ 2」). Making a new app with
-  // the button is the main path; an existing app's settings sit in a fold.
+  // Setup: making a new app with the button is the main path; an existing
+  // app's settings sit in a fold.
   let { onconnected }: { onconnected: (team: string) => void } = $props();
   let step = $state(1);
   let copied = $state(false);

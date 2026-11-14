@@ -3,7 +3,7 @@
   import { live } from "../lib/live.svelte";
   import { i18n, t } from "../lib/i18n/index.svelte";
 
-  // Before updating (docs/ia.md「新しい版」): the version, the release notes in
+  // Before updating: the version, the release notes in
   // the app's language, and whether a running rule will be stopped.
   let { onclose }: { onclose: () => void } = $props();
   let error = $state("");
@@ -82,7 +82,7 @@
   .dialog { width: 420px; max-width: calc(100% - 32px); background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px;
     display: flex; flex-direction: column; gap: 10px; box-shadow: 0 16px 40px rgba(0, 0, 0, .3); }
   .big { font-size: 15px; font-weight: 600; }
-  /* One size smaller and tighter than body text (docs/ia.md「新しい版」). */
+  /* One size smaller and tighter than body text. */
   .notes { max-height: 150px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; background: var(--bg);
     font-size: 11px; line-height: 1.4; display: flex; flex-direction: column; gap: 1px; }
   .notes p { margin: 0; }

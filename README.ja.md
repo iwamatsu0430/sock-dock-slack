@@ -330,8 +330,6 @@ SockDock が動いている間（アプリでも `sockdock run` でも）、Clau
 - トークンと投稿の本文は MCP に渡しません。
 - SockDock が動かした処理の中（Slack から動いたエージェント）では、`sockdock mcp` は起動しません。
 
-くわしくは [docs/mcp.md](docs/mcp.md) を見てください。
-
 ## 開発
 
 ```bash
@@ -347,7 +345,7 @@ mise run preview      # 同じ画面を、偽の Slack とサンプルのルー�
 
 開発中に本物の設定を触らないよう、`SOCKDOCK_DATA_DIR` と `SOCKDOCK_CONFIG` を設定できます（`mise.toml` の `[env]` を参照）。
 
-構成: `cmd/sockdock`（CLI）、`internal/`（ゲートウェイ、ハンドラ、制御 API など）、`gui/`（Wails v3 ＋ Svelte）、`examples/`（ハンドラの例）、`scripts/`（`.app` の組み立て。mise なしでも使える）、`docs/`（設計メモ）。
+構成: `cmd/sockdock`（CLI）、`internal/`（ゲートウェイ、ハンドラ、制御 API など）、`gui/`（Wails v3 ＋ Svelte）、`examples/`（ハンドラの例）、`scripts/`（`.app` の組み立て。mise なしでも使える）。
 
 ## ライセンス
 

@@ -40,8 +40,8 @@ export function ChannelName(idOrLink: string): $CancellablePromise<string> {
 }
 
 /**
- * CheckClaude asks the gateway whether Claude Code is signed in (docs/ia.md
- * §11-21). It returns at once; a changed answer reaches the UI in the
+ * CheckClaude asks the gateway whether Claude Code is signed in.
+ * It returns at once; a changed answer reaches the UI in the
  * snapshot. force skips the gateway's recent answer (after signing in).
  */
 export function CheckClaude(force: boolean): $CancellablePromise<void> {
@@ -265,8 +265,8 @@ export function ReorderRules(names: string[]): $CancellablePromise<$models.Route
 }
 
 /**
- * ResetAll returns SockDock to its first-launch state (docs/ia.md
- * 「初期状態に戻す」): it stops runs and the gateway, removes the Keychain
+ * ResetAll returns SockDock to its first-launch state:
+ * it stops runs and the gateway, removes the Keychain
  * tokens, moves the config file to the Trash and writes a minimal one,
  * deletes the run history, resets the app's preferences and turns off
  * starting at login. Logs are kept. The window then shows setup.

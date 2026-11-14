@@ -12,8 +12,8 @@ import (
 	"github.com/iwamatsu0430/sock-dock-slack/internal/secret"
 )
 
-// ResetAll returns SockDock to its first-launch state (docs/ia.md
-// 「初期状態に戻す」): it stops runs and the gateway, removes the Keychain
+// ResetAll returns SockDock to its first-launch state:
+// it stops runs and the gateway, removes the Keychain
 // tokens, moves the config file to the Trash and writes a minimal one,
 // deletes the run history, resets the app's preferences and turns off
 // starting at login. Logs are kept. The window then shows setup.

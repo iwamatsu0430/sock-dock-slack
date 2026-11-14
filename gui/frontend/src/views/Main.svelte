@@ -11,7 +11,7 @@
   import UpdateDialog from "./UpdateDialog.svelte";
 
   // The one window: setup until Slack is connected, then [Rules | Settings].
-  // Rules has two levels: the list and one rule (docs/ia.md §4).
+  // Rules has two levels: the list and one rule.
   type View = { kind: "list" } | { kind: "rule"; name: string } | { kind: "new" } | { kind: "settings" };
   let view = $state<View>({ kind: "list" });
   let connectedTo = $state("");

@@ -11,8 +11,7 @@ import (
 	"github.com/iwamatsu0430/sock-dock-slack/internal/event"
 )
 
-// ScopeFilesRead lets the Slack app read files attached to messages
-// (docs/design.md §3.6).
+// ScopeFilesRead lets the Slack app read files attached to messages.
 const ScopeFilesRead = "files:read"
 
 // ErrNoFileAccess means Slack would not give the file to the token: the

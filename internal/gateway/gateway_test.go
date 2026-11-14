@@ -450,7 +450,7 @@ func TestAllowedUsers(t *testing.T) {
 }
 
 // A codex rule runs Codex with the thread's conversation, and its sign-in is
-// tracked apart from Claude Code's (docs/design.md §3.8).
+// tracked apart from Claude Code's.
 func TestCodexRoute(t *testing.T) {
 	dir := t.TempDir()
 	cfg, err := config.Parse([]byte(fmt.Sprintf(`

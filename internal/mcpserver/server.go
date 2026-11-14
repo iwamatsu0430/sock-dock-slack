@@ -1,6 +1,5 @@
 // Package mcpserver exposes a running SockDock to MCP clients (Claude Code,
-// Codex, Gemini CLI, …) as tools. It only relays to the control API; see
-// docs/mcp.md for what it offers and why.
+// Codex, Gemini CLI, …) as tools. It only relays to the control API.
 package mcpserver
 
 import (

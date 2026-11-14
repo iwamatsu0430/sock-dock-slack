@@ -8,7 +8,7 @@ import (
 	"github.com/iwamatsu0430/sock-dock-slack/internal/updates"
 )
 
-// A newer SockDock (docs/design.md §3.7): checked when SockDock starts and
+// A newer SockDock: checked when SockDock starts and
 // once a day, told once per version.
 
 const (

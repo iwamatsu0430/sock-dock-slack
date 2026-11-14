@@ -16,7 +16,7 @@ func mcpCmd(g *globals) *cobra.Command {
 		Short: "Serve MCP over stdio so AI agents (Claude Code, Codex, …) can control the running SockDock",
 		Long: "Serve MCP over stdio. Register it with your MCP client, e.g.\n\n" +
 			"  claude mcp add -s user sockdock -- " + "sockdock mcp\n\n" +
-			"The tools relay to the running SockDock (the menu bar app or `sockdock run`); see docs/mcp.md.",
+			"The tools relay to the running SockDock (the menu bar app or `sockdock run`).",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			// Inside a run started by SockDock (an agent answering a Slack post),

@@ -21,7 +21,7 @@ import (
 
 // The owner ("本人") is the person who uses SockDock. They are registered by
 // sending, by DM to the Slack app, a one-time code (TOTP) shown on the Mac;
-// notices then go to them by DM (docs/design.md §3.5).
+// notices then go to them by DM.
 
 const (
 	stateKeyOwnerDM        = "owner_dm"
@@ -272,7 +272,7 @@ func (g *Gateway) notifyOwner(ctx context.Context, text string) {
 	}
 	g.mu.Unlock()
 	// Without a known DM channel, a member ID as the channel posts to the
-	// app's DM with them (to be confirmed with a real Slack: docs/design.md §3.5).
+	// app's DM with them (to be confirmed with a real Slack).
 	if err := g.opts.API.PostMessage(ctx, ch, "", text); err != nil {
 		g.log.Warn("could not send a notice to the owner", "err", err)
 	}

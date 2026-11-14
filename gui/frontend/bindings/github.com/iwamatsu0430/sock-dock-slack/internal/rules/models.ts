@@ -118,7 +118,7 @@ export class Form {
 
     /**
      * agents (claude, codex). Commands and OtherTools are Claude Code's;
-     * Codex always runs commands in its sandbox (docs/design.md §3.8).
+     * Codex always runs commands in its sandbox.
      */
     "instructions": string;
     "allow_web": boolean;

@@ -92,7 +92,7 @@ func TestFormConditions(t *testing.T) {
 }
 
 // A codex rule keeps its permissions in allow_web / allow_edit, never in
-// Claude Code's allowed_tools (docs/design.md §3.8).
+// Claude Code's allowed_tools.
 func TestCodexForm(t *testing.T) {
 	in := Form{Name: "cx", Channel: "C0123ABCD", Trigger: "starts_with", Keyword: "cx", Type: "codex", Folder: "~/proj",
 		Instructions: "Be brief.", AllowWeb: true, Commands: []string{"npm test"}, Model: "gpt-6-luna"}

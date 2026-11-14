@@ -45,7 +45,7 @@ jobs:
       # On a re-run the release may already exist: keep the files it has (people
       # may have installed them) and upload only the missing ones.
       # The release notes are the tag's message when it has the English and
-      # Japanese sections the app shows (docs/design.md §3.7); otherwise
+      # Japanese sections the app shows; otherwise
       # GitHub generates them.
       - name: Publish release
         env:

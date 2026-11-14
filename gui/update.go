@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// The cask that installs the app; `brew upgrade` updates it (docs/design.md §3.7).
+// The cask that installs the app; `brew upgrade` updates it.
 const caskName = "iwamatsu0430/tap/sockdock"
 
 // StartUpdate opens Terminal and updates SockDock with Homebrew. Homebrew

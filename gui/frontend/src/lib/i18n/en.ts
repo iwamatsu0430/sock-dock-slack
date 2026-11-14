@@ -1,5 +1,5 @@
-// English UI strings, written from the same intent as docs/ia.md (not a
-// word-for-word translation). Markup: `code`, {param}.
+// English UI strings, written from the same intent as the Japanese
+// ones (not a word-for-word translation). Markup: `code`, {param}.
 export const en = {
   "setup.step": "{n} of 2",
   "setup.createTitle": "Create a Slack app",

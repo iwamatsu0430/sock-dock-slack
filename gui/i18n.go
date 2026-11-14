@@ -3,7 +3,7 @@ package main
 import "fmt"
 
 // Native strings (menu bar menu, window titles, notifications). Web UI
-// strings live in frontend/src/lib/i18n. Wording follows docs/ia.md.
+// strings live in frontend/src/lib/i18n.
 var nativeText = map[string]map[string]string{
 	"en": {
 		"label.keyword":       "%s \u201c%s\u201d",
