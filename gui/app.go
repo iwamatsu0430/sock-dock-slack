@@ -354,34 +354,10 @@ settings:
   socket_mode_enabled: true
 `
 
-// dmSettingsSnippet is what a Slack app made from an older manifest needs
-// for DMs (docs/ia.md §6): the Messages tab, im:history and message.im.
-const dmSettingsSnippet = `features:
-  app_home:
-    messages_tab_enabled: true
-    messages_tab_read_only_enabled: false
-oauth_config:
-  scopes:
-    bot:
-      - im:history
-settings:
-  event_subscriptions:
-    bot_events:
-      - message.im
-`
-
 // CopySlackSettings copies the settings an existing Slack app needs, as a
 // manifest snippet, to the clipboard.
 func (a *AppService) CopySlackSettings() error {
 	if !a.app.Clipboard.SetText(slackSettingsSnippet) {
-		return errors.New("could not copy to the clipboard")
-	}
-	return nil
-}
-
-// CopyDMSettings copies the settings DMs need, as a manifest snippet.
-func (a *AppService) CopyDMSettings() error {
-	if !a.app.Clipboard.SetText(dmSettingsSnippet) {
 		return errors.New("could not copy to the clipboard")
 	}
 	return nil

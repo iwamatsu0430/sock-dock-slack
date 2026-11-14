@@ -76,16 +76,7 @@
       people = owner ? [owner] : [];
     }
   }
-  let dmCopied = $state(false);
-  async function copyDMSettings() {
-    try {
-      await App.CopyDMSettings();
-      dmCopied = true;
-      setTimeout(() => (dmCopied = false), 2000);
-    } catch (e) {
-      error = errorText(e);
-    }
-  }
+
 
   // After adding the Slack app to a channel, show the list without reopening.
   let reloading = $state(false);
@@ -252,8 +243,7 @@
         </select>
         {#if !isDM}<p class="small muted">{t("rule.channelListHelp")}</p>
         {:else if !hasScope(live.snap, "im:history")}
-          <p class="small bad-t">{t("rule.dmNoScope")}</p>
-          <div><button class="small" onclick={copyDMSettings}>{dmCopied ? t("settings.mcpCopied") : t("setup.copySettings")}</button></div>
+          <p class="small bad-t"><Rich key="rule.dmNoScope" /></p>
         {/if}
       {:else}
         <!-- DMs do not need the channel list, so they can be chosen here too. -->
@@ -264,8 +254,7 @@
         </select>
       {/if}
       {#if pasteMode && isDM && !hasScope(live.snap, "im:history")}
-        <p class="small bad-t">{t("rule.dmNoScope")}</p>
-        <div><button class="small" onclick={copyDMSettings}>{dmCopied ? t("settings.mcpCopied") : t("setup.copySettings")}</button></div>
+        <p class="small bad-t"><Rich key="rule.dmNoScope" /></p>
       {:else if pasteMode && !isDM}
         <input type="text" bind:value={f.channel} placeholder="C0123456789" class:invalid={problem("channel")} />
         {#if resolved}<p class="small muted">{resolved}</p>{/if}

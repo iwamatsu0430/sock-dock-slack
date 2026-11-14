@@ -246,8 +246,7 @@ select optgroup { color: var(--muted); }
           </select>
           <p class="small muted" id="chNote">一覧に出るのは、Slack アプリを追加したチャンネルです。</p>
           <div id="dmScope" hidden>
-            <p class="small bad-t">DM を受け取るには、Slack アプリに設定を足して、再インストールしてください。</p>
-            <div class="copybox"><button class="small">設定をコピー</button></div>
+            <p class="small bad-t">Slack アプリに <code>im:history</code> のスコープがないため、DM は届きません。</p>
           </div>
         </div>
       </div>
@@ -488,8 +487,7 @@ function renderSettings(id) {
     "set-code": `<div class="code"><b id="codeNum">482 913</b><span class="ring" id="ring"></span></div>
       <span class="small">このコードを、Slack アプリに DM で送ってください。</span><div><button class="small" id="cancel">キャンセル</button></div>`,
     "set-done": `<div class="row"><span>田中 太郎</span><span class="spacer"></span><button class="small" id="unreg">解除</button></div>`,
-    "set-noscope": `<span class="small bad-t">本人を登録するには、Slack アプリに設定を足して、再インストールしてください。</span>
-      <div class="row"><button class="small">設定をコピー</button><button class="small" disabled style="opacity:.4">本人を登録</button></div>`,
+    "set-noscope": `<span class="small bad-t">Slack アプリに <code>im:history</code> のスコープがないため、本人を登録できません。</span>`,
   }[id];
   body.innerHTML = html;
   $("#ownerLbl").hidden = !done;

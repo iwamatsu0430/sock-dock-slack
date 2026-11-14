@@ -223,7 +223,7 @@ routes:
 - DMs work like channel posts: a top-level DM starts a thread, SockDock replies in it, and replies in that thread continue the conversation. DM rules are tried from the top like a channel's.
 - Without `allowed_users`, anyone in the workspace can run a DM rule. In the app a new DM rule starts limited to you (see "Notifications by DM").
 - A mention in the middle of a thread never starts a rule; only top-level posts do.
-- DMs need the App Home **Messages tab** (with sending messages allowed), the `im:history` Bot Token scope and the `message.im` event. The bundled manifest has them. If you created your Slack app earlier, add them and reinstall the app; the rule page and Settings copy the part to add. `im:history` reads only DMs sent to the Slack app. Mentions need nothing new.
+- DMs need the App Home **Messages tab** (with sending messages allowed), the `im:history` Bot Token scope and the `message.im` event. The bundled manifest has them. If you created your Slack app earlier, add them and reinstall the app; the rule page and Settings say when `im:history` is missing. `im:history` reads only DMs sent to the Slack app. Mentions need nothing new.
 
 ## Notifications by DM
 

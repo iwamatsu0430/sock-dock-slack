@@ -91,7 +91,6 @@
   }
   // The owner ("本人", docs/ia.md「本人」): registered with a code sent by DM.
   let owner = $state<OwnerState | null>(null);
-  let dmCopied = $state(false);
   async function loadOwner() {
     owner = await App.GetOwner().catch(() => null);
   }
@@ -117,15 +116,6 @@
       const o = await f();
       if (o.error) error = o.error;
       else owner = o;
-    } catch (e) {
-      error = errorText(e);
-    }
-  }
-  async function copyDMSettings() {
-    try {
-      await App.CopyDMSettings();
-      dmCopied = true;
-      setTimeout(() => (dmCopied = false), 2000);
     } catch (e) {
       error = errorText(e);
     }
@@ -165,11 +155,7 @@
             <span class="lbl">{owner.owner.name || owner.owner.id}</span>
             <button class="small" onclick={() => ownerAction(App.ClearOwner)}>{t("settings.ownerRemove")}</button>
           {:else if owner.problem === "missing_scope"}
-            <div class="lbl ostack">
-              <span class="small bad-t">{t("settings.ownerNoScope")}</span>
-              <div class="row"><button class="small" onclick={copyDMSettings}>{dmCopied ? t("settings.mcpCopied") : t("setup.copySettings")}</button>
-                <button class="small" disabled>{t("settings.ownerRegister")}</button></div>
-            </div>
+            <span class="lbl small bad-t"><Rich key="settings.ownerNoScope" /></span>
           {:else if reg}
             <div class="lbl ostack">
               <div class="code"><b>{(reg.code ?? "").slice(0, 3)} {(reg.code ?? "").slice(3)}</b><span class="ring" style="--left: {codeLeft * 100}%"></span></div>

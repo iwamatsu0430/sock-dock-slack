@@ -148,7 +148,7 @@ func ownerCmd(g *globals) *cobra.Command {
 			}
 			if o.Problem == "missing_scope" {
 				_, _ = c.CancelRegistration(context.Background())
-				return errors.New("DMs can't reach SockDock: add im:history, the message.im event and the Messages tab to the Slack app, then reinstall it")
+				return errors.New("the Slack app doesn't have the im:history scope, so DMs can't reach SockDock")
 			}
 			defer func() { _, _ = c.CancelRegistration(context.Background()) }()
 			fmt.Println("Send this code to the Slack app by DM (it changes every 30 seconds):")

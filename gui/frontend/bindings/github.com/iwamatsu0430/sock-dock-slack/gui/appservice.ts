@@ -68,13 +68,6 @@ export function ConnectSlack(appToken: string, botToken: string): $CancellablePr
 }
 
 /**
- * CopyDMSettings copies the settings DMs need, as a manifest snippet.
- */
-export function CopyDMSettings(): $CancellablePromise<void> {
-    return $Call.ByID(1291982161);
-}
-
-/**
  * CopyMCPSetup copies a client's registration to the clipboard and remembers
  * the client.
  */

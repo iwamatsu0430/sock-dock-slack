@@ -55,13 +55,9 @@ func TestSlackSettingsSnippetMatchesManifest(t *testing.T) {
 			t.Errorf("%s is not in the manifest", s)
 		}
 	}
-	// DMs need the Messages tab, im:history and message.im, in both
-	// snippets and the manifest.
-	var dm manifestParts
-	if err := yaml.Unmarshal([]byte(dmSettingsSnippet), &dm); err != nil {
-		t.Fatal(err)
-	}
-	for name, p := range map[string]manifestParts{"manifest": man, "snippet": snip, "dm snippet": dm} {
+	// DMs need the Messages tab, im:history and message.im, in the snippet
+	// and the manifest.
+	for name, p := range map[string]manifestParts{"manifest": man, "snippet": snip} {
 		if !p.Features.AppHome.MessagesTab || p.Features.AppHome.MessagesTabReadOnly {
 			t.Errorf("%s: the Messages tab must allow messages", name)
 		}
