@@ -18,6 +18,7 @@
 | 投稿者の絞り込み | ルールごとに「実行できる人」を選べる（`allowed_users`）。既定は全員（3.4） | ユーザー確認済み（2026-11-14）。初版は絞らなかったが、コマンドの実行やファイル編集を許したルールが共有チャンネルで誰にでも開いているため、最優先で足す |
 | DM とメンション、本人への通知 | Bot への DM と、メンションされたときだけ動くルールを足す。本人を DM で登録し、通知を DM でも送る（3.5） | 2026-11-14 にユーザーが決め、承認し、同じ日に実装した |
 | 添付ファイル | 投稿に付いたファイルを、AI エージェントとプログラムに渡す（3.6）。ルールごとには選ばず、処理の終わりに消す。渡せなかったことはハンドラが伝える | 2026-11-14 にユーザーが決め、承認し、同じ日に実装した | ユーザーの依頼（2026-11-14）。「このスクショを見て」「このログを読んで」と頼めるようにする |
+| ほかのエージェント | Codex CLI を足す。Antigravity CLI は見送る。CLI を直接動かし、ACP は採らない（3.8） | 2026-11-15 にユーザーが決めた。Antigravity は、個人向けのプランでほかのアプリから動かすことが利用規約に触れるおそれがあるため |
 | 多言語対応 | 英語と日本語。対象は GUI と、ゲートウェイが Slack に投稿する定型文。CLI とログは英語のまま。既定は OS の言語（`auto`）で、GUI は環境設定、定型文は `settings.language` で上書きできる | ユーザーの依頼（2026-11-12）。CLI とログは開発者向けツールの慣例に合わせ、検索しやすさも考えて英語にする |
 | Slack アプリ | 利用者ごとに 1 つ作ってもらう。マニフェストを同梱する | 1 アプリに Socket Mode 接続が複数あると、イベントはどれか 1 つにしか届かない。多重起動も防ぐ（2.4） |
 
@@ -614,6 +615,136 @@ SockDock が新しい版を確かめ、出ていたら知らせ、メニュー�
 - リリースノートの節の取り出し（英語・日本語・節なし・空）
 - 版の比べ方（形が違う版を確かめないこと、`v0.10.0` > `v0.9.0`）、1 回だけ知らせること、失敗の扱いを、偽の GitHub（`httptest`）で確かめる
 
+### 3.8 ほかのエージェント（2026-11-15 承認）
+
+ルールが動かす AI エージェントに、Claude Code のほか Codex CLI を選べるようにする。調べた結果は [research/2026-11-15-agent-clis.md](research/2026-11-15-agent-clis.md)。画面と文言は [ia.md](ia.md) §8「エージェントと、許可の項目」が正。モック: [`docs/mock/agents.html`](mock/agents.html)
+
+**調べて分かったこと**
+
+- Gemini CLI は、2026-06-18 に個人向けの提供を終えた。移る先は Antigravity CLI（`agy`）。企業向けのライセンスと有料の API キーでは、Gemini CLI を今も使える
+- Codex も agy も、ヘッドレスで動かして最終回答を取れ、スレッドの返信を同じ会話で続けられる。Web 検索、ファイル編集、MCP も止められる
+- **どちらも、コマンドを許可したものに限れない。** Codex は、コマンドをいつもサンドボックスの中で動かす（ネットワークなし。書き込めるのは、ファイル編集を許したときの作業フォルダだけ）。agy は、コマンドをオンかオフかでしか決められない
+- **agy は、個人向けのプランでほかのアプリから動かすことを、公式の FAQ がサポートの対象外とし、利用規約違反になりうるとしている**（調査 §4.9）
+
+**ユーザーが決めたこと**（2026-11-15）
+
+| 項目 | 決定 |
+|---|---|
+| 足すエージェント | Codex だけ。Antigravity は見送る（個人向けのプランで、利用規約に触れるおそれがあるため） |
+| Codex のコマンド | 選べるようにする。許可したものに限れないので、コマンドの欄は出さず、「コマンドも実行します。触れるのは作業フォルダの中だけで、ネットワークは使えません。」と出す |
+| 動かし方 | CLI を直接、子プロセスで動かす（今の `claude -p` と同じ）。ACP（IA §11-13）は採らない |
+| MCP の選択肢 | 設定の「MCP」と [mcp.md](mcp.md) の Gemini CLI を、Antigravity（`agy mcp add sockdock <sockdock> mcp`）に置き換える。agy が SockDock を使う向きなので、規約の件には当たらない |
+
+以下は、上の決定を形にした仕様（2026-11-15 に承認）。
+
+*動かし方*
+
+- エージェントごとにアダプタを作る。アダプタが決めること: 起動の引数、プロンプトの渡し方、出力の読み方（最終回答・会話の ID・失敗・使用量）、再開の失敗の見分け方、サインインの確かめ方と認証のエラーの見分け方。タイムアウト、プロセスグループ、環境変数、添付ファイルのフォルダは共通
+- ACP をやめる理由: ACP で得られること（ヘッドレス、会話の再開、停止、指示、モデル）は、CLI を直接動かしても足りた。Codex を ACP で動かすには、数百 MB の Node のアダプタが要る
+
+| | Claude Code（今） | Codex |
+|---|---|---|
+| 起動 | `claude -p --output-format json …` | `codex exec --json --skip-git-repo-check --ignore-user-config --disable apps -c approval_policy="never" -c default_permissions="sockdock" -c permissions.sockdock.filesystem=… -c web_search=… [-c developer_instructions=…] [-m <model>] -` |
+| 続きのターン | `--resume <session_id>` | `codex exec resume <thread_id> …`（同じ `-c` を毎回渡す。`resume` には `-s` がないため） |
+| プロンプト | 標準入力 | 標準入力（`-`） |
+| 最終回答 | `result` | そのターンの最後の `agent_message` の `text` |
+| 会話の ID | `session_id` | `thread.started` の `thread_id` |
+| 再開できない | 結果が出ない | exit 1 と `no rollout found` |
+| 失敗 | `is_error` | `turn.failed`、または exit ≠ 0 |
+| 使用量 | `total_cost_usd` | トークン数だけ（金額は出ない） |
+
+- 再開できなかったときは、今と同じく新しい会話で始め直し、スレッドに「前の会話を引き継げなかったため…」を添える
+- Codex では `cost_usd` を記録しない（空のまま）
+- 停止とタイムアウトは今と同じ（`SIGINT` → `SIGTERM` → `SIGKILL`、プロセスグループごと）。Codex が `SIGINT` でターンを終えるかは、実装のときに確かめる
+
+*許可の対応*
+
+| ルールの許可 | Claude Code | Codex |
+|---|---|---|
+| ファイルを読む（いつも） | `Read` `Glob` `Grep` | 権限プロファイルで、読める場所を作業フォルダ・添付ファイルのフォルダ・Codex 自身に絞る（下） |
+| Web 検索 | `WebSearch` `WebFetch` | `-c web_search="live"`。許可しなければ `"disabled"`（既定の `"cached"` は検索するので、どちらかを必ず渡す） |
+| フォルダ内のファイル編集 | `Edit` `Write` など | 権限プロファイルの作業フォルダを `"write"`。許可しなければ `"read"` |
+| コマンド | 許可したコマンドだけ | いつも実行できる（サンドボックスの中。ネットワークなし）。ルールでは選ばない |
+| MCP（`allow_mcp`） | `mcp__*` を拒否しない | `--ignore-user-config` と `--disable apps` を外す |
+
+- 権限プロファイル: `-c 'permissions.sockdock.filesystem={":minimal"="read", "<Codex のインストール先>"="read", "<添付ファイルのフォルダ>"="read", ":workspace_roots"={"."="read" または "write"}}'`。Codex のインストール先は、`codex_command` を `resolveCommand` で解いたパスの親の親を、シンボリックリンクをたどる前と後の両方で入れる（mise は `latest` のリンクを通るため。入れないと Codex が起動しない）
+- コマンドをオフにする手段（`--disable shell_tool`）はあるが、使わない。Codex はファイルをコマンドで読むので、作業フォルダも読めなくなる
+- 実行できる人が「全員」のとき、Codex のルールには、いつもコマンドの赤字を出す（3.4、IA §8）
+
+*指示*
+
+- ゲートウェイ共通の指示、ルールの `prompt` の中身、`instructions` をつなげて、`-c developer_instructions=<TOML の文字列>` で渡す。`model_instructions_file` は既定の指示と入れ替わるので使わない
+- ゲートウェイ共通の指示は Claude Code と同じものを使う。「Read で読む」のようなツール名の書き方だけ、エージェントを選ばない言い方にする
+
+*作業フォルダの設定*
+
+- Codex は作業フォルダの `AGENTS.md` を読む。`.codex/config.toml`・フック・規則は、利用者がそのフォルダを信頼したときだけ読む。SockDock は `--trust` を付けない。利用者の `~/.codex/config.toml` は読ませない（`--ignore-user-config`）。サインインは `~/.codex` のまま使える
+- README の「ルートの許可範囲はプロジェクト側の設定も含めて考える」に、Codex の `AGENTS.md` と、信頼したフォルダの `.codex/` を足す
+
+*添付ファイル*（3.6）
+
+- `<slack_file>` でパスを書き、権限プロファイルにそのフォルダを `"read"` で足す。画像は `-i` でも渡せるが使わない（Claude Code と同じく、必要なものだけを読ませるため）
+
+*サインイン*（IA §11-21 を広げる）
+
+| | 確かめ方 | 処理の失敗で見分ける文 | ［ターミナルでサインイン］ |
+|---|---|---|---|
+| Claude Code | `auth status` の `loggedIn` | 今のまま | `claude auth login` |
+| Codex | `codex login status` の exit code（0 = 済み、1 = 未） | `401 Unauthorized`、`Not logged in` | `codex login` |
+
+- 確かめるのは、オンの AI エージェントのルールが使っているエージェントだけ。タイミングは今と同じ（起動したとき、ウィンドウに戻ったとき、認証のエラーで失敗したとき）
+- `Status` の `claude_signed_in` に、エージェントごとの `signed_in`（`{"claude": false, "codex": true}`。分からないものは入れない）を足す。`claude_signed_in` は、今の GUI と MCP のために残す
+- 通知と DM は、エージェントごとに 1 回だけ（サインインし直すまで送らない）
+- 未サインインの Codex は、`401` で 10 回ほどつなぎ直してから失敗する（約 20 秒）。待つだけなので、特に手当てしない
+
+*設定ファイル*
+
+```yaml
+settings:
+  claude_command: claude
+  codex_command: codex          # 足す。書かなければ codex。launchd から動かすなら絶対パスを推奨
+
+routes:
+  - name: triage
+    channel: C0123456789
+    starts_with: triage
+    handler:
+      type: codex               # claude / codex / command
+      cwd: ~/projects/web-app
+      instructions: 原因の候補を 3 つまで挙げてください。
+      allow_web: true
+      allow_edit: false
+      model: gpt-6-luna         # 省略時は Codex の既定
+```
+
+- `type` に `codex` を足す。`claude` の書き方は変えない
+- Codex の許可は、Claude Code の `allowed_tools` の書式（`Bash(npm test *)`）ではなく、`allow_web`・`allow_edit`・`allow_mcp` で書く。Codex のルールに `allowed_tools` や `tools` を書いたら設定エラーにする（守れない許可を、守れるように見せないため）
+- `prompt`・`instructions`・`model`・`extra_args`・`timeout_sec`・`command`・`env_file` は共通
+- `sockdock check` は、そのルールのエージェントのコマンドが見つかるかも確かめる
+
+*MCP*
+
+- `sockdock_save_rule` に `agent`（`claude_code` / `codex`。`runs: agent` のときだけ。省略時は `claude_code`）を足す。Codex で `allowed_commands` を渡したら、理由を書いたエラーにする
+- `sockdock_get_status` は、エージェントごとのサインインを返す。手引きに、Codex のコマンドの扱いを 1 行で書く
+
+*文書と LP*
+
+- README: 実行するものに Codex を足す。エージェントごとの許可の違い（Codex のコマンド）を書く
+- [mcp.md](mcp.md) §2.1 と設定の「MCP」の選択肢: Gemini CLI を Antigravity に置き換える。登録は `agy mcp add sockdock <sockdock> mcp`（実装のときに、登録先が利用者全体か、登録したあと agy から使えるかを確かめる）
+- LP: [lp-ia.md](lp-ia.md) の「AI エージェント（いまは Claude Code）」を「（Claude Code、Codex）」に直す。「`CLAUDE.md` などの指示や設定もそのまま効きます」は「など」で足りるので変えない。LP の文言は、先に lp-ia.md を直してから変える
+
+**テスト**
+
+- 偽の codex（引数と標準入力を記録し、決まった JSONL を返すスクリプト）で、引数の組み立て、会話の再開と失敗、認証のエラー、タイムアウトを確かめる。出力の見本は、2026-11-15 に実物から取ったもの（調査 §3）を使う
+- 権限プロファイルは実物で 1 回確かめる（作業フォルダの外を読めないこと、許可しない書き込みと Web が動かないこと）
+
+**見送ったもの: Antigravity**
+
+- 理由: 個人向けのプランでは、ほかのアプリから agy を動かすことを、公式の FAQ がサポートの対象外とし、利用規約違反でアカウントが止まることもあるとしている。API キーか Enterprise なら当たらない
+- 足すときに要ること（調査 §4）: プロンプトは stream-json で標準入力から渡す。許可は、SockDock のデータフォルダに書いたエージェントの定義（`tools` の一覧）を `--add-dir` と `--agent` で渡し、`--settings` の deny の規則で重ねる。定義の本文は既定のシステムプロンプトと入れ替わる。コマンドはオンかオフだけ。確認の要る操作でターンが回答なしで終わるので、定型文が要る。サインインを確かめるコマンドがない
+
+**文書を直す時期**: README・[mcp.md](mcp.md)・[lp-ia.md](lp-ia.md) と LP は、今の動きを書いた文書なので、実装と同じ変更で直す
+
 ## 4. ハンドラ
 
 ### 4.1 ハンドラに渡す情報（共通）
@@ -684,7 +815,7 @@ SockDock が新しい版を確かめ、出ていたら知らせ、メニュー�
 
 **注意**: `--bare` は使わない（サブスクリプションのログインを読まないため）。そのため `cwd` の `.claude/settings.json`・`CLAUDE.md`・フックは読み込まれる。README に「ルートの許可範囲はプロジェクト側の設定も含めて考える」と書く。
 
-**拡張**: claude 型はアダプタとして実装し、ほかのエージェント CLI（Codex CLI など）をあとから足せるようにする。初版は Claude Code だけ。
+**拡張**: claude 型はアダプタとして実装し、ほかのエージェント CLI（Codex CLI など）をあとから足せるようにする。初版は Claude Code だけ。足すときの仕様は 3.8（2026-11-15。Codex を足す）。
 
 ### 4.4 投稿
 
