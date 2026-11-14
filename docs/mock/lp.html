@@ -84,6 +84,9 @@ h2 { font-size: 28px; letter-spacing: -.01em; }
 h3.behave-h { margin: 36px 0 0; font-size: 17px; }
 .behave { margin: 10px 0 0; padding-left: 20px; display: grid; gap: 6px; color: var(--muted); font-size: 15px; }
 .final { margin-top: 48px; display: flex; flex-wrap: wrap; gap: 12px; }
+.open-intro { margin-top: 14px; max-width: 40em; color: var(--muted); }
+.open-steps { margin: 18px 0 0; padding-left: 22px; display: grid; gap: 8px; max-width: 40em; }
+.open-safe { margin-top: 18px; max-width: 40em; font-size: 14px; color: var(--muted); }
 .install { display: flex; align-items: center; gap: 4px; max-width: 100%; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 4px 4px 4px 14px; }
 .install code { background: none; padding: 0; font-size: 14px; overflow-x: auto; white-space: nowrap; min-width: 0; flex: 1; }
 .install code { scrollbar-width: none; }
@@ -135,7 +138,7 @@ footer nav a { color: var(--muted); }
         <div class="install"><code>brew install --cask iwamatsu0430/tap/sockdock</code><button type="button" class="copy" data-en="Copy" data-ja="コピー"></button></div>
         <a class="btn" href="https://github.com/iwamatsu0430/sock-dock-slack" data-en="View on GitHub" data-ja="GitHub で見る"></a>
       </div>
-      <p class="note" data-en="The app is not notarized by Apple. The first time you open it, click Open Anyway in System Settings → Privacy &amp; Security." data-ja="アプリは Apple の公証を受けていないため、初めて開くときは、システム設定の「プライバシーとセキュリティ」で「このまま開く」を押してください。"></p>
+      <p class="note" data-en="The app is not notarized by Apple, so opening it the first time takes an extra step. <a href=&quot;#first-open&quot;>How to open it</a>" data-ja="アプリは Apple の公証を受けていないため、初めて開くときに確認が要ります。<a href=&quot;#first-open&quot;>開き方</a>"></p>
       <p class="meta" data-en="macOS 13+ · Free and open source (MIT)" data-ja="macOS 13 以降 · 無料・オープンソース（MIT）"></p>
     </div>
 
@@ -232,6 +235,19 @@ footer nav a { color: var(--muted); }
     </div>
   </div>
 </section>
+
+<section class="band" id="first-open">
+  <div class="wrap pad">
+    <h2 data-en="Opening it the first time" data-ja="初めて開くとき"></h2>
+    <p class="open-intro" data-en="SockDock is not notarized by Apple, so the first time you open it, macOS stops it with “SockDock” Not Opened." data-ja="SockDock は Apple の公証を受けていないため、初めて開くと macOS が「“SockDock” は開いていません」と表示して止めます。"></p>
+    <ol class="open-steps">
+      <li data-en="Click <b>Done</b> (not Move to Trash)." data-ja="<b>完了</b>を押します（「ゴミ箱に入れる」は押さない）。"></li>
+      <li data-en="Open System Settings → Privacy &amp; Security, scroll down and click <b>Open Anyway</b>." data-ja="システム設定の「プライバシーとセキュリティ」を開き、下のほうにある<b>このまま開く</b>を押します。"></li>
+      <li data-en="When asked again, click <b>Open</b>. From then on it opens normally." data-ja="確認が出たら<b>開く</b>を押します。次からはそのまま開けます。"></li>
+    </ol>
+    <p class="open-safe" data-en="This allows SockDock only; the rest of your Mac's protection stays on. Homebrew checks the download against the checksum recorded in the tap before installing it. <a href=&quot;https://support.apple.com/en-us/102445&quot;>Apple Support: Safely open apps on your Mac</a>" data-ja="許可されるのは SockDock だけで、Mac の保護はそのまま働きます。Homebrew は、ダウンロードしたファイルが tap に記録されたハッシュと一致することを確かめてから入れます。<a href=&quot;https://support.apple.com/ja-jp/102445&quot;>Apple サポート「Mac でアプリを安全に開く」</a>"></p>
+  </div>
+</section>
 </main>
 
 <footer>
@@ -258,7 +274,7 @@ document.querySelectorAll('.copy').forEach(b => b.addEventListener('click', () =
   navigator.clipboard?.writeText(b.previousElementSibling.textContent).catch(() => {});
   const t = b.textContent; b.textContent = '✓'; setTimeout(() => { b.textContent = t; }, 1200);
 }));
-setLang(location.hash === '#ja' ? 'ja' : 'en');
+setLang(location.hash === '#ja' || (location.hash !== '#en' && /^ja\b/i.test((navigator.languages || [])[0] || navigator.language || '')) ? 'ja' : 'en');
 </script>
 </body>
 </html>

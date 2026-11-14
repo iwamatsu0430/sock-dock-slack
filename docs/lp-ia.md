@@ -84,6 +84,7 @@ SockDock は家で使うためのもの（ホームユース）です。会社�
 | 5 | 公式の Claude in Slack などと何が違う？ クラウドで動くの？ | 2 画面目: 自分の Mac で動く | 手元のファイルを使って、いつもの Claude Code が動く。サーバーは要らない |
 | 6 | 始めるのに何がいる？ | 3 画面目: 始め方 | Slack アプリを作る → 2 つのトークンを貼る → ルールを作る |
 | 7 | どこから手に入れる？ | 最初の画面 | `brew install` の 1 行（ページで 1 回だけ） |
+| 8 | 開けない。警告が出たけど大丈夫？ | 最後: 初めて開くとき（最初の画面の注意からリンク） | 公証を受けていないので止められる。「完了」→「このまま開く」→「開く」で開ける。許可されるのは SockDock だけ |
 
 ## 5. 構成
 
@@ -92,12 +93,16 @@ SockDock は家で使うためのもの（ホームユース）です。会社�
              ルールで決める 3 つ · CTA（主: brew のコマンド / 副: GitHub） · 条件の 1 行 ｜ スレッドの絵 2 つ（縦に並べる）
 2 画面目     自分の Mac で動きます（3 つ）
 3 画面目     始め方（3 手順と、それぞれの補足） · Slack での動き · README へのリンク
+最後         初めて開くとき（警告への対処 3 手順 · 安全について · Apple のサポートへのリンク）
 フッター     GitHub · README · MIT · Slack 公式ではない旨
 ```
 
 - 見出しのすぐ下に「ルールでは、次の 3 つを決めます」を置き、スレッドの絵はその横（狭い画面では CTA の下）に置く。
 - 1 ページだけ。メニューは置かない（項目が少なく、上から読めば足りる）。
-- 英語（`/`）と日本語（`/ja/`）の 2 つ。README と同じ組み合わせ。右上で切り替える。
+- 英語（`/`）と日本語（`/ja/`）の 2 つ。README と同じ組み合わせ。
+  - `/` を開いたとき、システムの言語が日本語なら `/ja/` へ移る。GitHub Pages は静的な配信なので、ブラウザのスクリプトで行う。`/ja/` を直接開いた人はそのまま（日本語のリンクを送られた人）。
+  - 右上でも切り替えられる。選んだ言語はブラウザに覚えておき、次に `/` を開いたときはシステムの言語より優先する。
+  - URL を言語ごとに分けたままにするのは、検索エンジンに両方の言語を載せ、言語を指定してリンクを送れるようにするため。
 - 置き場所: リポジトリの `site/` を GitHub Actions で Pages に出す（リポジトリの Settings → Pages の Source を「GitHub Actions」にしておく）。`docs/` は日本語の設計メモなので混ぜない。URL は `https://iwamatsu0430.github.io/sock-dock-slack/`。
 
 ## 6. 各部分と文言
@@ -135,7 +140,7 @@ SockDock は家で使うためのもの（ホームユース）です。会社�
 | 要素 | 訪問者の問い | 伝えたいこと | 日本語 | 英語 |
 |---|---|---|---|---|
 | CTA（主） | どうすれば手に入る？ | 1 行で入る。開発者には、ボタンより動くコマンドのほうが具体的（Evil Martians） | `brew install --cask iwamatsu0430/tap/sockdock`（コピーのボタン付き。メニューバーのアプリ） | 同じ |
-| 初回の注意 | 開けなかったら？ | 公証を受けていないので、初回は止められる。どこで開けるか | アプリは Apple の公証を受けていないため、初めて開くときは、システム設定の「プライバシーとセキュリティ」で「このまま開く」を押してください。 | The app is not notarized by Apple. The first time you open it, click Open Anyway in System Settings → Privacy & Security. |
+| 初回の注意 | 開けなかったら？ | 公証を受けていないので、初回は止められる。手順は下にある | アプリは Apple の公証を受けていないため、初めて開くときに確認が要ります。[開き方](#first-open) | The app is not notarized by Apple, so opening it the first time takes an extra step. [How to open it](#first-open) |
 | CTA（副） | 中身を見てから決めたい | コードはすべて公開されている | GitHub で見る | View on GitHub |
 | 条件の 1 行 | 自分の環境で使える？ いくら？ | 使える条件と費用 | macOS 13 以降 · 無料・オープンソース（MIT） | macOS 13+ · Free and open source (MIT) |
 | スレッドの絵 | 本当にそう動く？ 家で使うもの？ | 投稿 → 👀 → 返信 → 続きを頼める。自分の開発にも、家族の遊びにも使う | （下の会話） | （下の会話） |
@@ -192,6 +197,23 @@ SockDock は家で使うためのもの（ホームユース）です。会社�
 | 要素 | 日本語 | 英語 |
 |---|---|---|
 | 最後の CTA | README を読む | Read the README |
+
+### 初めて開くとき
+
+入れたあと、初めて開いた人が警告で止まったときに読む場所。決めたあとの人向けなので、ページの最後に置き、最初の画面の注意からリンクする（`#first-open`）。警告は「マルウェアが含まれていないことを検証できません」と書き、「ゴミ箱に入れる」が青い主ボタンなので、押し間違えないように最初の手順で「完了」を指す。
+
+| 要素 | 訪問者の問い | 伝えたいこと | 日本語 | 英語 |
+|---|---|---|---|---|
+| 見出し | — | — | 初めて開くとき | Opening it the first time |
+| 導入 | なぜ止められたの？ | 公証を受けていないから。想定どおりの動き | SockDock は Apple の公証を受けていないため、初めて開くと macOS が「“SockDock” は開いていません」と表示して止めます。 | SockDock is not notarized by Apple, so the first time you open it, macOS stops it with “SockDock” Not Opened. |
+| 1 | どのボタンを押せばいい？ | 「ゴミ箱に入れる」ではなく「完了」 | 「完了」を押します（「ゴミ箱に入れる」は押さない）。 | Click Done (not Move to Trash). |
+| 2 | どこで許可するの？ | システム設定のどこにあるか | システム設定の「プライバシーとセキュリティ」を開き、下のほうにある「このまま開く」を押します。 | Open System Settings → Privacy & Security, scroll down and click Open Anyway. |
+| 3 | 毎回するの？ | もう一度確認が出る。次からはそのまま開ける | 確認が出たら「開く」を押します。次からはそのまま開けます。 | When asked again, click Open. From then on it opens normally. |
+| 安全について | 許可して大丈夫？ | 許可されるのは SockDock だけ。Homebrew がファイルを確かめている | 許可されるのは SockDock だけで、Mac の保護はそのまま働きます。Homebrew は、ダウンロードしたファイルが tap に記録されたハッシュと一致することを確かめてから入れます。 | This allows SockDock only; the rest of your Mac's protection stays on. Homebrew checks the download against the checksum recorded in the tap before installing it. |
+| リンク | 公式の説明は？ | Apple の説明 | Apple サポート「Mac でアプリを安全に開く」（support.apple.com/ja-jp/102445） | Apple Support: Safely open apps on your Mac (support.apple.com/en-us/102445) |
+
+- （提案）`xattr` で quarantine を外すコマンドは載せない。Gatekeeper のチェックを外す方法を訪問者に勧めることになるため。
+- 参考: 署名のない Mac アプリの配布ページで、ダウンロードの横ではなく独立した「インストールのご案内」の節に、理由・番号付きの手順・安全面の注意・Apple のサポートへのリンクを置いている例（https://koyasi777.com/mozkey/）。
 
 ### フッター
 

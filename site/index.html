@@ -19,6 +19,16 @@
 <link rel="icon" type="image/png" href="assets/icon.png">
 <link rel="apple-touch-icon" href="assets/icon.png">
 <link rel="stylesheet" href="assets/style.css">
+<script>
+// Opening / with Japanese as the system language goes to /ja/. A language
+// picked at the top right is remembered and wins over the system language.
+(function () {
+  var l;
+  try { l = localStorage.getItem('lang'); } catch (e) {}
+  if (!l) l = /^ja\b/i.test((navigator.languages || [])[0] || navigator.language || '') ? 'ja' : 'en';
+  if (l === 'ja') location.replace('ja/' + location.search + location.hash);
+})();
+</script>
 </head>
 <body>
 
@@ -26,7 +36,7 @@
   <div class="wrap">
     <a class="mark" href="./"><img src="assets/icon.png" alt="">SockDock for Slack</a>
     <div class="spacer"></div>
-    <nav class="lang" aria-label="Language"><a href="./" class="on" aria-current="page">English</a> · <a href="ja/" hreflang="ja" lang="ja">日本語</a></nav>
+    <nav class="lang" aria-label="Language"><a href="./" class="on" aria-current="page" data-lang="en">English</a> · <a href="ja/" hreflang="ja" lang="ja" data-lang="ja">日本語</a></nav>
   </div>
 </header>
 
@@ -48,7 +58,7 @@
         <div class="install"><code>brew install --cask iwamatsu0430/tap/sockdock</code><button type="button" class="copy">Copy</button></div>
         <a class="btn" href="https://github.com/iwamatsu0430/sock-dock-slack">View on GitHub</a>
       </div>
-      <p class="note">The app is not notarized by Apple. The first time you open it, click Open Anyway in System Settings → Privacy &amp; Security.</p>
+      <p class="note">The app is not notarized by Apple, so opening it the first time takes an extra step. <a href="#first-open">How to open it</a></p>
       <p class="meta">macOS 13+ · Free and open source (MIT)</p>
     </div>
 
@@ -145,6 +155,19 @@
     </div>
   </div>
 </section>
+
+<section class="band" id="first-open">
+  <div class="wrap pad">
+    <h2>Opening it the first time</h2>
+    <p class="open-intro">SockDock is not notarized by Apple, so the first time you open it, macOS stops it with “SockDock” Not Opened.</p>
+    <ol class="open-steps">
+      <li>Click <b>Done</b> (not Move to Trash).</li>
+      <li>Open System Settings → Privacy &amp; Security, scroll down and click <b>Open Anyway</b>.</li>
+      <li>When asked again, click <b>Open</b>. From then on it opens normally.</li>
+    </ol>
+    <p class="open-safe">This allows SockDock only; the rest of your Mac's protection stays on. Homebrew checks the download against the checksum recorded in the tap before installing it. <a href="https://support.apple.com/en-us/102445">Apple Support: Safely open apps on your Mac</a></p>
+  </div>
+</section>
 </main>
 
 <footer>
@@ -160,6 +183,11 @@
 </footer>
 
 <script>
+document.querySelectorAll('.lang a[data-lang]').forEach(function (a) {
+  a.addEventListener('click', function () {
+    try { localStorage.setItem('lang', a.dataset.lang); } catch (e) {}
+  });
+});
 document.querySelectorAll('.copy').forEach(function (b) {
   b.addEventListener('click', function () {
     var text = b.previousElementSibling.textContent;

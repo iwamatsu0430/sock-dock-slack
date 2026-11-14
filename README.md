@@ -28,7 +28,13 @@ brew install --cask iwamatsu0430/tap/sockdock   # menu bar app
 brew install --formula iwamatsu0430/tap/sockdock # CLI (macOS, Linux)
 ```
 
-The app is not notarized by Apple: the first time you open it, macOS blocks it. Open **System Settings → Privacy & Security** and click **Open Anyway**.
+The app is not notarized by Apple, so the first time you open it, macOS stops it with “SockDock” Not Opened:
+
+1. Click **Done** (not Move to Trash).
+2. Open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
+3. When asked again, click **Open**. From then on it opens normally.
+
+This allows SockDock only; the rest of your Mac's protection stays on. Homebrew checks the download against the checksum recorded in the tap before installing it. See also [Safely open apps on your Mac](https://support.apple.com/en-us/102445).
 
 Or build from source. Tools are managed with [mise](https://mise.jdx.dev/).
 

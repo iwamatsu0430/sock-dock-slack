@@ -26,7 +26,7 @@
   <div class="wrap">
     <a class="mark" href="./"><img src="../assets/icon.png" alt="">SockDock for Slack</a>
     <div class="spacer"></div>
-    <nav class="lang" aria-label="Language"><a href="../" hreflang="en" lang="en">English</a> · <a href="./" class="on" aria-current="page">日本語</a></nav>
+    <nav class="lang" aria-label="Language"><a href="../" hreflang="en" lang="en" data-lang="en">English</a> · <a href="./" class="on" aria-current="page" data-lang="ja">日本語</a></nav>
   </div>
 </header>
 
@@ -48,7 +48,7 @@
         <div class="install"><code>brew install --cask iwamatsu0430/tap/sockdock</code><button type="button" class="copy">コピー</button></div>
         <a class="btn" href="https://github.com/iwamatsu0430/sock-dock-slack">GitHub で見る</a>
       </div>
-      <p class="note">アプリは Apple の公証を受けていないため、初めて開くときは、システム設定の「プライバシーとセキュリティ」で「このまま開く」を押してください。</p>
+      <p class="note">アプリは Apple の公証を受けていないため、初めて開くときに確認が要ります。<a href="#first-open">開き方</a></p>
       <p class="meta">macOS 13 以降 · 無料・オープンソース（MIT）</p>
     </div>
 
@@ -145,6 +145,19 @@
     </div>
   </div>
 </section>
+
+<section class="band" id="first-open">
+  <div class="wrap pad">
+    <h2>初めて開くとき</h2>
+    <p class="open-intro">SockDock は Apple の公証を受けていないため、初めて開くと macOS が「“SockDock” は開いていません」と表示して止めます。</p>
+    <ol class="open-steps">
+      <li><b>完了</b>を押します（「ゴミ箱に入れる」は押さない）。</li>
+      <li>システム設定の「プライバシーとセキュリティ」を開き、下のほうにある<b>このまま開く</b>を押します。</li>
+      <li>確認が出たら<b>開く</b>を押します。次からはそのまま開けます。</li>
+    </ol>
+    <p class="open-safe">許可されるのは SockDock だけで、Mac の保護はそのまま働きます。Homebrew は、ダウンロードしたファイルが tap に記録されたハッシュと一致することを確かめてから入れます。<a href="https://support.apple.com/ja-jp/102445">Apple サポート「Mac でアプリを安全に開く」</a></p>
+  </div>
+</section>
 </main>
 
 <footer>
@@ -160,6 +173,11 @@
 </footer>
 
 <script>
+document.querySelectorAll('.lang a[data-lang]').forEach(function (a) {
+  a.addEventListener('click', function () {
+    try { localStorage.setItem('lang', a.dataset.lang); } catch (e) {}
+  });
+});
 document.querySelectorAll('.copy').forEach(function (b) {
   b.addEventListener('click', function () {
     var text = b.previousElementSibling.textContent;

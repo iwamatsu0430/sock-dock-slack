@@ -76,6 +76,9 @@ h2 { font-size: 28px; letter-spacing: -.01em; }
 h3.behave-h { margin: 36px 0 0; font-size: 17px; }
 .behave { margin: 10px 0 0; padding-left: 20px; display: grid; gap: 6px; color: var(--muted); font-size: 15px; }
 .final { margin-top: 48px; display: flex; flex-wrap: wrap; gap: 12px; }
+.open-intro { margin-top: 14px; max-width: 40em; color: var(--muted); }
+.open-steps { margin: 18px 0 0; padding-left: 22px; display: grid; gap: 8px; max-width: 40em; }
+.open-safe { margin-top: 18px; max-width: 40em; font-size: 14px; color: var(--muted); }
 .install { display: flex; align-items: center; gap: 4px; max-width: 100%; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 4px 4px 4px 14px; }
 .install code { background: none; padding: 0; font-size: 14px; overflow-x: auto; white-space: nowrap; min-width: 0; flex: 1; }
 .install code { scrollbar-width: none; }
