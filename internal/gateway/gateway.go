@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -23,6 +24,7 @@ import (
 	"github.com/iwamatsu0430/sock-dock-slack/internal/slackio"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/store"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/textutil"
+	"github.com/iwamatsu0430/sock-dock-slack/internal/updates"
 )
 
 // Options configure a Gateway.
@@ -43,6 +45,10 @@ type Options struct {
 	// ClaudeSignedIn asks Claude Code whether it is signed in.
 	ClaudeSignedIn func(ctx context.Context, command []string, pathEnv string) (signedIn, ok bool)
 	Now            func() time.Time
+	// UpdateURL and UpdateClient are where a newer version is looked up
+	// (default: GitHub's latest release).
+	UpdateURL    string
+	UpdateClient *http.Client
 }
 
 // Gateway is the running core.
@@ -74,9 +80,14 @@ type Gateway struct {
 	scopes []string
 	// reg is the owner registration in progress; ownerDM is the owner's DM
 	// channel (owner.go).
-	reg      *registration
-	regEnded string
-	ownerDM  ownerDM
+	// update is a newer release (update.go); updateNext is when to check
+	// next.
+	update         *updates.Release
+	updateNext     time.Time
+	updateChecking bool
+	reg            *registration
+	regEnded       string
+	ownerDM        ownerDM
 	// cfgWrite serializes the gateway's own edits of the config file;
 	// claudeNotice serializes the Claude Code sign-out notice.
 	cfgWrite     sync.Mutex
@@ -129,6 +140,9 @@ func New(opts Options, cfg *config.Config) *Gateway {
 	if opts.Log == nil {
 		opts.Log = slog.Default()
 	}
+	if opts.UpdateURL == "" {
+		opts.UpdateURL = updates.LatestURL
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	g := &Gateway{
 		opts:      opts,
@@ -175,6 +189,11 @@ func (g *Gateway) Start(ctx context.Context) error {
 	g.ident = id
 	g.self = router.Self{UserID: id.UserID, BotID: id.BotID}
 	g.scopes = scopes
+	g.mu.Unlock()
+
+	g.loadUpdate(ctx)
+	g.mu.Lock()
+	g.updateNext = g.opts.Now().Add(updateFirstCheck)
 	g.mu.Unlock()
 
 	var dm ownerDM

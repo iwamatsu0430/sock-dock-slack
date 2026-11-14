@@ -77,7 +77,7 @@ func (s *Server) setNotify(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	if err := s.gw.SetNotifyDM(req.Key, req.On); err != nil {
+	if err := s.gw.SetSettingBool(req.Key, req.On); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}

@@ -230,6 +230,9 @@ func statusCmd(g *globals) *cobra.Command {
 			if s.LastEventAt != nil {
 				fmt.Printf("last event: %s ago\n", time.Since(*s.LastEventAt).Round(time.Second))
 			}
+			if s.Update != nil {
+				fmt.Printf("update:  %s is available (%s)\n", s.Update.Version, s.Update.URL)
+			}
 			w := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 			fmt.Fprintln(w, "\nROUTE\tTYPE\tCHANNEL\tSTATE")
 			for _, r := range s.Routes {

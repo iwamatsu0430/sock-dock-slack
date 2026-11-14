@@ -241,6 +241,12 @@ SockDock からのお知らせを、Mac の通知だけでなく、Slack の DM 
 
 「設定」→「通知」に、Mac と Slack の DM のスイッチがあります。DM で届くのは、Claude Code にサインインしていないこと（サインインし直すまで 1 回だけ）と、MCP からのルールの変更です。「処理の失敗も送る」をオンにすると、処理が失敗するたびにも届きます（数が多くなることがあります）。設定ファイルでは `settings.owner`、`settings.notify_dm`、`settings.notify_dm_failures` です。
 
+## 新しい版
+
+SockDock は、起動したときと 1 日 1 回、GitHub で新しい版が出ていないかを確かめ、版ごとに 1 回知らせます。知らせるのは Mac の通知と Slack の DM で、それぞれ「設定」→「通知」のスイッチに従います。新しい版があるあいだは、メニューバーのメニューに「SockDock 0.2.0 に更新…」が出ます。選ぶと、設定の言語のリリースノートが出て、［更新］でターミナルが開き、`brew upgrade --cask iwamatsu0430/tap/sockdock` を実行します。更新の途中でアプリは終了し、終わると開き直します。処理中のルールがあるときは、更新すると止まることをダイアログで伝えます。
+
+確かめないようにするには、「設定」→「一般」→「新しい版を確認」をオフにします（`settings.check_updates: false`）。Mac の外に出るのは GitHub への問い合わせだけで、トークン・設定・ルールは送りません。ソースからビルドした版は確かめません。アプリを使わない場合は、`sockdock status` に新しい版が出ます。
+
 ## 設定のリファレンス
 
 ```yaml
@@ -257,6 +263,7 @@ settings:
   owner: U0123ABCD          # 本人。コードで登録する（sockdock owner register）
   notify_dm: true           # 本人への Slack の DM でも知らせる
   notify_dm_failures: false # 処理の失敗も DM で知らせる
+  check_updates: true       # 新しい版を 1 日 1 回確かめる
 ```
 
 - ルートの `${VAR}` は、そのルートの `env_file`、環境変数の順に探します。
@@ -270,7 +277,7 @@ settings:
 | `sockdock run` | ゲートウェイをフォアグラウンドで動かす |
 | `sockdock init` / `check` / `match` | 設定の作成・検証・一致の確認（`match dm "<本文>"` で DM を、`--mention` でメンションした投稿を試す） |
 | `sockdock owner` / `owner register` / `owner clear` | DM で知らせる相手（本人）の表示・登録・解除 |
-| `sockdock status` | 状態を表示する（動いていない・つながっていなければ終了コード 1） |
+| `sockdock status` | 状態と、新しい版が出ていればその版を表示する（動いていない・つながっていなければ終了コード 1） |
 | `sockdock reload` | 設定を読み直す |
 | `sockdock threads` / `turns` / `logs` | 最近のスレッド、処理、ログ |
 | `sockdock pause <route>` / `resume <route>` | ルートの一時停止・再開 |
@@ -316,7 +323,7 @@ mise run gui-preview  # GUI を http://localhost:8080 でブラウザに表示�
 mise run preview      # 同じ画面を、偽の Slack とサンプルのルールで表示する（本物のデータは触らない）
 ```
 
-`mise run preview`（`scripts/preview.sh`）のデータは `~/.cache/sockdock-preview` に置きます。`PREVIEW_RESET=1` でやり直し、`PREVIEW_NO_IM=1` で `im:history` のない Slack アプリになります。`curl 'http://127.0.0.1:8766/dm?text=…'` で、偽の人からの DM を送れます。
+`mise run preview`（`scripts/preview.sh`）のデータは `~/.cache/sockdock-preview` に置きます。`PREVIEW_RESET=1` でやり直し、`PREVIEW_NO_IM=1` で `im:history` のない Slack アプリになり、`PREVIEW_NO_UPDATE=1` で偽の新しい版（v0.2.0）を出さなくなります。`curl 'http://127.0.0.1:8766/dm?text=…'` で、偽の人からの DM を送れます。
 
 開発中に本物の設定を触らないよう、`SOCKDOCK_DATA_DIR` と `SOCKDOCK_CONFIG` を設定できます（`mise.toml` の `[env]` を参照）。
 

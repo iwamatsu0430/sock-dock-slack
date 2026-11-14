@@ -1,4 +1,6 @@
-# Push a tag like v0.1.0 to publish a release:
+# Push a tag like v0.1.0 to publish a release (the release skill,
+# .claude/skills/release/SKILL.md, makes the tag; its message is the release
+# notes when it has "## English" / "## 日本語" sections):
 #   - SockDock-0.1.0.zip: the menu bar app (universal, ad-hoc signed)
 #   - the Homebrew tap gets Formula/sockdock.rb (CLI, built from source) and
 #     Casks/sockdock.rb (the app), if the HOMEBREW_TAP_TOKEN secret is set
@@ -42,6 +44,9 @@ jobs:
 
       # On a re-run the release may already exist: keep the files it has (people
       # may have installed them) and upload only the missing ones.
+      # The release notes are the tag's message when it has the English and
+      # Japanese sections the app shows (docs/design.md §3.7); otherwise
+      # GitHub generates them.
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -52,7 +57,16 @@ jobs:
               grep -qxF "$(basename "$f")" <<<"$have" || gh release upload "$TAG" "$f"
             done
           else
-            gh release create "$TAG" --verify-tag --generate-notes "${files[@]}"
+            git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
+            notes=(--generate-notes)
+            if [ "$(git cat-file -t "$TAG")" = tag ]; then
+              # From the first "## " heading on (the line above is the tag's title).
+              git tag -l --format='%(contents)' "$TAG" | awk 'f || /^## /{f=1; print}' > "$RUNNER_TEMP/notes.md"
+              if grep -qE '^## (English|日本語)' "$RUNNER_TEMP/notes.md"; then
+                notes=(--notes-file "$RUNNER_TEMP/notes.md")
+              fi
+            fi
+            gh release create "$TAG" --verify-tag "${notes[@]}" "${files[@]}"
           fi
 
       - name: Check out the tap

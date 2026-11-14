@@ -65,6 +65,9 @@ type Settings struct {
 	// notice for every failed run.
 	NotifyDM         bool `yaml:"notify_dm"`
 	NotifyDMFailures bool `yaml:"notify_dm_failures"`
+	// CheckUpdates asks GitHub once a day whether a newer SockDock is out
+	// (docs/design.md §3.7). Unset means on.
+	CheckUpdates *bool `yaml:"check_updates"`
 	// MaxFileMB is the size limit of one attached file handed to handlers
 	// (docs/design.md §3.6).
 	MaxFileMB int `yaml:"max_file_mb"`
@@ -90,6 +93,8 @@ type Messages struct {
 	ClaudeSignedOut string `yaml:"claude_signed_out"`
 	RuleChangedMCP  string `yaml:"rule_changed_mcp"`
 	RunFailed       string `yaml:"run_failed"`
+	// UpdateAvailable: {version}, {link} (the release notes).
+	UpdateAvailable string `yaml:"update_available"`
 }
 
 // Route binds a condition on top-level posts in a channel to a handler. The
@@ -183,6 +188,7 @@ var defaultMessages = map[string]Messages{
 		ClaudeSignedOut: "⚠️ Claude Code isn't signed in, so AI agent rules can't run. Sign in from SockDock on the Mac.",
 		RuleChangedMCP:  "{rule} was changed through MCP",
 		RunFailed:       "⚠️ {rule} failed. {reason} {link}",
+		UpdateAvailable: "🆕 SockDock {version} is out. {link}",
 	},
 	"ja": {
 		Timeout:      "⏱ 上限時間（{timeout_sec} 秒）を超えたため停止しました。内容を分けて送ってください。",
@@ -198,6 +204,7 @@ var defaultMessages = map[string]Messages{
 		ClaudeSignedOut: "⚠️ Claude Code にサインインしていないため、AI エージェントのルールが動きません。Mac の SockDock でサインインしてください。",
 		RuleChangedMCP:  "MCP から {rule} を変更しました",
 		RunFailed:       "⚠️ {rule} の処理が失敗しました。{reason} {link}",
+		UpdateAvailable: "🆕 SockDock {version} が出ました。 {link}",
 	},
 }
 
@@ -329,7 +336,7 @@ func (c *Config) applyDefaults() {
 		{&m.Timeout, d.Timeout}, {&m.Error, d.Error}, {&m.Stopped, d.Stopped}, {&m.Interrupted, d.Interrupted},
 		{&m.RouteMissing, d.RouteMissing}, {&m.RoutePaused, d.RoutePaused}, {&m.ResumeFailed, d.ResumeFailed},
 		{&m.WrongCode, d.WrongCode}, {&m.Registered, d.Registered}, {&m.ClaudeSignedOut, d.ClaudeSignedOut},
-		{&m.RuleChangedMCP, d.RuleChangedMCP}, {&m.RunFailed, d.RunFailed},
+		{&m.RuleChangedMCP, d.RuleChangedMCP}, {&m.RunFailed, d.RunFailed}, {&m.UpdateAvailable, d.UpdateAvailable},
 	} {
 		if *p.v == "" {
 			*p.v = p.def
@@ -629,3 +636,6 @@ func (c *Config) prepareMatchOnly() error {
 	}
 	return nil
 }
+
+// UpdatesOn reports whether SockDock checks for a newer version.
+func (s Settings) UpdatesOn() bool { return s.CheckUpdates == nil || *s.CheckUpdates }

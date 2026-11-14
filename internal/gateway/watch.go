@@ -49,6 +49,7 @@ func (g *Gateway) Watch(ctx context.Context, o WatchOptions, reconnect func()) e
 			g.pruneOccasionally(ctx, now)
 			g.expireRegistration()
 			g.checkClaudeForOwner(ctx)
+			g.checkUpdates(ctx)
 		}
 	}
 }

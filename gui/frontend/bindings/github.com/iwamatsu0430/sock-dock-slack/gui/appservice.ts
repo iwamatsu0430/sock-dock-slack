@@ -351,6 +351,14 @@ export function StartOwnerRegistration(): $CancellablePromise<$models.OwnerState
 }
 
 /**
+ * StartUpdate opens Terminal and updates SockDock with Homebrew. Homebrew
+ * quits the app while it upgrades, so the script opens it again afterwards.
+ */
+export function StartUpdate(): $CancellablePromise<void> {
+    return $Call.ByID(1105753227);
+}
+
+/**
  * StopTurn stops a running run.
  */
 export function StopTurn(id: number): $CancellablePromise<void> {

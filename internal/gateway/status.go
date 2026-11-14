@@ -39,6 +39,10 @@ type Status struct {
 	Owner            string `json:"owner,omitempty"`
 	NotifyDM         bool   `json:"notify_dm"`
 	NotifyDMFailures bool   `json:"notify_dm_failures"`
+	// CheckUpdates is whether SockDock checks for a newer version; Update is
+	// the newer release, when there is one.
+	CheckUpdates bool        `json:"check_updates"`
+	Update       *UpdateInfo `json:"update,omitempty"`
 }
 
 // HasScope reports whether the Bot Token has the scope. It is true when the
@@ -101,6 +105,7 @@ func (g *Gateway) Status(pid int) Status {
 	s.ClaudeSignedIn = g.claudeSignedInLocked()
 	s.Scopes = g.scopes
 	s.Owner, s.NotifyDM, s.NotifyDMFailures = cfg.Settings.Owner, cfg.Settings.NotifyDM, cfg.Settings.NotifyDMFailures
+	s.CheckUpdates, s.Update = cfg.Settings.UpdatesOn(), g.updateInfoLocked()
 	return s
 }
 

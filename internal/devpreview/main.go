@@ -13,16 +13,22 @@
 // Environment: SOCKDOCK_DATA_DIR (required), SOCKDOCK_CONFIG (default
 // <data>/config.yaml, written with sample rules when missing),
 // PREVIEW_NO_IM=1 (the Slack app lacks im:history), PREVIEW_NO_FILES=1 (it
-// lacks files:read), PREVIEW_DM_ADDR
+// lacks files:read), PREVIEW_NO_UPDATE=1 (no newer version), PREVIEW_DM_ADDR
 // (default 127.0.0.1:8766).
+//
+// The preview runs as v0.1.1 and a fake GitHub serves v0.2.0, so the update
+// dialog and the setting can be checked (open the dialog from the page with
+// wails.Events.Emit("sockdock:navigate", ":update") or the app's menu).
 package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -39,6 +45,7 @@ import (
 	"github.com/iwamatsu0430/sock-dock-slack/internal/paths"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/slackio"
 	"github.com/iwamatsu0430/sock-dock-slack/internal/store"
+	"github.com/iwamatsu0430/sock-dock-slack/internal/updates"
 )
 
 // fakeSlack answers like a workspace "acme" with two channels and two people.
@@ -152,9 +159,16 @@ func run() error {
 		}
 		scopes = append(scopes, sc)
 	}
+	version, updateURL := "preview", ""
+	if os.Getenv("PREVIEW_NO_UPDATE") == "" {
+		version = "v0.1.1"
+		if updateURL, err = fakeGitHub(db); err != nil {
+			return err
+		}
+	}
 	gw := gateway.New(gateway.Options{
-		ConfigPath: dirs.ConfigFile, Store: db, API: fakeSlack{log: log, scopes: scopes}, Log: log, Version: "preview",
-		FilesDir: dirs.FilesDir,
+		ConfigPath: dirs.ConfigFile, Store: db, API: fakeSlack{log: log, scopes: scopes}, Log: log, Version: version,
+		FilesDir: dirs.FilesDir, UpdateURL: updateURL,
 	}, cfg)
 	if err := gw.Start(context.Background()); err != nil {
 		return err
@@ -194,4 +208,30 @@ func run() error {
 	defer cancel()
 	_ = srv.Shutdown(ctx)
 	return gw.Shutdown(ctx)
+}
+
+// fakeRelease is the newer version the preview offers.
+var fakeRelease = updates.Release{
+	Tag: "v0.2.0", Version: "0.2.0", URL: "https://github.com/iwamatsu0430/sock-dock-slack/releases",
+	Body: "## English\n- Rules can react to DMs to the Slack app.\n- **Only when mentioned** for channel rules.\n- Files attached to a post reach the rule (`files:read`).\n\n" +
+		"## 日本語\n- Slack アプリへの DM でもルールを動かせるようになりました。\n- チャンネルのルールに「**メンションされたときだけ**」を足しました。\n- 投稿に添付したファイルを、ルールに渡せるようになりました（`files:read`）。",
+}
+
+// fakeGitHub serves fakeRelease as GitHub's latest release and keeps it as
+// already found, so the update shows at once (the gateway's state key
+// "update_latest", internal/gateway/update.go).
+func fakeGitHub(db *store.Store) (string, error) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return "", err
+	}
+	go func() {
+		_ = http.Serve(ln, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_ = json.NewEncoder(w).Encode(map[string]string{"tag_name": fakeRelease.Tag, "html_url": fakeRelease.URL, "body": fakeRelease.Body})
+		}))
+	}()
+	if err := db.SetState(context.Background(), "update_latest", fakeRelease); err != nil {
+		return "", err
+	}
+	return "http://" + ln.Addr().String(), nil
 }

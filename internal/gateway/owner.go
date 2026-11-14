@@ -197,9 +197,11 @@ func (g *Gateway) ClearOwner() error {
 	return nil
 }
 
-// SetNotifyDM turns DM notices (and DM notices of failed runs) on or off.
-func (g *Gateway) SetNotifyDM(key string, on bool) error {
-	if key != "notify_dm" && key != "notify_dm_failures" {
+// SetSettingBool turns DM notices ("notify_dm"), DM notices of failed runs
+// ("notify_dm_failures") or the check for a newer version ("check_updates")
+// on or off.
+func (g *Gateway) SetSettingBool(key string, on bool) error {
+	if key != "notify_dm" && key != "notify_dm_failures" && key != "check_updates" {
 		return fmt.Errorf("unknown setting %q", key)
 	}
 	if err := g.editSettings(func(data []byte) ([]byte, error) { return config.SetSettingValue(data, key, on) }); err != nil {
@@ -348,6 +350,7 @@ var dmText = map[string]map[string]string{
 		"regex":             "%s /%s/",
 		"dm":                "DM",
 		"thread":            "Thread",
+		"release_notes":     "Release notes",
 		"reason.timeout":    "It ran past the time limit ({timeout_sec} seconds) and was stopped.",
 		"reason.signed_out": "Claude Code isn't signed in.",
 		"reason.error":      "The reason is shown in SockDock on the Mac.",
@@ -357,6 +360,7 @@ var dmText = map[string]map[string]string{
 		"regex":             "%s /%s/",
 		"dm":                "DM",
 		"thread":            "スレッド",
+		"release_notes":     "リリースノート",
 		"reason.timeout":    "上限時間（{timeout_sec} 秒）を超えたため停止しました。",
 		"reason.signed_out": "Claude Code にサインインしていません。",
 		"reason.error":      "理由は Mac の SockDock で確認できます。",

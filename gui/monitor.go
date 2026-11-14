@@ -61,6 +61,8 @@ func (m *monitor) run() {
 				m.notifyRuleChange(e)
 			case "claude_auth":
 				m.maybeNotifyClaude(e)
+			case "update_available":
+				m.maybeNotifyUpdate(e)
 			}
 			m.refresh()
 		})
@@ -156,6 +158,11 @@ func (m *monitor) updateMenu(snap Snapshot) {
 		}
 		groups = append(groups, g)
 	}
+	// A newer version: the item opens the window with the update dialog.
+	if snap.Status != nil && snap.Status.Update != nil && !devBundle() {
+		groups = append(groups, []menuEntry{{label: s.tr("menu.update", snap.Status.Update.Version), enabled: true,
+			onClick: func() { s.OpenMain(viewUpdate) }}})
+	}
 	groups = append(groups,
 		[]menuEntry{
 			{label: s.tr("menu.open"), enabled: true, onClick: func() { s.OpenMain("") }},
@@ -227,6 +234,24 @@ func (m *monitor) maybeNotifyTurn(e gateway.Event) {
 	}
 	route, _ := data["route"].(string)
 	notify("SockDock", m.svc.tr("notify.failed", m.svc.labelFor(route)))
+}
+
+// maybeNotifyUpdate tells the user that a newer SockDock is out (once per
+// version: the gateway sends the event once).
+func (m *monitor) maybeNotifyUpdate(e gateway.Event) {
+	if !m.svc.GetPrefs().Notifications {
+		return
+	}
+	var version string
+	switch d := e.Data.(type) {
+	case gateway.UpdateInfo:
+		version = d.Version
+	case map[string]any:
+		version, _ = d["version"].(string)
+	}
+	if version != "" {
+		notify("SockDock", m.svc.tr("notify.update", version))
+	}
 }
 
 // maybeNotifyClaude tells the user that Claude Code is signed out, when a

@@ -194,6 +194,9 @@
     <div class="card">
       <div class="item"><span class="lbl">{t("settings.login")}</span>
         <button class="switch" class:on={atLogin} aria-label={t("settings.login")} aria-pressed={atLogin} onclick={toggleLogin}></button></div>
+      <div class="item"><span class="lbl">{t("settings.checkUpdates")}</span>
+        <button class="switch" class:on={s?.status?.check_updates ?? true} aria-label={t("settings.checkUpdates")} aria-pressed={s?.status?.check_updates ?? true}
+          disabled={!s?.status} onclick={() => ownerAction(() => App.SetNotifyDM("check_updates", !(s?.status?.check_updates ?? true)))}></button></div>
       <div class="item"><span class="lbl">{t("settings.language")}</span>
         <select class="lang" value={prefs?.language ?? "auto"} disabled={!prefs}
           onchange={(e) => prefs && savePrefs({ ...prefs, language: (e.currentTarget as HTMLSelectElement).value })}>

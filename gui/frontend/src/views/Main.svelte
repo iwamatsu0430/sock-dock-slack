@@ -8,6 +8,7 @@
   import Rules from "./Rules.svelte";
   import Rule from "./Rule.svelte";
   import Settings from "./Settings.svelte";
+  import UpdateDialog from "./UpdateDialog.svelte";
 
   // The one window: setup until Slack is connected, then [Rules | Settings].
   // Rules has two levels: the list and one rule (docs/ia.md §4).
@@ -17,8 +18,15 @@
 
   // ":settings" opens settings (⌘, and the menu's Settings…); rule names
   // never start with ':'.
+  // ":update" (the menu's 「SockDock 0.2.0 に更新…」) opens the update dialog
+  // over the current view.
+  let showUpdate = $state(false);
   Events.On(SockdockNavigate, (ev) => {
     const name = ev.data as string;
+    if (name === ":update") {
+      showUpdate = true;
+      return;
+    }
     view = name === ":settings" ? { kind: "settings" } : name ? { kind: "rule", name } : { kind: "list" };
   });
 
@@ -83,6 +91,8 @@
     </div>
   </div>
 {/if}
+
+{#if showUpdate}<UpdateDialog onclose={() => (showUpdate = false)} />{/if}
 
 <style>
   .frame { height: 100%; display: flex; flex-direction: column; }

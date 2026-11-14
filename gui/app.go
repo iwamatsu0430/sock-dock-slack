@@ -486,6 +486,9 @@ func (a *AppService) OpenMain(view string) {
 // cannot start with ':', so it never names a rule.
 const viewSettings = ":settings"
 
+// viewUpdate opens the update dialog over the current view.
+const viewUpdate = ":update"
+
 // OpenSettings shows the window on the settings view.
 func (a *AppService) OpenSettings() { a.OpenMain(viewSettings) }
 

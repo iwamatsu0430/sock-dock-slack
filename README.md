@@ -260,6 +260,12 @@ Codes are accepted for 10 minutes after you start, and five wrong codes end it. 
 
 **Settings → Notifications** has a switch for the Mac and one for Slack DMs. By DM you get: Claude Code being signed out (once, until it is signed in again) and rules changed through MCP. Turn on *Also send failed runs* to get a DM for every failed run too (there can be many). In the config these are `settings.owner`, `settings.notify_dm` and `settings.notify_dm_failures`.
 
+## Updates
+
+SockDock checks GitHub for a newer release when it starts and once a day, and tells you once per version: a Mac notification and a Slack DM (each follows its switch in **Settings → Notifications**). While a newer version is out, the menu bar menu has **Update to SockDock 0.2.0…**: it shows the release notes in your language, then **Update** opens Terminal and runs `brew upgrade --cask iwamatsu0430/tap/sockdock`, which quits the app and opens it again when done. If a rule is running, the dialog says that updating stops it.
+
+Turn the check off in **Settings → General → Check for Updates** (`settings.check_updates: false`). Only the request to GitHub leaves your Mac; tokens, settings and rules are not sent. Builds from source never check. Without the app, `sockdock status` shows a newer version.
+
 ## Configuration reference
 
 ```yaml
@@ -277,6 +283,7 @@ settings:
   owner: U0123ABCD          # you, registered with a code (sockdock owner register)
   notify_dm: true           # notices by Slack DM to the owner
   notify_dm_failures: false # also a DM for every failed run
+  check_updates: true       # look for a newer SockDock once a day
 ```
 
 - `${VAR}` in a route is read from its `env_file`, then from the environment.
@@ -290,7 +297,7 @@ settings:
 | `sockdock run` | Run the gateway in the foreground |
 | `sockdock init` / `check` / `match` | Create, validate and test the config (`match dm "<text>"` tries a DM; `--mention` a post that mentions the app) |
 | `sockdock owner` / `owner register` / `owner clear` | Show, register or remove who gets notices by DM |
-| `sockdock status` | Gateway status (exit code 1 if not running or not connected) |
+| `sockdock status` | Gateway status, and a newer version if one is out (exit code 1 if not running or not connected) |
 | `sockdock reload` | Re-read the config |
 | `sockdock threads` / `turns` / `logs` | Recent threads, handler runs and log lines |
 | `sockdock pause <route>` / `resume <route>` | Pause or resume a route |
@@ -336,7 +343,7 @@ mise run gui-preview  # the GUI in a browser at http://localhost:8080 (no tray)
 mise run preview      # the same against a fake Slack, with sample rules; real data untouched
 ```
 
-`mise run preview` (`scripts/preview.sh`) keeps its data in `~/.cache/sockdock-preview`. `PREVIEW_RESET=1` starts over, `PREVIEW_NO_IM=1` plays a Slack app without `im:history`, and `curl 'http://127.0.0.1:8766/dm?text=…'` sends a DM from the fake person.
+`mise run preview` (`scripts/preview.sh`) keeps its data in `~/.cache/sockdock-preview`. `PREVIEW_RESET=1` starts over, `PREVIEW_NO_IM=1` plays a Slack app without `im:history`, `PREVIEW_NO_UPDATE=1` hides the fake newer version (v0.2.0) it otherwise offers, and `curl 'http://127.0.0.1:8766/dm?text=…'` sends a DM from the fake person.
 
 To keep development away from your real config, set `SOCKDOCK_DATA_DIR` and `SOCKDOCK_CONFIG` (see the `[env]` section of `mise.toml`).
 

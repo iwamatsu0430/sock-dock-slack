@@ -209,6 +209,13 @@ export class Status {
     "notify_dm": boolean;
     "notify_dm_failures": boolean;
 
+    /**
+     * CheckUpdates is whether SockDock checks for a newer version; Update is
+     * the newer release, when there is one.
+     */
+    "check_updates": boolean;
+    "update"?: UpdateInfo | null;
+
     /** Creates a new Status instance. */
     constructor($$source: Partial<Status> = {}) {
         if (!("version" in $$source)) {
@@ -247,6 +254,9 @@ export class Status {
         if (!("notify_dm_failures" in $$source)) {
             this["notify_dm_failures"] = false;
         }
+        if (!("check_updates" in $$source)) {
+            this["check_updates"] = false;
+        }
 
         Object.assign(this, $$source);
     }
@@ -261,6 +271,7 @@ export class Status {
         const $$createField12_0 = $$createType6;
         const $$createField13_0 = $$createType7;
         const $$createField16_0 = $$createType7;
+        const $$createField21_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("identity" in $$parsedSource) {
             $$parsedSource["identity"] = $$createField8_0($$parsedSource["identity"]);
@@ -280,7 +291,50 @@ export class Status {
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField16_0($$parsedSource["scopes"]);
         }
+        if ("update" in $$parsedSource) {
+            $$parsedSource["update"] = $$createField21_0($$parsedSource["update"]);
+        }
         return new Status($$parsedSource as Partial<Status>);
+    }
+}
+
+/**
+ * UpdateInfo is a newer release, as Status shows it.
+ */
+export class UpdateInfo {
+    /**
+     * Version is without the "v" ("0.2.0"); URL is the release's page.
+     */
+    "version": string;
+    "url": string;
+
+    /**
+     * Notes are the release notes per language ("en", "ja").
+     */
+    "notes"?: { [_ in string]?: string };
+
+    /** Creates a new UpdateInfo instance. */
+    constructor($$source: Partial<UpdateInfo> = {}) {
+        if (!("version" in $$source)) {
+            this["version"] = "";
+        }
+        if (!("url" in $$source)) {
+            this["url"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateInfo {
+        const $$createField2_0 = $$createType10;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("notes" in $$parsedSource) {
+            $$parsedSource["notes"] = $$createField2_0($$parsedSource["notes"]);
+        }
+        return new UpdateInfo($$parsedSource as Partial<UpdateInfo>);
     }
 }
 
@@ -293,3 +347,6 @@ const $$createType4 = $Create.Array($$createType3);
 const $$createType5 = RunningTurn.createFrom;
 const $$createType6 = $Create.Array($$createType5);
 const $$createType7 = $Create.Array($Create.Any);
+const $$createType8 = UpdateInfo.createFrom;
+const $$createType9 = $Create.Nullable($$createType8);
+const $$createType10 = $Create.Map($Create.Any, $Create.Any);

@@ -210,6 +210,14 @@ type StatusOut struct {
 	// Owner is the person notices go to by DM.
 	Owner     *Person `json:"owner,omitempty" jsonschema:"the person who uses SockDock (registered in the app); new DM rules are limited to them, and notices go to them by DM when dm_notices is true. Absent when nobody is registered"`
 	DMNotices bool    `json:"dm_notices" jsonschema:"whether notices also go to the owner by Slack DM"`
+	// UpdateAvailable is a newer SockDock release, when there is one.
+	UpdateAvailable *Update `json:"update_available,omitempty" jsonschema:"a newer SockDock release, when one is out; the user updates it from the menu bar app (or with brew upgrade). Absent when SockDock is up to date or the check is off"`
+}
+
+// Update is a newer release.
+type Update struct {
+	Version string `json:"version"`
+	URL     string `json:"url" jsonschema:"the release notes on GitHub"`
 }
 
 func (t *tools) getStatus(ctx context.Context, _ *mcp.CallToolRequest, _ none) (*mcp.CallToolResult, StatusOut, error) {
@@ -226,6 +234,9 @@ func (t *tools) getStatus(ctx context.Context, _ *mcp.CallToolRequest, _ none) (
 	}
 	if v, err := t.b.CheckClaude(ctx, false); err == nil {
 		out.ClaudeSignedIn = v
+	}
+	if st.Update != nil {
+		out.UpdateAvailable = &Update{Version: st.Update.Version, URL: st.Update.URL}
 	}
 	if o, err := t.b.Owner(ctx); err == nil && o.Owner != nil {
 		out.Owner = &Person{ID: o.Owner.ID, Name: o.Owner.Name, RealName: o.Owner.RealName}

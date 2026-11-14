@@ -6,5 +6,6 @@ export {
     Registration,
     RouteStatus,
     RunningTurn,
-    Status
+    Status,
+    UpdateInfo
 } from "./models.js";
