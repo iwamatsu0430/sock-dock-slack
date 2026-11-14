@@ -308,7 +308,10 @@ mise run ci           # vet, tests, frontend type check
 mise run gateway      # build and run the gateway
 mise run gui          # build and open SockDock.app
 mise run gui-preview  # the GUI in a browser at http://localhost:8080 (no tray)
+mise run preview      # the same against a fake Slack, with sample rules; real data untouched
 ```
+
+`mise run preview` (`scripts/preview.sh`) keeps its data in `~/.cache/sockdock-preview`. `PREVIEW_RESET=1` starts over, `PREVIEW_NO_IM=1` plays a Slack app without `im:history`, and `curl 'http://127.0.0.1:8766/dm?text=…'` sends a DM from the fake person.
 
 To keep development away from your real config, set `SOCKDOCK_DATA_DIR` and `SOCKDOCK_CONFIG` (see the `[env]` section of `mise.toml`).
 

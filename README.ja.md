@@ -308,7 +308,10 @@ mise run ci           # vet、テスト、フロントエンドの型チェッ�
 mise run gateway      # ビルドしてゲートウェイを動かす
 mise run gui          # SockDock.app をビルドして開く
 mise run gui-preview  # GUI を http://localhost:8080 でブラウザに表示する（トレイなし）
+mise run preview      # 同じ画面を、偽の Slack とサンプルのルールで表示する（本物のデータは触らない）
 ```
+
+`mise run preview`（`scripts/preview.sh`）のデータは `~/.cache/sockdock-preview` に置きます。`PREVIEW_RESET=1` でやり直し、`PREVIEW_NO_IM=1` で `im:history` のない Slack アプリになります。`curl 'http://127.0.0.1:8766/dm?text=…'` で、偽の人からの DM を送れます。
 
 開発中に本物の設定を触らないよう、`SOCKDOCK_DATA_DIR` と `SOCKDOCK_CONFIG` を設定できます（`mise.toml` の `[env]` を参照）。
 

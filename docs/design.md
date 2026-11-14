@@ -502,7 +502,7 @@ Unix ドメインソケット（データディレクトリの `control.sock`、
 - **トークンの保存**: GUI からは `/usr/bin/security` に値を引数で渡してキーチェーンに保存する（同じユーザーの `ps` から一瞬見える。CLI の `auth set` は対話入力で、引数に出さない）
 - **画面**: メニューバーのポップオーバー（接続状態、実行中、最近のターン、再読み込み）と、メインウィンドウ（Overview / Routes / Config / Setup / Logs / Preferences）。UI は英語
 - **ビルド**: `scripts/build-app.sh`（`mise run app`）が、バインディングの生成 → フロントエンドのビルド → CLI と GUI のビルド → アイコン → `Info.plist`（`LSUIElement`）→ ad-hoc 署名まで行い、`dist/SockDock.app` を作る。CLI は `.app` の中にも同梱し、GUI はそれをサービスとして登録する。手元のビルドのバンドル ID は `io.github.iwamatsu0430.sockdock.dev` で、リリース（`io.github.iwamatsu0430.sockdock`）と分けてある。cask の `uninstall quit:` はバンドル ID でアプリを終了させるので、同じ ID だと cask を入れ直すたびに開発中のアプリまで終了してしまう
-- **確認のしかた**: Wails のサーバーモード（`go build -tags server ./gui`）で同じ画面を HTTP で配信すると、ブラウザで実際のバインディングごと確認できる
+- **確認のしかた**: Wails のサーバーモード（`go build -tags server ./gui`）で同じ画面を HTTP で配信すると、ブラウザで実際のバインディングごと確認できる。本物の Slack と設定を使わずに確かめるときは `mise run preview`（`scripts/preview.sh`）。偽の Slack で動くゲートウェイ（`internal/devpreview`）がデータディレクトリのロックを取り、GUI はその状態を表示する。Claude Code のプレビューでは `.claude/launch.json` の `gui-preview`（`mise run preview` を呼ぶ）を使い回す。設定を足すたびにデスクトップアプリの承認が要るため（2026-11-14）
 
 ### 7.1.2 多言語対応（2026-11-12）
 

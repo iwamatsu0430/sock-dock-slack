@@ -64,6 +64,10 @@ description = "Serve the GUI over HTTP at http://localhost:8080 (Wails server mo
 depends = ["frontend"]
 run = "go run -tags server ./gui"
 
+[tasks.preview]
+description = "Show the GUI at http://localhost:8080 against a fake Slack (scripts/preview.sh; real data untouched)"
+run = "./scripts/preview.sh"
+
 [tasks.ci]
 description = "What CI runs: vet, tests and the frontend type check"
 depends = ["vet", "test", "check-frontend"]
