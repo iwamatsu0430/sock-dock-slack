@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SockDock for Slack</title>
-<meta name="description" content="Slack に「ask」と投稿されたら AI エージェントを動かし、「遊ぼう」と投稿されたらゲームを起動する。どの投稿で何を実行するかを、Mac のルールで決めておけます。">
+<meta name="description" content="Slack に書けば、家の Mac で動く。Slack のボットの用途が増えるたびに、投稿の振り分けや返信のコードを書く必要はありません。SockDock にルールを足すだけです。">
 <link rel="canonical" href="https://iwamatsu0430.github.io/sock-dock-slack/ja/">
 <link rel="alternate" hreflang="en" href="https://iwamatsu0430.github.io/sock-dock-slack/">
 <link rel="alternate" hreflang="ja" href="https://iwamatsu0430.github.io/sock-dock-slack/ja/">
 <link rel="alternate" hreflang="x-default" href="https://iwamatsu0430.github.io/sock-dock-slack/">
 <meta property="og:type" content="website">
 <meta property="og:title" content="SockDock for Slack">
-<meta property="og:description" content="Slack に「ask」と投稿されたら AI エージェントを動かし、「遊ぼう」と投稿されたらゲームを起動する。どの投稿で何を実行するかを、Mac のルールで決めておけます。">
+<meta property="og:description" content="Slack に書けば、家の Mac で動く。Slack のボットの用途が増えるたびに、投稿の振り分けや返信のコードを書く必要はありません。SockDock にルールを足すだけです。">
 <meta property="og:url" content="https://iwamatsu0430.github.io/sock-dock-slack/ja/">
 <meta property="og:image" content="https://iwamatsu0430.github.io/sock-dock-slack/assets/icon.png">
 <meta name="twitter:card" content="summary">
@@ -31,35 +31,30 @@
 </header>
 
 <main>
-<section class="hero">
+<section class="hero b">
   <div class="wrap">
-    <h1 class="pair">
-      <span>Slack に<em>「ask」</em>と投稿されたら、<em>AI エージェント</em>を動かす。</span>
-      <span>Slack に<em>「遊ぼう」</em>と投稿されたら、<em>ゲーム</em>を起動する。</span>
-    </h1>
     <div class="body">
-      <p class="lead">ルールでは、次の 3 つを決めます。</p>
-      <ol class="rule">
-        <li><strong>どのチャンネルの投稿に反応するか</strong><span>例: <code>#個人開発</code>。このチャンネルに投稿できる人なら誰でも、このルールを動かせます。実行できるユーザーを制限することもできます。</span></li>
-        <li><strong>どんな投稿に反応するか</strong><span>例: 「ask」で始まる投稿。当てはまらない投稿では、何も起きません。</span></li>
-        <li><strong>Mac で何を実行するか</strong><span>例: <code>~/app</code> フォルダで AI エージェント。ファイルの読み取りだけを許可します。</span></li>
-      </ol>
+      <h1 class="pair">
+        <span>Slack に書けば、<em>家の Mac</em> で動く。</span>
+        <span><em>ボットのコード</em>は要らない。</span>
+      </h1>
+      <p class="lead b-lead">Slack のボットの用途が増えるたびに、投稿の振り分けや返信のコードを書く必要はありません。SockDock にルールを足すだけです。</p>
       <div class="ctas">
         <div class="install"><code>brew install --cask iwamatsu0430/tap/sockdock</code><button type="button" class="copy">コピー</button></div>
         <a class="btn" href="https://github.com/iwamatsu0430/sock-dock-slack">GitHub で見る</a>
       </div>
-      <p class="note">アプリは Apple の公証を受けていないため、初めて開くときに確認が要ります。<a href="#first-open">開き方</a></p>
-      <p class="meta">macOS 13 以降 · 無料・オープンソース（MIT）</p>
+      <p class="note">SockDock は Apple の公証を受けていないため、初めて開くときに macOS の設定で許可が要ります。<a href="#first-open">開き方</a></p>
+      <p class="meta">macOS 13 以降 · 無料・オープンソース（MIT） · CLI は Linux にも対応</p>
     </div>
 
     <div class="threads">
-      <div class="thread" aria-label="Slack のスレッドの例">
-        <div class="channel"># 個人開発</div>
+      <div class="thread" aria-label="Example Slack thread">
+        <div class="channel"># 家族</div>
         <div class="msg">
-          <div class="av person"></div>
+          <div class="av person hana"></div>
           <div>
-            <div class="who">Aki <span>10:42</span></div>
-            <div>ask ログインのテストが落ちるのはなぜ？</div>
+            <div class="who">Hana <span>16:10</span></div>
+            <div>マイクラ</div>
           <div class="reaction">👀 1</div>
           </div>
         </div>
@@ -67,33 +62,19 @@
         <div class="msg">
           <img class="av" src="../assets/icon.png" alt="">
           <div>
-            <div class="who">SockDock <span>10:43</span></div>
-            <div><code>test/login.spec.ts</code> は 302 を期待していますが、ハンドラは 303 を返すようになっています。</div>
-          </div>
-        </div>
-        <div class="msg">
-          <div class="av person"></div>
-          <div>
-            <div class="who">Aki <span>10:44</span></div>
-            <div>どこを直せばいい？</div>
-          </div>
-        </div>
-        <div class="msg">
-          <img class="av" src="../assets/icon.png" alt="">
-          <div>
-            <div class="who">SockDock <span>10:44</span></div>
-            <div><code>test/login.spec.ts</code> の 12 行目で、302 を 303 に変えれば通ります。</div>
+            <div class="who">SockDock <span>16:10</span></div>
+            <div>サーバーを立てました。いつものワールドで遊べます。</div>
           </div>
         </div>
         </div>
       </div>
-      <div class="thread" aria-label="Slack のスレッドの例">
+      <div class="thread" aria-label="Example Slack thread">
         <div class="channel"># 家族</div>
         <div class="msg">
-          <div class="av person kid"></div>
+          <div class="av person hana"></div>
           <div>
-            <div class="who">Hana <span>19:05</span></div>
-            <div>遊ぼう</div>
+            <div class="who">Hana <span>20:31</span></div>
+            <div>旅行 年末に 2 泊、車で 3 時間以内</div>
           <div class="reaction">👀 1</div>
           </div>
         </div>
@@ -101,8 +82,22 @@
         <div class="msg">
           <img class="av" src="../assets/icon.png" alt="">
           <div>
-            <div class="who">SockDock <span>19:05</span></div>
-            <div>ゲームを起動しました。</div>
+            <div class="who">SockDock <span>20:33</span></div>
+            <div>記録.md を見て、去年の伊豆は外しました。候補は箱根・那須・草津の 3 つです。</div>
+          </div>
+        </div>
+        <div class="msg">
+          <div class="av person"></div>
+          <div>
+            <div class="who">Ken <span>21:02</span></div>
+            <div>近くに子どもが遊べるところもあるといいな</div>
+          </div>
+        </div>
+        <div class="msg">
+          <img class="av" src="../assets/icon.png" alt="">
+          <div>
+            <div class="who">SockDock <span>21:03</span></div>
+            <div>それなら那須です。宿から車で 10 分の牧場に、大きなアスレチックがあります。</div>
           </div>
         </div>
         </div>
@@ -113,32 +108,75 @@
 
 <section class="band">
   <div class="wrap pad">
-    <h2>自分の Mac で動きます</h2>
-    <ul class="points">
-      <li><strong>手元のファイルをそのまま使う</strong><span>AI エージェントは Mac のフォルダで動くので、コミット前の変更も、Mac に入れたツールも使えます。</span></li>
-      <li><strong>いつもの AI エージェント</strong><span>自分のログインで動き、作業フォルダに置いた指示もそのまま効きます。API キーは要りません。</span></li>
-      <li><strong>サーバーは要りません</strong><span>Mac から Slack へつなぐので、ポートを開けたり、公開 URL を用意したりしなくて済みます。</span></li>
+    <h2>何が動くかは、一覧でわかります</h2>
+    <p class="sub why-lead">自作のボットでは、どの投稿で何が動き、誰が実行できるのかは、コードを追わないとわかりません。SockDock では、用途ごとのルールが一覧に並び、画面で確かめて直せます。</p>
+    <figure class="swap" aria-label="Three jobs in bot code, and the same three as rules in SockDock">
+      <div class="col before">
+        <div class="cap">自作のボットのコード（用途が 3 つの例）</div>
+<pre class="code">@app.message(re.compile(<span>"^マイクラ"</span>))
+def minecraft(message, say):
+    if message["user"] not in FAMILY:
+        return
+    ...
+@app.message(re.compile(r"^deploy\b"))
+def deploy(message, say):
+    if message["user"] != KEN:
+        return
+    ...
+@app.message(re.compile(<span>"^旅行"</span>))
+def trip(message, say):
+    ...  <span class="c"># AI エージェントを呼び、スレッドの会話を引き継ぐ</span></pre>
+      </div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="col after">
+        <div class="cap">SockDock のルールの一覧</div>
+        <div class="win"><div class="bar"><i></i><i></i><i></i><span>SockDock</span></div>
+          <picture><source media="(prefers-color-scheme: dark)" srcset="../assets/shots/ja-dark-rules.png"><img src="../assets/shots/ja-light-rules.png" width="760" height="359" loading="lazy" alt="SockDock のルールの一覧。#家族 に 2 つ、#個人開発 に 1 つのルールが並んでいる。"></picture></div>
+      </div>
+    </figure>
+    <ul class="pillars two">
+      <li><b>Slack とのやりとりは、SockDock が受け持ちます</b><span>接続、投稿の振り分け、👀 のリアクション、スレッドへの返信と、続きのやりとりです。Socket Mode で Mac のほうからつなぐので、公開 URL は要りません。</span></li>
+      <li><b>実行できる人と、できる操作は、ルールで決めます</b><span>実行できる人を絞らなければ、チャンネルに投稿できる人は誰でも実行できます。投稿の文面がコマンドとして実行されることはありません。AI エージェントは、許可した操作しかできません。</span></li>
     </ul>
   </div>
 </section>
 
 <section>
   <div class="wrap pad">
-    <h2>3 つの手順で始める</h2>
+    <h2>ユースケース</h2>
+    <p class="sub">上の一覧にある 3 つのルールです。</p>
+    <div class="cases">
+      <figure class="case">
+        <figcaption><strong>家族のゲームサーバー</strong><span>プログラムを動かす例です。家族が「マイクラ」と書けば、留守中でも、家の Mac でサーバーが立ちます。</span></figcaption>
+        <div class="win"><div class="bar"><i></i><i></i><i></i><span>SockDock</span></div>
+          <picture><source media="(prefers-color-scheme: dark)" srcset="../assets/shots/ja-dark-minecraft.png"><img src="../assets/shots/ja-light-minecraft.png" width="760" height="704" loading="lazy" alt="#家族 の「マイクラ」で始まる投稿のルール。Hana と Ken が実行でき、プログラム ./start.sh を動かす。"></picture></div>
+      </figure>
+      <figure class="case">
+        <figcaption><strong>夫婦の旅行計画</strong><span>AI エージェントを動かす例です。Mac に入っている Claude Code か Codex が、選んだフォルダのファイルを読んで答えます。</span></figcaption>
+        <div class="win"><div class="bar"><i></i><i></i><i></i><span>SockDock</span></div>
+          <picture><source media="(prefers-color-scheme: dark)" srcset="../assets/shots/ja-dark-trip.png"><img src="../assets/shots/ja-light-trip.png" width="760" height="946" loading="lazy" alt="#家族 の「旅行」で始まる投稿のルール。Hana と Ken が実行でき、~/旅行 で Claude Code を動かし、Web 検索を許可している。"></picture></div>
+      </figure>
+      <figure class="case">
+        <figcaption><strong>個人開発のデプロイ</strong><span>実行できる人を自分だけに絞った例です。プログラムは AI を通さないので、毎回同じように動きます。</span></figcaption>
+        <div class="win"><div class="bar"><i></i><i></i><i></i><span>SockDock</span></div>
+          <picture><source media="(prefers-color-scheme: dark)" srcset="../assets/shots/ja-dark-deploy.png"><img src="../assets/shots/ja-light-deploy.png" width="760" height="704" loading="lazy" alt="#個人開発 の「deploy」で始まる投稿のルール。Ken だけが実行でき、プログラム ./deploy.sh を動かす。"></picture></div>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap pad">
+    <h2>始め方</h2>
     <ol class="steps">
-      <li><strong>Slack アプリを作成</strong><span>SockDock のボタンから、必要な権限を入れた作成ページが開きます。作ったアプリを、使うチャンネルに追加します。</span></li>
-      <li><strong>トークンを 2 つ貼る</strong><span>投稿を受け取る App-Level Token（<code>xapp-</code>）と、返信する Bot Token（<code>xoxb-</code>）です。どちらも Mac のキーチェーンに保存します。</span></li>
-      <li><strong>ルールを作る</strong><span>メニューバーのアプリで、チャンネル・反応する投稿・実行するものを選びます。</span>
-        <ul class="kinds">
-          <li><b>AI エージェント（Claude Code か Codex）</b><span>選んだフォルダで動きます。ファイルの読み取りは常に、編集と Web 検索は許可したときだけできます。</span></li>
-          <li><b>プログラム</b><span>自分で書いたスクリプトなど。標準出力がスレッドへの返信になります。</span></li>
-        </ul>
-      </li>
+      <li><strong>Slack アプリを作る</strong><span>SockDock のボタンを押すと、権限、Socket Mode、イベントを設定済みの作成ページが開きます。そのまま作成して、ワークスペースにインストールします。できた Slack アプリを、使うチャンネルに追加します。</span></li>
+      <li><strong>トークンを 2 つ貼る</strong><span>App-Level Token（<code>xapp-</code>）を <code>connections:write</code> のスコープを付けて発行し、Bot Token（<code>xoxb-</code>）と一緒に SockDock に貼ります。どちらも Mac のキーチェーンに保存されます。</span></li>
+      <li><strong>ルールを作る</strong><span>メニューバーの SockDock で、「チャンネル」「反応する投稿」「実行するもの」を選びます。</span></li>
     </ol>
     <h3 class="behave-h">Slack での動き</h3>
     <ul class="behave">
-      <li>投稿がルールに合うと 👀 が付き、終わると外れて、スレッドに返信が付きます。</li>
-      <li>スレッドに返信すると、同じルールで続きます。キーワードは要りません。AI エージェントは前のやりとりを覚えています。</li>
+      <li>投稿がルールに合うと 👀 が付きます。処理が終わると 👀 が外れ、スレッドに返信が付きます。</li>
+      <li>スレッドに続きを書くと、キーワードがなくても同じルールが動きます。AI エージェントは前のやりとりを覚えています。</li>
     </ul>
     <div class="final">
       <a class="btn" href="https://github.com/iwamatsu0430/sock-dock-slack#readme">README を読む</a>
@@ -146,16 +184,41 @@
   </div>
 </section>
 
-<section class="band" id="first-open">
+<section class="band">
+  <div class="wrap pad">
+    <h2>もう少し詳しく</h2>
+    <div class="spec">
+      <div>
+        <b>ルールは、AI エージェントに頼めば作れます</b>
+        <p>Claude Code や Codex から、MCP で SockDock のルールを足したり直したりできます。登録は、設定画面の「MCP」でコピーするだけです。AI エージェントがルールを変えると、Mac に通知が出ます。</p>
+        <div class="ask" aria-label="Example of asking an AI agent in the terminal">
+          <div class="ask-bar">Claude Code</div>
+          <p class="ask-q">#個人開発 で「deploy」と書いたら ./deploy.sh を動かすルールを足して。実行できるのは自分だけにして。</p>
+          <p class="ask-a">#個人開発 に「deploy」のルールを足しました。実行できるのは Ken だけです。</p>
+        </div>
+      </div>
+      <div>
+        <b>スクショやログも、貼ればそのまま渡ります</b>
+        <p>投稿やスレッドの続きに付けたファイルも、AI エージェントやプログラムに渡ります。AI エージェントには、「このスクショを見て」と頼めます。</p>
+      </div>
+      <div>
+        <b>CLI なら、Linux でも常駐できます</b>
+        <p>メニューバーのアプリのほかに、CLI もあります。<code>sockdock service install</code> を実行すると、SockDock がサービスとして登録され、ログイン時に起動し、落ちたら再起動します。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="first-open">
   <div class="wrap pad">
     <h2>初めて開くとき</h2>
-    <p class="open-intro">SockDock は Apple の公証を受けていないため、初めて開くと macOS が「“SockDock” は開いていません」と表示して止めます。</p>
+    <p class="open-intro">SockDock は Apple の公証を受けていないため、初めて開こうとすると、macOS が「“SockDock” は開いていません」と表示して起動を止めます。</p>
     <ol class="open-steps">
-      <li><b>完了</b>を押します（「ゴミ箱に入れる」は押さない）。</li>
+      <li><b>完了</b>を押します（<b>ゴミ箱に入れる</b>は押さないでください）。</li>
       <li>システム設定の「プライバシーとセキュリティ」を開き、下のほうにある<b>このまま開く</b>を押します。</li>
       <li>確認が出たら<b>開く</b>を押します。次からはそのまま開けます。</li>
     </ol>
-    <p class="open-safe">許可されるのは SockDock だけで、Mac の保護はそのまま働きます。Homebrew は、ダウンロードしたファイルが tap に記録されたハッシュと一致することを確かめてから入れます。<a href="https://support.apple.com/ja-jp/102445">Apple サポート「Mac でアプリを安全に開く」</a></p>
+    <p class="open-safe">許可されるのは SockDock だけです。ほかのアプリは、これまでどおり確認されます。Homebrew は、ダウンロードしたファイルが tap に記録されたハッシュと一致するのを確かめてからインストールします。<a href="https://support.apple.com/ja-jp/102445">Apple サポート「Mac でアプリを安全に開く」</a></p>
   </div>
 </section>
 </main>

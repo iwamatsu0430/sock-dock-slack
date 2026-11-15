@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SockDock for Slack</title>
-<meta name="description" content="Post “ask” in Slack, run your AI agent. Post “play”, launch a game. Rules on your Mac decide what each Slack post runs.">
+<meta name="description" content="Post in Slack to run things on your Mac. No bot code to write: every new job for a Slack bot usually means more routing and reply code. With SockDock, you add a rule and point it at a program.">
 <link rel="canonical" href="https://iwamatsu0430.github.io/sock-dock-slack/">
 <link rel="alternate" hreflang="en" href="https://iwamatsu0430.github.io/sock-dock-slack/">
 <link rel="alternate" hreflang="ja" href="https://iwamatsu0430.github.io/sock-dock-slack/ja/">
 <link rel="alternate" hreflang="x-default" href="https://iwamatsu0430.github.io/sock-dock-slack/">
 <meta property="og:type" content="website">
 <meta property="og:title" content="SockDock for Slack">
-<meta property="og:description" content="Post “ask” in Slack, run your AI agent. Post “play”, launch a game. Rules on your Mac decide what each Slack post runs.">
+<meta property="og:description" content="Post in Slack to run things on your Mac. No bot code to write: every new job for a Slack bot usually means more routing and reply code. With SockDock, you add a rule and point it at a program.">
 <meta property="og:url" content="https://iwamatsu0430.github.io/sock-dock-slack/">
 <meta property="og:image" content="https://iwamatsu0430.github.io/sock-dock-slack/assets/icon.png">
 <meta name="twitter:card" content="summary">
@@ -41,35 +41,30 @@
 </header>
 
 <main>
-<section class="hero">
+<section class="hero b">
   <div class="wrap">
-    <h1 class="pair">
-      <span>Post <em>“ask”</em> in Slack, run <em>your AI agent</em>.</span>
-      <span>Post <em>“play”</em>, launch <em>a game</em>.</span>
-    </h1>
     <div class="body">
-      <p class="lead">A rule sets three things.</p>
-      <ol class="rule">
-        <li><strong>Which channel</strong><span>e.g. <code>#side-project</code>. Anyone who can post there can trigger the rule, or restrict it to specific users.</span></li>
-        <li><strong>Which posts</strong><span>e.g. posts that start with “ask”. Any other post does nothing.</span></li>
-        <li><strong>What runs on your Mac</strong><span>e.g. an AI agent in <code>~/app</code>, allowed only to read files.</span></li>
-      </ol>
+      <h1 class="pair">
+        <span>Post in Slack to run things on <em>your Mac</em>.</span>
+        <span><em>No bot code</em> to write.</span>
+      </h1>
+      <p class="lead b-lead">Every new job for a Slack bot usually means more routing and reply code. With SockDock, you add a rule and point it at a program.</p>
       <div class="ctas">
         <div class="install"><code>brew install --cask iwamatsu0430/tap/sockdock</code><button type="button" class="copy">Copy</button></div>
         <a class="btn" href="https://github.com/iwamatsu0430/sock-dock-slack">View on GitHub</a>
       </div>
-      <p class="note">The app is not notarized by Apple, so opening it the first time takes an extra step. <a href="#first-open">How to open it</a></p>
-      <p class="meta">macOS 13+ · Free and open source (MIT)</p>
+      <p class="note">SockDock is not notarized by Apple, so opening it for the first time takes an extra step. <a href="#first-open">How to open it</a></p>
+      <p class="meta">macOS 13+ · Free and open source (MIT) · The CLI also runs on Linux</p>
     </div>
 
     <div class="threads">
       <div class="thread" aria-label="Example Slack thread">
-        <div class="channel"># side-project</div>
+        <div class="channel"># family</div>
         <div class="msg">
-          <div class="av person"></div>
+          <div class="av person hana"></div>
           <div>
-            <div class="who">Aki <span>10:42</span></div>
-            <div>ask why does the login test fail?</div>
+            <div class="who">Hana <span>16:10</span></div>
+            <div>minecraft</div>
           <div class="reaction">👀 1</div>
           </div>
         </div>
@@ -77,22 +72,8 @@
         <div class="msg">
           <img class="av" src="assets/icon.png" alt="">
           <div>
-            <div class="who">SockDock <span>10:43</span></div>
-            <div><code>test/login.spec.ts</code> expects a 302, but the handler now returns 303.</div>
-          </div>
-        </div>
-        <div class="msg">
-          <div class="av person"></div>
-          <div>
-            <div class="who">Aki <span>10:44</span></div>
-            <div>where should I fix it?</div>
-          </div>
-        </div>
-        <div class="msg">
-          <img class="av" src="assets/icon.png" alt="">
-          <div>
-            <div class="who">SockDock <span>10:44</span></div>
-            <div>Change 302 to 303 on line 12 of <code>test/login.spec.ts</code>.</div>
+            <div class="who">SockDock <span>16:10</span></div>
+            <div>The server is up. The usual world is ready.</div>
           </div>
         </div>
         </div>
@@ -100,10 +81,10 @@
       <div class="thread" aria-label="Example Slack thread">
         <div class="channel"># family</div>
         <div class="msg">
-          <div class="av person kid"></div>
+          <div class="av person hana"></div>
           <div>
-            <div class="who">Hana <span>19:05</span></div>
-            <div>play</div>
+            <div class="who">Hana <span>20:31</span></div>
+            <div>trip 2 nights over New Year, within 3 hours by car</div>
           <div class="reaction">👀 1</div>
           </div>
         </div>
@@ -111,8 +92,22 @@
         <div class="msg">
           <img class="av" src="assets/icon.png" alt="">
           <div>
-            <div class="who">SockDock <span>19:05</span></div>
-            <div>Game launched.</div>
+            <div class="who">SockDock <span>20:33</span></div>
+            <div>I checked trips.md and left out last year's beach town. Three ideas: a lake with hot springs, a farm stay, or a ski town.</div>
+          </div>
+        </div>
+        <div class="msg">
+          <div class="av person"></div>
+          <div>
+            <div class="who">Ken <span>21:02</span></div>
+            <div>somewhere the kids can play nearby too?</div>
+          </div>
+        </div>
+        <div class="msg">
+          <img class="av" src="assets/icon.png" alt="">
+          <div>
+            <div class="who">SockDock <span>21:03</span></div>
+            <div>Then the farm stay: there's a big playground 10 minutes from the inn.</div>
           </div>
         </div>
         </div>
@@ -123,12 +118,60 @@
 
 <section class="band">
   <div class="wrap pad">
-    <h2>It runs on your own Mac</h2>
-    <ul class="points">
-      <li><strong>Your files and tools, as they are</strong><span>The AI agent works in a folder on your Mac, so it sees uncommitted changes and the tools you installed.</span></li>
-      <li><strong>Your own AI agent</strong><span>It runs with your login and follows the instructions in your project folder. No API key.</span></li>
-      <li><strong>No server to set up</strong><span>SockDock connects from your Mac to Slack. No open ports, no public URL.</span></li>
+    <h2>See what runs, in one list</h2>
+    <p class="sub why-lead">In your own bot, which post runs what, and who may run it, is something you learn by following the code. In SockDock, each job is a rule in one list, and you check and change it on screen.</p>
+    <figure class="swap" aria-label="Three jobs in bot code, and the same three as rules in SockDock">
+      <div class="col before">
+        <div class="cap">Your own bot's code (three jobs)</div>
+<pre class="code">@app.message(re.compile(<span>"^minecraft"</span>))
+def minecraft(message, say):
+    if message["user"] not in FAMILY:
+        return
+    ...
+@app.message(re.compile(r"^deploy\b"))
+def deploy(message, say):
+    if message["user"] != KEN:
+        return
+    ...
+@app.message(re.compile(<span>"^trip"</span>))
+def trip(message, say):
+    ...  <span class="c"># call the AI agent, carry on the thread</span></pre>
+      </div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="col after">
+        <div class="cap">SockDock's rule list</div>
+        <div class="win"><div class="bar"><i></i><i></i><i></i><span>SockDock</span></div>
+          <picture><source media="(prefers-color-scheme: dark)" srcset="assets/shots/en-dark-rules.png"><img src="assets/shots/en-light-rules.png" width="760" height="359" loading="lazy" alt="SockDock's rule list: two rules under #family and one under #side-project."></picture></div>
+      </div>
+    </figure>
+    <ul class="pillars two">
+      <li><b>SockDock handles the Slack side</b><span>Connecting, routing posts, the 👀 reaction, replying in the thread, and carrying on the conversation there. It uses Socket Mode, so there's no public URL.</span></li>
+      <li><b>Rules decide who can run it, and what it can do</b><span>Unless you limit it, anyone who can post in the channel can run a rule. The post never runs as a command. An AI agent can do only what you allow.</span></li>
     </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap pad">
+    <h2>Use cases</h2>
+    <p class="sub">The three rules in the list above.</p>
+    <div class="cases">
+      <figure class="case">
+        <figcaption><strong>A game server for the family</strong><span>A program. Someone at home posts “minecraft”, and the server starts on the Mac at home, even while you're out.</span></figcaption>
+        <div class="win"><div class="bar"><i></i><i></i><i></i><span>SockDock</span></div>
+          <picture><source media="(prefers-color-scheme: dark)" srcset="assets/shots/en-dark-minecraft.png"><img src="assets/shots/en-light-minecraft.png" width="760" height="722" loading="lazy" alt="The rule for posts starting with “minecraft” in #family: it runs the program ./start.sh, for Hana and Ken."></picture></div>
+      </figure>
+      <figure class="case">
+        <figcaption><strong>Planning a trip together</strong><span>An AI agent. Claude Code or Codex on your Mac reads the files in the folder you chose and answers.</span></figcaption>
+        <div class="win"><div class="bar"><i></i><i></i><i></i><span>SockDock</span></div>
+          <picture><source media="(prefers-color-scheme: dark)" srcset="assets/shots/en-dark-trip.png"><img src="assets/shots/en-light-trip.png" width="760" height="946" loading="lazy" alt="The rule for posts starting with “trip” in #family: Claude Code in ~/trips, run by Hana and Ken, allowed to search the web."></picture></div>
+      </figure>
+      <figure class="case">
+        <figcaption><strong>Deploying a side project</strong><span>Only you can run it. A program doesn't involve an AI, so it does the same thing every time.</span></figcaption>
+        <div class="win"><div class="bar"><i></i><i></i><i></i><span>SockDock</span></div>
+          <picture><source media="(prefers-color-scheme: dark)" srcset="assets/shots/en-dark-deploy.png"><img src="assets/shots/en-light-deploy.png" width="760" height="722" loading="lazy" alt="The rule for posts starting with “deploy” in #side-project: only Ken can run it, and it runs the program ./deploy.sh."></picture></div>
+      </figure>
+    </div>
   </div>
 </section>
 
@@ -136,14 +179,9 @@
   <div class="wrap pad">
     <h2>Set up in three steps</h2>
     <ol class="steps">
-      <li><strong>Create a Slack app</strong><span>A button in SockDock opens Slack's create page with the permissions filled in. Then add the app to the channels you'll use.</span></li>
-      <li><strong>Paste its two tokens</strong><span>An App-Level Token (<code>xapp-</code>) to receive posts and a Bot Token (<code>xoxb-</code>) to reply. Both are kept in your Mac's Keychain.</span></li>
-      <li><strong>Add a rule</strong><span>In the menu bar app, choose a channel, which posts, and what runs.</span>
-        <ul class="kinds">
-          <li><b>AI agent (Claude Code or Codex)</b><span>Runs in the folder you pick. It can always read files; editing and web search only if you allow them.</span></li>
-          <li><b>Program</b><span>Any script you write. What it prints becomes the reply.</span></li>
-        </ul>
-      </li>
+      <li><strong>Create a Slack app</strong><span>A button in SockDock opens Slack's create page with the scopes, Socket Mode and events filled in. Create the app, install it to your workspace, and add it to the channels you'll use.</span></li>
+      <li><strong>Paste its two tokens</strong><span>Generate an App-Level Token (<code>xapp-</code>) with the <code>connections:write</code> scope, and paste it into SockDock along with the Bot Token (<code>xoxb-</code>). Both are kept in your Mac's Keychain.</span></li>
+      <li><strong>Add a rule</strong><span>In SockDock, choose a channel, which posts, and what runs.</span></li>
     </ol>
     <h3 class="behave-h">In Slack</h3>
     <ul class="behave">
@@ -156,9 +194,34 @@
   </div>
 </section>
 
-<section class="band" id="first-open">
+<section class="band">
   <div class="wrap pad">
-    <h2>Opening it the first time</h2>
+    <h2>A little more detail</h2>
+    <div class="spec">
+      <div>
+        <b>Just ask your AI agent to make the rule</b>
+        <p>From Claude Code or Codex, you can add and change SockDock's rules over MCP. Setup is a single copy from “MCP” in SockDock's settings. When an AI agent changes a rule, your Mac shows a notification.</p>
+        <div class="ask" aria-label="Example of asking an AI agent in the terminal">
+          <div class="ask-bar">Claude Code</div>
+          <p class="ask-q">Add a rule: when someone posts “deploy” in #side-project, run ./deploy.sh. Only I can run it.</p>
+          <p class="ask-a">Added a “deploy” rule to #side-project. Only Ken can run it.</p>
+        </div>
+      </div>
+      <div>
+        <b>Screenshots and logs come along too</b>
+        <p>Files attached to a post or a follow-up in the thread are passed to the AI agent or program too. You can ask the AI agent to “look at this screenshot.”</p>
+      </div>
+      <div>
+        <b>With the CLI, it runs as a service, on Linux too</b>
+        <p>Besides the menu bar app, there's a CLI. Run <code>sockdock service install</code> and SockDock is registered as a service: it starts at login and restarts if it crashes.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="first-open">
+  <div class="wrap pad">
+    <h2>Opening it for the first time</h2>
     <p class="open-intro">SockDock is not notarized by Apple, so the first time you open it, macOS stops it with “SockDock” Not Opened.</p>
     <ol class="open-steps">
       <li>Click <b>Done</b> (not Move to Trash).</li>
