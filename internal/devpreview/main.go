@@ -160,7 +160,14 @@ func run() error {
 		scopes = append(scopes, sc)
 	}
 	version, updateURL := "preview", ""
-	if os.Getenv("PREVIEW_NO_UPDATE") == "" {
+	switch {
+	case os.Getenv("PREVIEW_NO_UPDATE") != "":
+	case os.Getenv("PREVIEW_UPDATE") == "github":
+		version, updateURL = "v0.1.1", updates.LatestURL
+		if err := forgetUpdate(db); err != nil {
+			return err
+		}
+	default:
 		version = "v0.1.1"
 		if updateURL, err = fakeGitHub(db); err != nil {
 			return err
@@ -174,6 +181,11 @@ func run() error {
 		return err
 	}
 	gw.OnConnState(slackio.ConnState{Connected: true})
+	// The periodic work of `sockdock run` (registration expiry, update checks);
+	// the fake Slack never disconnects, so there is nothing to reconnect.
+	watchCtx, stopWatch := context.WithCancel(context.Background())
+	defer stopWatch()
+	go func() { _ = gw.Watch(watchCtx, gateway.DefaultWatchOptions, func() {}) }()
 
 	srv := control.NewServer(gw, log, dirs.LogFile())
 	go func() {
@@ -234,4 +246,15 @@ func fakeGitHub(db *store.Store) (string, error) {
 		return "", err
 	}
 	return "http://" + ln.Addr().String(), nil
+}
+
+// forgetUpdate clears the newer version found and told before (the gateway's
+// state keys "update_latest" and "update_notified"), so the next check finds
+// and tells it again.
+func forgetUpdate(db *store.Store) error {
+	ctx := context.Background()
+	if err := db.SetState(ctx, "update_latest", updates.Release{}); err != nil {
+		return err
+	}
+	return db.SetState(ctx, "update_notified", "")
 }

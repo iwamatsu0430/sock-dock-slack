@@ -21,6 +21,17 @@
         "preview"
       ],
       "port": 8080
+    },
+    {
+      "name": "gui-preview-github",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "PREVIEW_UPDATE=github",
+        "mise",
+        "run",
+        "preview"
+      ],
+      "port": 8080
     }
   ]
 }
