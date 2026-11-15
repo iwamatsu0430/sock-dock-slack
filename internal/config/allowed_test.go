@@ -54,7 +54,7 @@ func TestAllowedUsersValidation(t *testing.T) {
 		"    allowed_users: []\n":          "allowed_users is empty",
 		"    allowed_users: [alex]\n":      "is not a Slack member ID",
 		"    allowed_users: [U0123ABCD]\n": "",
-		"": "",
+		"":                                 "",
 	}
 	for field, want := range cases {
 		cfg, err := Parse([]byte(strings.Replace(base, "%s", field, 1)), filepath.Join(dir, "config.yaml"))
