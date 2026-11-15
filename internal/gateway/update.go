@@ -68,9 +68,14 @@ func (g *Gateway) checkUpdates(ctx context.Context) {
 	g.mu.Unlock()
 
 	go func() {
+		// Checking ends after the newer version has been kept and told.
+		defer func() {
+			g.mu.Lock()
+			g.updateChecking = false
+			g.mu.Unlock()
+		}()
 		rel, err := updates.Latest(ctx, g.opts.UpdateClient, g.opts.UpdateURL, "SockDock/"+g.opts.Version)
 		g.mu.Lock()
-		g.updateChecking = false
 		if err != nil {
 			g.updateNext = g.opts.Now().Add(updateRetry)
 			g.mu.Unlock()

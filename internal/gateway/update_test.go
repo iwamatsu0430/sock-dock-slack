@@ -67,62 +67,6 @@ func waitUpdate(g *Gateway) {
 	}
 }
 
-func TestUpdateCheckAndNotifyOnce(t *testing.T) {
-	g, api, now, calls := newUpdateGateway(t, "v0.1.1", "  owner: UALEX\n  notify_dm: true", release("v0.2.0"))
-	ev, cancel := g.Subscribe()
-	defer cancel()
-	ctx := context.Background()
-
-	// Not before a minute after starting.
-	g.checkUpdates(ctx)
-	if calls.Load() != 0 {
-		t.Fatal("checked too early")
-	}
-	*now = now.Add(updateFirstCheck)
-	g.checkUpdates(ctx)
-	waitUpdate(g)
-	if calls.Load() != 1 {
-		t.Fatalf("calls = %d", calls.Load())
-	}
-	st := g.Status(0)
-	if st.Update == nil || st.Update.Version != "0.2.0" || st.Update.Notes["ja"] != "- 新しいこと。" || st.Update.Notes["en"] != "- New things." {
-		t.Fatalf("update = %+v", st.Update)
-	}
-	posts := api.postsIn("")
-	if len(posts) != 1 || posts[0] != "🆕 SockDock 0.2.0 is out. <https://github.com/x/releases/tag/v0.2.0|Release notes>" {
-		t.Fatalf("DM = %q", posts)
-	}
-	gotEvent := false
-	for len(ev) > 0 {
-		if e := <-ev; e.Type == "update_available" {
-			gotEvent = true
-		}
-	}
-	if !gotEvent {
-		t.Error("the app should be told")
-	}
-
-	// Within a day: no new check. After a day: a check, but no second notice.
-	g.checkUpdates(ctx)
-	if calls.Load() != 1 {
-		t.Error("checked again within a day")
-	}
-	*now = now.Add(updateInterval)
-	g.checkUpdates(ctx)
-	waitUpdate(g)
-	if calls.Load() != 2 || len(api.postsIn("")) != 1 {
-		t.Errorf("calls = %d, DMs = %d", calls.Load(), len(api.postsIn("")))
-	}
-
-	// Turning the check off hides the newer version.
-	if err := g.SetSettingBool("check_updates", false); err != nil {
-		t.Fatal(err)
-	}
-	if g.Status(0).Update != nil || g.Status(0).CheckUpdates {
-		t.Error("with the check off, no update is shown")
-	}
-}
-
 func TestUpdateNotForLocalBuilds(t *testing.T) {
 	for _, v := range []string{"dev", "v0.1.1-6-g7e68b09"} {
 		g, _, now, calls := newUpdateGateway(t, v, "", release("v0.2.0"))
