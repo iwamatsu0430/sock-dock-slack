@@ -2,7 +2,7 @@
 
 **Slack アプリを手元で動かす: Socket Mode の接続は 1 つ、ハンドラはいくつでも。**
 
-[English](README.md)
+[紹介ページ](https://iwamatsu0430.github.io/sock-dock-slack/ja/) · [English](README.md)
 
 SockDock（コマンド名 `sockdock`）は、Mac で動く小さなゲートウェイです。Slack のワークスペースに届いた投稿を [Socket Mode](https://docs.slack.dev/apis/events-api/using-socket-mode/) で受け取り（インターネットから届く口を開ける必要はありません）、設定したハンドラに渡します。
 

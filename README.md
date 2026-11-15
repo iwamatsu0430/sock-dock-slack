@@ -2,7 +2,7 @@
 
 **Run Slack apps locally: one Socket Mode connection, many handlers.**
 
-[日本語](README.ja.md)
+[Website](https://iwamatsu0430.github.io/sock-dock-slack/) · [日本語](README.ja.md)
 
 SockDock (`sockdock`) is a small gateway that runs on your Mac. It receives messages from your Slack workspace over [Socket Mode](https://docs.slack.dev/apis/events-api/using-socket-mode/) — nothing needs to be reachable from the internet — and hands them to handlers you configure:
 
