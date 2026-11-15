@@ -75,9 +75,11 @@ SockDock v0.2.0
 ```
 
 ```bash
-git tag -a v0.2.0 -F <ノートのファイル>
+git tag -a v0.2.0 --cleanup=verbatim -F <ノートのファイル>
 git tag -l --format='%(contents)' v0.2.0   # 中身を確かめる
 ```
+
+`--cleanup=verbatim` を付けないと、git は `#` で始まる行をコメントとして消すので、`## English` と `## 日本語` の見出しがなくなる。中身を確かめるときは、2 つの見出しが残っていることを見る。
 
 ここで push してよいかを人に聞き、承認を得てから push する。
 
