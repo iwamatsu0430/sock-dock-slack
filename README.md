@@ -153,7 +153,7 @@ routes:
 ```
 
 - Posts and thread replies from anyone else are ignored: no 👀, no reply, and they never reach the handler. A rule further down the channel can still pick up their post.
-- In the app, open the rule, set **Who Can Run It** to **Chosen People** and add people by name. Choosing by name needs the `users:read` scope, which the bundled manifest includes. If you created your Slack app earlier, add `users:read` to its Bot Token scopes and reinstall it; until then you can enter member IDs (in Slack, a profile's ⋮ menu → **Copy member ID**). `users:read` lets the app read the profiles of the workspace's members; SockDock uses it only for this list.
+- In the app, open the rule, set **Who Can Run It** to **Chosen People** and add people by name. Choosing by name needs the `users:read` scope, which the bundled manifest includes. Without it, enter member IDs (in Slack, a profile's ⋮ menu → **Copy member ID**). `users:read` lets the app read the profiles of the workspace's members; SockDock uses it only for this list.
 - An agent rule that is open to everyone and may run commands or edit files shows a warning in the app.
 
 ## Handlers
@@ -189,7 +189,7 @@ Files attached to a post or a thread reply (screenshots, logs, PDFs, …) are ha
 - The files are saved for this run only (in `~/Library/Caches/sockdock/files/`, outside the rule's folder) and deleted when it ends. Copy them if you need them later.
 - A file that is not handed over has `skipped` instead of `path`: `too_large` (over `settings.max_file_mb`, 20 MB by default), `external` (stored outside Slack, e.g. Google Drive), `unsupported` (Slack posts and canvases), `no_scope` (the Slack app lacks `files:read`) or `failed`. The run goes ahead with the text and the other files; SockDock posts nothing about it, so the handler decides whether to mention it.
 - Only files of posts that start or continue a run are fetched. Posts from people a rule does not allow are never fetched.
-- This needs the `files:read` Bot Token scope, which the bundled manifest includes. If you created your Slack app earlier, add `files:read` and reinstall the app; until then the rule's recent runs say the files were not passed on. `files:read` can read files in the channels and DMs the Slack app is in; SockDock reads only the files of posts that run a rule.
+- This needs the `files:read` Bot Token scope, which the bundled manifest includes. Without it, the rule's recent runs say the files were not passed on. `files:read` can read files in the channels and DMs the Slack app is in; SockDock reads only the files of posts that run a rule.
 - File contents are untrusted input, just like the post text: a screenshot or a log can contain instructions aimed at the agent.
 
 ### command
@@ -266,7 +266,7 @@ routes:
 - DMs work like channel posts: a top-level DM starts a thread, SockDock replies in it, and replies in that thread continue the conversation. DM rules are tried from the top like a channel's.
 - Without `allowed_users`, anyone in the workspace can run a DM rule. In the app a new DM rule starts limited to you (see "Notifications by DM").
 - A mention in the middle of a thread never starts a rule; only top-level posts do.
-- DMs need the App Home **Messages tab** (with sending messages allowed), the `im:history` Bot Token scope and the `message.im` event. The bundled manifest has them. If you created your Slack app earlier, add them and reinstall the app; the rule page and Settings say when `im:history` is missing. `im:history` reads only DMs sent to the Slack app. Mentions need nothing new.
+- DMs need the App Home **Messages tab** (with sending messages allowed), the `im:history` Bot Token scope and the `message.im` event. The bundled manifest has them; the rule page and Settings say when `im:history` is missing. `im:history` reads only DMs sent to the Slack app. Mentions need nothing new.
 
 ## Notifications by DM
 
