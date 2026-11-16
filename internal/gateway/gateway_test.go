@@ -49,6 +49,26 @@ func (f *fakeAPI) AuthTest(context.Context) (slackio.Identity, error) {
 	return slackio.Identity{UserID: "UBOT", BotID: "BBOT", Team: "test"}, nil
 }
 
+// reactionCount is the net number of 👀 on a post.
+func (f *fakeAPI) reactionCount(ts string) int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.reactions[ts]
+}
+
+// reacted lists the posts that still have a 👀.
+func (f *fakeAPI) reacted() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var out []string
+	for ts, n := range f.reactions {
+		if n != 0 {
+			out = append(out, ts)
+		}
+	}
+	return out
+}
+
 func (f *fakeAPI) postsIn(thread string) []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -146,6 +166,8 @@ func TestThreadConversation(t *testing.T) {
 
 	h.gw.HandleMessage(msg("100.2", "100.1", "OK"))
 	waitFor(t, "second reply", func() bool { return len(h.api.postsIn("100.1")) == 2 })
+	// 👀 comes off after the reply is posted, when the turn ends.
+	waitFor(t, "👀 removed", func() bool { return len(h.api.reacted()) == 0 })
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -164,11 +186,6 @@ func TestThreadConversation(t *testing.T) {
 	}
 	if !strings.Contains(first.Permalink, "/archives/C1/p1001") {
 		t.Errorf("permalink = %q", first.Permalink)
-	}
-	for ts, n := range h.api.reactions {
-		if n != 0 {
-			t.Errorf("reaction on %s not removed (%d)", ts, n)
-		}
 	}
 	turns, _ := h.db.ListTurns(context.Background(), 10)
 	for _, tr := range turns {
@@ -420,7 +437,7 @@ func TestAllowedUsers(t *testing.T) {
 	if got := h.api.postsIn("5.1"); len(got) != 0 {
 		t.Fatalf("a post from someone the rule does not allow got replies: %v", got)
 	}
-	if n := h.api.reactions["5.1"]; n != 0 {
+	if n := h.api.reactionCount("5.1"); n != 0 {
 		t.Fatalf("👀 on a post the rule does not allow")
 	}
 
@@ -444,7 +461,7 @@ func TestAllowedUsers(t *testing.T) {
 			t.Errorf("a reply from %s reached the agent: %q", m.User, m.Text)
 		}
 	}
-	if n := h.api.reactions["6.2"]; n != 0 {
+	if n := h.api.reactionCount("6.2"); n != 0 {
 		t.Errorf("👀 on a dropped reply")
 	}
 }
