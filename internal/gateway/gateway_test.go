@@ -93,6 +93,25 @@ func waitFor(t *testing.T, what string, cond func() bool) {
 	t.Fatalf("timed out waiting for %s", what)
 }
 
+// waitTurnsFinished waits until no turn is recorded as running. A turn's
+// result is saved after its reply is posted, so a test that reads turns
+// right after the reply can still see "running".
+func waitTurnsFinished(t *testing.T, db *store.Store) {
+	t.Helper()
+	waitFor(t, "turns finished", func() bool {
+		turns, err := db.ListTurns(context.Background(), 100)
+		if err != nil {
+			return false
+		}
+		for _, tr := range turns {
+			if tr.Status == store.StatusRunning {
+				return false
+			}
+		}
+		return true
+	})
+}
+
 type harness struct {
 	gw    *Gateway
 	api   *fakeAPI
@@ -242,6 +261,7 @@ func TestErrorsAndTimeout(t *testing.T) {
 	if got := h.api.postsIn("4.1")[0]; !strings.Contains(got, "failed") {
 		t.Errorf("error message = %q", got)
 	}
+	waitTurnsFinished(t, h.db)
 	turns, _ := h.db.ListTurns(context.Background(), 10)
 	statuses := map[string]bool{}
 	for _, tr := range turns {
@@ -325,6 +345,7 @@ func TestStopTurn(t *testing.T) {
 	if got := h.api.postsIn("9.1")[0]; !strings.Contains(got, "Stopped") {
 		t.Errorf("notice = %q", got)
 	}
+	waitTurnsFinished(t, h.db)
 	turns, _ := h.db.ListRouteTurns(context.Background(), "entry", 10)
 	if len(turns) != 1 || turns[0].Status != store.StatusStopped || turns[0].Permalink == "" {
 		t.Fatalf("turns = %+v", turns)
