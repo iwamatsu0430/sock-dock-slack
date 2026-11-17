@@ -2,6 +2,9 @@
 # .claude/skills/release/SKILL.md, makes the tag; its message is the release
 # notes when it has "## English" / "## 日本語" sections):
 #   - SockDock-0.1.0.zip: the menu bar app (universal, ad-hoc signed)
+#   - SockDock-0.1.0.mcpb: the MCP Bundle (the CLI, which serves MCP), listed
+#     in the MCP Registry as io.github.iwamatsu0430/sockdock
+#     (packaging/mcp-registry/server.json; signed in with GitHub OIDC)
 #   - the Homebrew tap gets Formula/sockdock.rb (CLI, built from source) and
 #     Casks/sockdock.rb (the app), if the HOMEBREW_TAP_TOKEN secret is set
 #     (a fine-grained token with Contents: read and write on
@@ -16,6 +19,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write # the MCP Registry sign-in
 
 jobs:
   release:
@@ -39,7 +43,8 @@ jobs:
         run: |
           V="${TAG#v}"
           ditto -c -k --keepParent dist/SockDock.app "dist/SockDock-$V.zip"
-          (cd dist && shasum -a 256 "SockDock-$V.zip" > checksums.txt)
+          go run ./internal/mcpb/mkmcpb "dist/SockDock-$V.mcpb" dist/SockDock.app/Contents/MacOS/sockdock "$TAG"
+          (cd dist && shasum -a 256 "SockDock-$V.zip" "SockDock-$V.mcpb" > checksums.txt)
           lipo -archs dist/SockDock.app/Contents/MacOS/sockdock-gui
 
       # On a re-run the release may already exist: keep the files it has (people
@@ -51,7 +56,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          files=("dist/SockDock-${TAG#v}.zip" dist/checksums.txt)
+          files=("dist/SockDock-${TAG#v}.zip" "dist/SockDock-${TAG#v}.mcpb" dist/checksums.txt)
           if have="$(gh release view "$TAG" --json assets --jq '.assets[].name' 2>/dev/null)"; then
             for f in "${files[@]}"; do
               grep -qxF "$(basename "$f")" <<<"$have" || gh release upload "$TAG" "$f"
@@ -93,3 +98,39 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "sockdock ${TAG#v}"
           git push
+
+      # Hashes the .mcpb the release serves, and skips a version the registry
+      # already has, so a re-run is safe.
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Publish to the MCP Registry
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MCP_PUBLISHER_VERSION: v1.8.9
+          NAME: io.github.iwamatsu0430/sockdock
+        run: |
+          V="${TAG#v}"
+          if curl -fs -o /dev/null "https://registry.modelcontextprotocol.io/v0/servers/${NAME/\//%2F}/versions/$V"; then
+            echo "the MCP Registry already has $NAME $V"
+            exit 0
+          fi
+          os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+          arch="$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')"
+          archive="mcp-publisher_${os}_${arch}.tar.gz"
+          base="https://github.com/modelcontextprotocol/registry/releases/download/$MCP_PUBLISHER_VERSION"
+          cd "$RUNNER_TEMP"
+          curl -fsSL -o "$archive" "$base/$archive"
+          curl -fsSL -o "$archive.sigstore.json" "$base/$archive.sigstore.json"
+          cosign verify-blob --bundle "$archive.sigstore.json" \
+            --certificate-identity "https://github.com/modelcontextprotocol/registry/.github/workflows/release.yml@refs/tags/$MCP_PUBLISHER_VERSION" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$archive"
+          tar xzf "$archive" mcp-publisher
+          mcpb="SockDock-$V.mcpb"
+          sha="$(gh release download "$TAG" --repo "$GITHUB_REPOSITORY" -p "$mcpb" -O - | shasum -a 256 | cut -d' ' -f1)"
+          jq --arg v "$V" --arg url "https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/$mcpb" --arg sha "$sha" \
+            '.version = $v | .packages[0].identifier = $url | .packages[0].fileSha256 = $sha' \
+            "$GITHUB_WORKSPACE/packaging/mcp-registry/server.json" > server.json
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish server.json
