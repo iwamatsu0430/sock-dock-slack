@@ -662,7 +662,7 @@ func (t *tools) setRuleEnabled(ctx context.Context, _ *mcp.CallToolRequest, in E
 
 // StopIn names a run.
 type StopIn struct {
-	ID int64 `json:"id" jsonschema:"the run's id"`
+	ID int64 `json:"id" jsonschema:"id of a run whose status is running (running[].id in sockdock_get_status, or id in sockdock_list_runs)"`
 }
 
 func (t *tools) stopRun(ctx context.Context, _ *mcp.CallToolRequest, in StopIn) (*mcp.CallToolResult, OKOut, error) {
