@@ -146,6 +146,7 @@ func TestAttachedFilesWithoutScope(t *testing.T) {
 	if len(got) != 1 || len(got[0].Files) != 1 || got[0].Files[0].Skipped != handler.SkipNoScope {
 		t.Fatalf("files = %+v", got)
 	}
+	waitTurnsFinished(t, h.db)
 	turns, _ := h.db.ListTurns(context.Background(), 1)
 	if turns[0].FileProblem != store.FileProblemMissingScope || turns[0].Status != store.StatusOK {
 		t.Errorf("turn = %+v", turns[0])
