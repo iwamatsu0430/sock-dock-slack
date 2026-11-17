@@ -1,0 +1,22 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.iwamatsu0430/sockdock",
+  "title": "SockDock for Slack",
+  "description": "Manage SockDock rules: Slack posts that run Claude Code, Codex or a program on your Mac.",
+  "websiteUrl": "https://iwamatsu0430.github.io/sock-dock-slack/",
+  "repository": {
+    "url": "https://github.com/iwamatsu0430/sock-dock-slack",
+    "source": "github"
+  },
+  "version": "0.0.0",
+  "packages": [
+    {
+      "registryType": "mcpb",
+      "identifier": "https://github.com/iwamatsu0430/sock-dock-slack/releases/download/v0.0.0/SockDock-0.0.0.mcpb",
+      "fileSha256": "",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
