@@ -1,4 +1,4 @@
-package main
+package mcpb
 
 import (
 	"archive/zip"
@@ -12,8 +12,8 @@ import (
 
 func TestMCPBVersion(t *testing.T) {
 	for in, want := range map[string]string{"v0.2.0": "0.2.0", "1.3.4-rc.1": "1.3.4-rc.1", "b2ebb3c-dirty": "0.0.0-b2ebb3c-dirty", "dev": "0.0.0-dev", "": "0.0.0-dev"} {
-		if got := mcpbVersion(in); got != want {
-			t.Errorf("mcpbVersion(%q) = %q, want %q", in, got, want)
+		if got := Version(in); got != want {
+			t.Errorf("Version(%q) = %q, want %q", in, got, want)
 		}
 	}
 }
@@ -23,7 +23,7 @@ func TestBuildMCPB(t *testing.T) {
 	cli := filepath.Join(dir, "sockdock")
 	os.WriteFile(cli, []byte("#!/bin/sh\necho fake\n"), 0o755)
 	out := filepath.Join(dir, "SockDock.mcpb")
-	if err := buildMCPB(context.Background(), out, cli, "v1.2.3"); err != nil {
+	if err := Build(context.Background(), out, cli, "v1.2.3"); err != nil {
 		t.Fatal(err)
 	}
 	zr, err := zip.OpenReader(out)
@@ -42,7 +42,7 @@ func TestBuildMCPB(t *testing.T) {
 	rc, _ := files["manifest.json"].Open()
 	raw, _ := io.ReadAll(rc)
 	rc.Close()
-	var man mcpbManifest
+	var man manifest
 	if err := json.Unmarshal(raw, &man); err != nil {
 		t.Fatal(err)
 	}
