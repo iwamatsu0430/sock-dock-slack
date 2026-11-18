@@ -381,8 +381,8 @@ var dmText = map[string]map[string]string{
 }
 
 // ruleLabel names a rule the way menus and notifications do: #channel「keyword」,
-// #channel /regex/, #channel, or DM「keyword」. Channels are Slack channel
-// links, which Slack shows by name.
+// #channel /regex/, #channel :emoji:, #channel, or DM「keyword」. Channels are
+// Slack channel links, which Slack shows by name, and Slack draws the emoji.
 func ruleLabel(lang, channel, kind, pattern string) string {
 	t := dmText[lang]
 	if t == nil {
@@ -397,6 +397,8 @@ func ruleLabel(lang, channel, kind, pattern string) string {
 		return fmt.Sprintf(t["keyword"], ch, pattern)
 	case config.KindMatch:
 		return fmt.Sprintf(t["regex"], ch, pattern)
+	case config.KindReaction:
+		return ch + " :" + config.NormalizeReaction(pattern) + ":"
 	}
 	return ch
 }

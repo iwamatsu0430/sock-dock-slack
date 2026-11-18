@@ -404,7 +404,7 @@ func (s *Server) pauseChange(name string, paused bool) RuleChange {
 		c.Action = "disabled"
 	}
 	if rt := s.gw.Config().Route(name); rt != nil {
-		c.Channel, c.Trigger, c.Keyword = rt.Channel, rt.Kind(), rt.Pattern()
+		c.Channel, c.Trigger, c.Keyword = rt.Channel, rt.Kind(), rules.DisplayPattern(rt)
 	}
 	return c
 }

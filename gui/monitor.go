@@ -310,6 +310,8 @@ func (m *monitor) notifyRuleChange(e gateway.Event) {
 		r.Match = kw
 	case config.KindAllPosts:
 		r.AllPosts = true
+	case config.KindReaction:
+		r.Reaction = kw
 	}
 	notify("SockDock", m.svc.tr("notify.mcp", m.svc.ruleLabel(r)))
 }

@@ -40,3 +40,14 @@ routes:
   #     allowed_tools: ["Bash(make test *)", "WebSearch", "WebFetch"]
   #     model: opus
   #     timeout_sec: 600
+
+  # A reaction instead of the post's text: runs when someone adds :mag: to a
+  # top-level post in the channel, whoever wrote the post (another app's alert, say).
+  # - name: look-into
+  #   channel: C0123456789
+  #   reaction: mag
+  #   # reaction_removed: true                 # also run when the reaction is gone from the post
+  #   handler:
+  #     type: claude
+  #     cwd: ~/projects/infra
+  #     instructions: Look into the alert in this post and reply with the likely cause.

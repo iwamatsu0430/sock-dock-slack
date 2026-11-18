@@ -25,8 +25,11 @@ type Listener struct {
 	client    *slack.Client
 	log       *slog.Logger
 	onMessage func(event.Message)
-	onState   func(ConnState)
-	reconnect chan struct{}
+	// OnReaction, when set before Run, gets reactions added to or removed
+	// from messages. Like onMessage it must not block for long.
+	OnReaction func(event.ReactionEvent)
+	onState    func(ConnState)
+	reconnect  chan struct{}
 }
 
 // NewListener creates a listener. onMessage is called from the listener
@@ -137,8 +140,13 @@ func (l *Listener) handle(sm *socketmode.Client, evt socketmode.Event) {
 		if !ok || api.Type != slackevents.CallbackEvent {
 			return
 		}
-		if m, ok := api.InnerEvent.Data.(*slackevents.MessageEvent); ok {
-			l.onMessage(convert(m))
+		switch ev := api.InnerEvent.Data.(type) {
+		case *slackevents.MessageEvent:
+			l.onMessage(convert(ev))
+		case *slackevents.ReactionAddedEvent:
+			l.reaction(ev.Item, ev.User, ev.ItemUser, ev.Reaction, false)
+		case *slackevents.ReactionRemovedEvent:
+			l.reaction(ev.Item, ev.User, ev.ItemUser, ev.Reaction, true)
 		}
 	case socketmode.EventTypeInteractive, socketmode.EventTypeSlashCommand:
 		// Not used yet, but acknowledge so Slack does not retry.
@@ -146,6 +154,17 @@ func (l *Listener) handle(sm *socketmode.Client, evt socketmode.Event) {
 			_ = sm.Ack(*evt.Request)
 		}
 	}
+}
+
+// reaction delivers a reaction on a message; reactions on files are dropped.
+func (l *Listener) reaction(item slackevents.Item, user, itemUser, name string, removed bool) {
+	if l.OnReaction == nil || item.Type != "message" || item.Channel == "" || item.Timestamp == "" {
+		return
+	}
+	l.OnReaction(event.ReactionEvent{
+		Channel: item.Channel, TS: item.Timestamp, ItemUser: itemUser,
+		Reaction: event.Reaction{Name: name, User: user, Removed: removed},
+	})
 }
 
 func convert(m *slackevents.MessageEvent) event.Message {

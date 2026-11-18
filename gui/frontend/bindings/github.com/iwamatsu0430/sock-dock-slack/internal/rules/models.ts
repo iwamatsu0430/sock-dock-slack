@@ -84,10 +84,17 @@ export class Form {
 
     /**
      * Trigger is the condition kind: "starts_with", "contains", "match" (a
-     * regex) or "all_posts". Keyword is the keyword or the regex.
+     * regex), "all_posts" or "reaction". Keyword is the keyword, the regex
+     * or, for a reaction, the emoji name with its colons (":eyes:").
      */
     "trigger": string;
     "keyword": string;
+
+    /**
+     * ReactionRemoved also runs a reaction rule when the reaction is gone
+     * from the post ("外れたときも").
+     */
+    "reaction_removed": boolean;
 
     /**
      * MentionOnly limits the rule to posts that mention the Slack app
@@ -160,6 +167,9 @@ export class Form {
         if (!("keyword" in $$source)) {
             this["keyword"] = "";
         }
+        if (!("reaction_removed" in $$source)) {
+            this["reaction_removed"] = false;
+        }
         if (!("mention_only" in $$source)) {
             this["mention_only"] = false;
         }
@@ -213,18 +223,18 @@ export class Form {
      * Creates a new Form instance from a string or object.
      */
     static createFrom($$source: any = {}): Form {
-        const $$createField7_0 = $$createType0;
-        const $$createField13_0 = $$createType0;
+        const $$createField8_0 = $$createType0;
         const $$createField14_0 = $$createType0;
+        const $$createField15_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("allowed_users" in $$parsedSource) {
-            $$parsedSource["allowed_users"] = $$createField7_0($$parsedSource["allowed_users"]);
+            $$parsedSource["allowed_users"] = $$createField8_0($$parsedSource["allowed_users"]);
         }
         if ("commands" in $$parsedSource) {
-            $$parsedSource["commands"] = $$createField13_0($$parsedSource["commands"]);
+            $$parsedSource["commands"] = $$createField14_0($$parsedSource["commands"]);
         }
         if ("other_tools" in $$parsedSource) {
-            $$parsedSource["other_tools"] = $$createField14_0($$parsedSource["other_tools"]);
+            $$parsedSource["other_tools"] = $$createField15_0($$parsedSource["other_tools"]);
         }
         return new Form($$parsedSource as Partial<Form>);
     }

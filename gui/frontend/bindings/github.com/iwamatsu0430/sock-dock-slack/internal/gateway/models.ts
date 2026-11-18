@@ -191,6 +191,11 @@ export class Status {
     "heard": string[];
 
     /**
+     * HeardReactions lists the channels whose reactions have.
+     */
+    "heard_reactions": string[];
+
+    /**
      * ClaudeSignedIn is whether Claude Code is signed in, when known.
      */
     "claude_signed_in"?: boolean | null;
@@ -251,6 +256,9 @@ export class Status {
         if (!("heard" in $$source)) {
             this["heard"] = [];
         }
+        if (!("heard_reactions" in $$source)) {
+            this["heard_reactions"] = [];
+        }
         if (!("pending" in $$source)) {
             this["pending"] = 0;
         }
@@ -276,9 +284,10 @@ export class Status {
         const $$createField11_0 = $$createType4;
         const $$createField12_0 = $$createType6;
         const $$createField13_0 = $$createType7;
-        const $$createField15_0 = $$createType8;
-        const $$createField17_0 = $$createType7;
-        const $$createField22_0 = $$createType10;
+        const $$createField14_0 = $$createType7;
+        const $$createField16_0 = $$createType8;
+        const $$createField18_0 = $$createType7;
+        const $$createField23_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("identity" in $$parsedSource) {
             $$parsedSource["identity"] = $$createField8_0($$parsedSource["identity"]);
@@ -295,14 +304,17 @@ export class Status {
         if ("heard" in $$parsedSource) {
             $$parsedSource["heard"] = $$createField13_0($$parsedSource["heard"]);
         }
+        if ("heard_reactions" in $$parsedSource) {
+            $$parsedSource["heard_reactions"] = $$createField14_0($$parsedSource["heard_reactions"]);
+        }
         if ("signed_in" in $$parsedSource) {
-            $$parsedSource["signed_in"] = $$createField15_0($$parsedSource["signed_in"]);
+            $$parsedSource["signed_in"] = $$createField16_0($$parsedSource["signed_in"]);
         }
         if ("scopes" in $$parsedSource) {
-            $$parsedSource["scopes"] = $$createField17_0($$parsedSource["scopes"]);
+            $$parsedSource["scopes"] = $$createField18_0($$parsedSource["scopes"]);
         }
         if ("update" in $$parsedSource) {
-            $$parsedSource["update"] = $$createField22_0($$parsedSource["update"]);
+            $$parsedSource["update"] = $$createField23_0($$parsedSource["update"]);
         }
         return new Status($$parsedSource as Partial<Status>);
     }

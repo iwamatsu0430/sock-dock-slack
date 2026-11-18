@@ -33,13 +33,16 @@ func ParseRaw(data []byte) (*Config, error) {
 
 // routeOut and handlerOut control how routes are written: empty fields are left out.
 type routeOut struct {
-	Name        string `yaml:"name"`
-	Channel     string `yaml:"channel"`
-	StartsWith  string `yaml:"starts_with,omitempty"`
-	Contains    string `yaml:"contains,omitempty"`
-	Match       string `yaml:"match,omitempty"`
-	AllPosts    bool   `yaml:"all_posts,omitempty"`
-	MentionOnly bool   `yaml:"mention_only,omitempty"`
+	Name       string `yaml:"name"`
+	Channel    string `yaml:"channel"`
+	StartsWith string `yaml:"starts_with,omitempty"`
+	Contains   string `yaml:"contains,omitempty"`
+	Match      string `yaml:"match,omitempty"`
+	AllPosts   bool   `yaml:"all_posts,omitempty"`
+	Reaction   string `yaml:"reaction,omitempty"`
+	// ReactionRemoved is only written for a reaction route.
+	ReactionRemoved bool `yaml:"reaction_removed,omitempty"`
+	MentionOnly     bool `yaml:"mention_only,omitempty"`
 	// AllowedUsers is written in flow style: allowed_users: [U0123ABCD].
 	AllowedUsers []string   `yaml:"allowed_users,omitempty,flow"`
 	Handler      handlerOut `yaml:"handler"`
@@ -73,6 +76,7 @@ func RenderRoutes(routes []*Route) ([]byte, error) {
 		h := r.Handler
 		out = append(out, routeOut{
 			Name: r.Name, Channel: r.Channel, StartsWith: r.StartsWith, Contains: r.Contains, Match: r.Match, AllPosts: r.AllPosts,
+			Reaction: r.Reaction, ReactionRemoved: r.ReactionRemoved && r.Reaction != "",
 			MentionOnly: r.MentionOnly, AllowedUsers: r.AllowedUsers,
 			Handler: handlerOut{
 				Type: h.Type, Cwd: h.Cwd, EnvFile: h.EnvFile, Env: h.Env, Command: h.Command,

@@ -153,6 +153,7 @@ func Start(o Options) (*Daemon, error) {
 	}()
 
 	listener := slackio.NewListener(api.Client(), log, gw.HandleMessage, gw.OnConnState)
+	listener.OnReaction = gw.HandleReaction
 	listenerDone := make(chan struct{})
 	go func() { listener.Run(ctx); close(listenerDone) }()
 

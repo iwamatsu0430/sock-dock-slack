@@ -8,13 +8,18 @@
 //
 //	curl 'http://127.0.0.1:8766/dm?text=123456'
 //
-// Add file=<name> to attach a file to the DM.
+// Add file=<name> to attach a file to the DM. A reaction from 田中 太郎 on an
+// alert in #dev-help (the sample rule-4 runs on :mag:):
+//
+//	curl 'http://127.0.0.1:8766/react?name=mag'            # on a new post
+//	curl 'http://127.0.0.1:8766/react?name=mag&removed=1'  # off the last one
 //
 // Environment: SOCKDOCK_DATA_DIR (required), SOCKDOCK_CONFIG (default
 // <data>/config.yaml, written with sample rules when missing),
 // PREVIEW_NO_IM=1 (the Slack app lacks im:history), PREVIEW_NO_FILES=1 (it
-// lacks files:read), PREVIEW_NO_UPDATE=1 (no newer version), PREVIEW_DM_ADDR
-// (default 127.0.0.1:8766).
+// lacks files:read), PREVIEW_NO_REACTIONS=1 (it lacks reactions:read),
+// PREVIEW_NO_UPDATE=1 (no newer version), PREVIEW_DM_ADDR (default
+// 127.0.0.1:8766).
 //
 // The preview runs as v0.1.1 and a fake GitHub serves v0.2.0, so the update
 // dialog and the setting can be checked (open the dialog from the page with
@@ -81,6 +86,16 @@ func (f fakeSlack) FileInfo(context.Context, string) (event.File, error) {
 	return event.File{}, errors.New("not in the preview")
 }
 
+// Post answers with an alert from another app, whatever the post.
+func (fakeSlack) Post(_ context.Context, channel, ts string) (event.Message, bool, error) {
+	return event.Message{Channel: channel, TS: ts, BotID: "BALERT", SubType: "bot_message", Text: "🔥 api-server: 5xx above 5% for the last 10 minutes"}, true, nil
+}
+
+// ReactionUsers says nobody has a reaction left, so a removal always counts.
+func (fakeSlack) ReactionUsers(context.Context, string, string) (map[string][]string, error) {
+	return nil, nil
+}
+
 // DownloadFile writes a short text, or fails like Slack without files:read.
 func (f fakeSlack) DownloadFile(_ context.Context, _ string, w io.Writer) error {
 	if len(slackio.MissingScopes(f.scopes, []string{slackio.ScopeFilesRead})) > 0 {
@@ -106,6 +121,11 @@ routes:
     channel: dm
     starts_with: todo
     allowed_users: [U02TARO]
+    handler: {type: command, cwd: %[1]q, command: /bin/echo}
+  - name: rule-4
+    channel: C0123DEV
+    reaction: mag
+    reaction_removed: true
     handler: {type: command, cwd: %[1]q, command: /bin/echo}
 `
 
@@ -154,7 +174,8 @@ func run() error {
 	var scopes []string
 	for _, sc := range append(append([]string{}, slackio.RequiredBotScopes...), slackio.OptionalBotScopes...) {
 		if sc == slackio.ScopeIMHistory && os.Getenv("PREVIEW_NO_IM") != "" ||
-			sc == slackio.ScopeFilesRead && os.Getenv("PREVIEW_NO_FILES") != "" {
+			sc == slackio.ScopeFilesRead && os.Getenv("PREVIEW_NO_FILES") != "" ||
+			sc == slackio.ScopeReactionsRead && os.Getenv("PREVIEW_NO_REACTIONS") != "" {
 			continue
 		}
 		scopes = append(scopes, sc)
@@ -199,9 +220,23 @@ func run() error {
 		addr = "127.0.0.1:8766"
 	}
 	var n atomic.Int64
+	// lastPost is the post the last added reaction went on.
+	var lastPost atomic.Value
 	go func() {
 		_ = http.ListenAndServe(addr, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ts := fmt.Sprintf("%d.%06d", time.Now().Unix(), n.Add(1))
+			if r.URL.Path == "/react" {
+				ev := event.ReactionEvent{Channel: "C0123DEV", TS: ts, Reaction: event.Reaction{Name: r.URL.Query().Get("name"), User: "U02TARO"}}
+				if r.URL.Query().Get("removed") != "" {
+					ev.TS, _ = lastPost.Load().(string)
+					ev.Removed = true
+				} else {
+					lastPost.Store(ts)
+				}
+				gw.HandleReaction(ev)
+				fmt.Fprintln(w, "sent")
+				return
+			}
 			m := event.Message{Channel: "D0TARO", ChannelType: "im", TS: ts, User: "U02TARO", Text: r.URL.Query().Get("text")}
 			if name := r.URL.Query().Get("file"); name != "" {
 				m.SubType = "file_share"

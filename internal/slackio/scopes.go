@@ -10,11 +10,15 @@ import (
 
 // RequiredBotScopes are the Bot Token scopes SockDock cannot work without;
 // OptionalBotScopes only enable the channel list, choosing people by name
-// for "who can run it", DMs and attached files.
+// for "who can run it", DMs, attached files and rules that run on a reaction.
 var (
 	RequiredBotScopes = []string{"channels:history", "groups:history", "chat:write", "reactions:write"}
-	OptionalBotScopes = []string{"channels:read", "groups:read", "users:read", ScopeIMHistory, ScopeFilesRead}
+	OptionalBotScopes = []string{"channels:read", "groups:read", "users:read", ScopeIMHistory, ScopeFilesRead, ScopeReactionsRead}
 )
+
+// ScopeReactionsRead lets the Slack app receive reactions people add to
+// posts, and read who reacted.
+const ScopeReactionsRead = "reactions:read"
 
 // ScopeIMHistory lets the Slack app receive DMs sent to it.
 const ScopeIMHistory = "im:history"

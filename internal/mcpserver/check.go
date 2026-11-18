@@ -27,11 +27,13 @@ func problemMessage(p rules.FieldProblem) string {
 	case "channel/bad_channel":
 		return "Use a channel name from sockdock_list_channels, a channel ID like C0123ABCD, a channel link, or dm."
 	case "keyword/required":
-		return "Give a keyword, or use condition_type all_posts to react to every post."
+		return "Give a keyword (for condition_type reaction: the emoji name, like eyes), or use condition_type all_posts to react to every post."
+	case "keyword/bad_reaction":
+		return "Give one emoji name as Slack shows it, like eyes or :eyes: (a custom emoji's name works too). An emoji character such as 👀 is not a name."
 	case "keyword/bad_regex":
 		return "The regular expression is invalid (" + d + "). Use RE2 syntax, or a starts_with/contains keyword instead."
 	case "trigger/required":
-		return "Set condition_type to starts_with, contains, match or all_posts."
+		return "Set condition_type to starts_with, contains, match, all_posts or reaction."
 	case "folder/required":
 		return "Give the working folder (an absolute path or ~/...)."
 	case "folder/not_dir":
@@ -166,10 +168,39 @@ func (t *tools) checkRule(ctx context.Context, _ *mcp.CallToolRequest, in NameIn
 		add(true, "order", "No earlier rule in the channel hides this one.")
 	}
 	isDM := f.Channel == config.ChannelDM
+	if f.Trigger == config.KindReaction {
+		what := "This rule starts when someone adds " + f.Keyword + " to a top-level post (anyone's post, other apps' posts included), once per post. A reaction on a reply in a thread, or on a post a rule already ran for, does nothing; that is expected."
+		if f.ReactionRemoved {
+			what = "This rule starts when someone adds " + f.Keyword + " to a top-level post (anyone's post, other apps' posts included), and runs again in the same thread when nobody who may run it has the reaction on the post any more, and again when it is added back. The agent or program is told which happened (added or removed). A reaction on a reply in a thread does nothing; that is expected."
+		}
+		out.Findings = append(out.Findings, Finding{OK: true, Check: "reaction", Message: what})
+		if !st.HasScope("reactions:read") {
+			add(false, "reaction scope", "The Slack app lacks the reactions:read scope, so reactions cannot reach SockDock. Ask the user to add the reactions:read scope and the reaction_added and reaction_removed events to the Slack app, then reinstall it.")
+		} else if st.Connected {
+			where, key := channel, f.Channel
+			if isDM {
+				where, key = "DMs with the Slack app", config.ChannelDM
+			}
+			heard := false
+			for _, ch := range st.HeardReactions {
+				heard = heard || ch == key
+			}
+			if heard {
+				add(true, "reactions arrive", "Reactions from "+where+" reach SockDock.")
+			} else {
+				add(false, "reactions arrive", "No reaction from "+where+" has reached SockDock since it connected. If someone has reacted there since, check with the user: "+
+					"(1) the Slack app is added to the channel (type /invite in the channel); "+
+					"(2) both tokens in SockDock come from the same Slack app; "+
+					"(3) the Slack app subscribes to the reaction_added and reaction_removed events (and was reinstalled after adding them). "+
+					"If nobody has reacted yet, ask the user to add "+f.Keyword+" to a post there and check again.")
+			}
+		}
+	}
 	if isDM && !st.HasScope("im:history") {
 		add(false, "DM scope", "The Slack app lacks the im:history scope, so DMs cannot reach SockDock. Ask the user to add im:history, the message.im event and the App Home Messages tab (allowing messages) to the Slack app, then reinstall it.")
 	}
-	if st.Connected && isDM {
+	byPost := f.Trigger != config.KindReaction
+	if st.Connected && isDM && byPost {
 		heard := false
 		for _, ch := range st.Heard {
 			heard = heard || ch == config.ChannelDM
@@ -184,7 +215,7 @@ func (t *tools) checkRule(ctx context.Context, _ *mcp.CallToolRequest, in NameIn
 				"If nobody has sent a DM yet, ask the user to send a matching one and check again.")
 		}
 	}
-	if st.Connected && !isDM {
+	if st.Connected && !isDM && byPost {
 		heard := false
 		for _, ch := range st.Heard {
 			heard = heard || ch == f.Channel

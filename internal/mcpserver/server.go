@@ -81,8 +81,8 @@ func errText(err error) error {
 
 // Condition is which posts a rule reacts to.
 type Condition struct {
-	Type    string `json:"type" jsonschema:"starts_with, contains, match (a regular expression) or all_posts"`
-	Keyword string `json:"keyword,omitempty" jsonschema:"the keyword, or the regular expression for match"`
+	Type    string `json:"type" jsonschema:"starts_with, contains, match (a regular expression), all_posts or reaction (an emoji reaction added to a post)"`
+	Keyword string `json:"keyword,omitempty" jsonschema:"the keyword, the regular expression for match, or the emoji for reaction (:eyes:)"`
 }
 
 // Runs is what a rule runs.
@@ -108,21 +108,25 @@ type Run struct {
 
 // Rule is a rule as list_rules shows it.
 type Rule struct {
-	Name        string     `json:"name"`
-	ChannelID   string     `json:"channel_id"`
-	ChannelName string     `json:"channel_name,omitempty"`
-	Condition   Condition  `json:"condition"`
-	MentionOnly bool       `json:"mention_only,omitempty" jsonschema:"true when the rule runs only for posts that mention the Slack app"`
-	Runs        Runs       `json:"runs"`
-	Enabled     bool       `json:"enabled"`
-	Problem     string     `json:"problem,omitempty" jsonschema:"why the rule cannot run, if it cannot"`
-	ShadowedBy  *Condition `json:"shadowed_by,omitempty" jsonschema:"an earlier rule in the channel that always matches first, so this rule never runs"`
+	Name        string    `json:"name"`
+	ChannelID   string    `json:"channel_id"`
+	ChannelName string    `json:"channel_name,omitempty"`
+	Condition   Condition `json:"condition"`
+	MentionOnly bool      `json:"mention_only,omitempty" jsonschema:"true when the rule runs only for posts that mention the Slack app"`
+	// ReactionRemoved is true when a reaction rule also runs on removal.
+	ReactionRemoved bool       `json:"reaction_removed,omitempty" jsonschema:"reaction rules: true when the rule also runs when the reaction is gone from the post"`
+	Runs            Runs       `json:"runs"`
+	Enabled         bool       `json:"enabled"`
+	Problem         string     `json:"problem,omitempty" jsonschema:"why the rule cannot run, if it cannot"`
+	ShadowedBy      *Condition `json:"shadowed_by,omitempty" jsonschema:"an earlier rule in the channel that always matches first, so this rule never runs"`
 	// AllowedUsers are the only people who may run the rule (absent: everyone in the channel).
 	AllowedUsers []Person `json:"allowed_users,omitempty" jsonschema:"the only people who may run the rule; absent means everyone in the channel (for a DM rule, everyone in the workspace). Posts and thread replies from anyone else are ignored without a reply"`
 	// PostsArrived is false when no post from the rule's channel has reached
 	// SockDock since it connected (nil when unknown).
 	PostsArrived *bool `json:"posts_arrived,omitempty" jsonschema:"whether a post from this channel has reached SockDock since it last connected; false only matters if someone has posted there since; left out when SockDock is not connected"`
-	LastRun      *Run  `json:"last_run,omitempty"`
+	// ReactionsArrived is the same for reactions, on reaction rules only.
+	ReactionsArrived *bool `json:"reactions_arrived,omitempty" jsonschema:"reaction rules: whether a reaction from this channel has reached SockDock since it last connected; false only matters if someone has reacted there since"`
+	LastRun          *Run  `json:"last_run,omitempty"`
 }
 
 // Person is a Slack member.
@@ -172,7 +176,7 @@ func ruleOf(ri control.RuleInfo) Rule {
 	f := ri.Form
 	r := Rule{
 		Name: f.Name, ChannelID: f.Channel, ChannelName: ri.ChannelName,
-		Condition: Condition{Type: f.Trigger, Keyword: f.Keyword}, MentionOnly: f.MentionOnly,
+		Condition: Condition{Type: f.Trigger, Keyword: f.Keyword}, MentionOnly: f.MentionOnly, ReactionRemoved: f.ReactionRemoved,
 		Runs:    Runs{Type: "agent", Agent: agentName(f.Type), Folder: f.Folder},
 		Enabled: !ri.Off, Problem: problemText(ri.Problem),
 	}
@@ -214,6 +218,8 @@ type StatusOut struct {
 	Running   []Run  `json:"running"`
 	// PostsArrivedFrom lists channel IDs whose posts reached SockDock since it connected.
 	PostsArrivedFrom []string `json:"posts_arrived_from" jsonschema:"channel IDs whose posts have reached SockDock since it connected"`
+	// ReactionsArrivedFrom is the same for reactions.
+	ReactionsArrivedFrom []string `json:"reactions_arrived_from" jsonschema:"channel IDs whose reactions have reached SockDock since it connected (reaction rules need them)"`
 	// ClaudeSignedIn is whether the Claude Code that agent rules run is signed in.
 	ClaudeSignedIn *bool `json:"claude_signed_in,omitempty" jsonschema:"whether the Claude Code that agent rules run is signed in; left out when unknown or no rule runs Claude Code"`
 	// CodexSignedIn is the same for Codex.
@@ -239,6 +245,9 @@ func (t *tools) getStatus(ctx context.Context, _ *mcp.CallToolRequest, _ none) (
 	out := StatusOut{Connected: st.Connected, Workspace: st.Identity.Team, LastError: st.LastError, Running: []Run{}, PostsArrivedFrom: st.Heard}
 	if out.PostsArrivedFrom == nil {
 		out.PostsArrivedFrom = []string{}
+	}
+	if out.ReactionsArrivedFrom = st.HeardReactions; out.ReactionsArrivedFrom == nil {
+		out.ReactionsArrivedFrom = []string{}
 	}
 	for _, r := range st.Running {
 		out.Running = append(out.Running, Run{ID: r.TurnID, Rule: r.Route, Status: store.StatusRunning, StartedAt: r.StartedAt, ThreadURL: r.Permalink})
@@ -271,7 +280,7 @@ func (t *tools) listRules(ctx context.Context, _ *mcp.CallToolRequest, _ none) (
 	if err != nil {
 		return nil, RulesOut{}, errText(err)
 	}
-	heard := t.heard(ctx)
+	arrived := t.arrived(ctx)
 	out := RulesOut{Rules: []Rule{}}
 	// Group by channel, keeping the order within each channel.
 	var channels []string
@@ -282,7 +291,7 @@ func (t *tools) listRules(ctx context.Context, _ *mcp.CallToolRequest, _ none) (
 			channels = append(channels, ch)
 		}
 		r := ruleOf(ri)
-		r.PostsArrived = heard(ch)
+		arrived(&r)
 		byChannel[ch] = append(byChannel[ch], r)
 	}
 	for _, ch := range channels {
@@ -291,18 +300,29 @@ func (t *tools) listRules(ctx context.Context, _ *mcp.CallToolRequest, _ none) (
 	return nil, out, nil
 }
 
-// heard returns a lookup of whether a channel's posts reached SockDock; it
-// answers nil (unknown) when SockDock is not connected.
-func (t *tools) heard(ctx context.Context) func(channel string) *bool {
+// arrived returns a function that fills in whether a rule's channel's posts
+// (and, for a reaction rule, reactions) reached SockDock; it leaves them nil
+// (unknown) when SockDock is not connected.
+func (t *tools) arrived(ctx context.Context) func(r *Rule) {
 	st, err := t.b.Status(ctx)
 	if err != nil || !st.Connected {
-		return func(string) *bool { return nil }
+		return func(*Rule) {}
 	}
-	set := map[string]bool{}
+	posts, reactions := map[string]bool{}, map[string]bool{}
 	for _, ch := range st.Heard {
-		set[ch] = true
+		posts[ch] = true
 	}
-	return func(ch string) *bool { v := set[ch]; return &v }
+	for _, ch := range st.HeardReactions {
+		reactions[ch] = true
+	}
+	return func(r *Rule) {
+		v := posts[r.ChannelID]
+		r.PostsArrived = &v
+		if r.Condition.Type == config.KindReaction {
+			v := reactions[r.ChannelID]
+			r.ReactionsArrived = &v
+		}
+	}
 }
 
 // NameIn names a rule.
@@ -317,7 +337,7 @@ func (t *tools) getRule(ctx context.Context, _ *mcp.CallToolRequest, in NameIn) 
 	}
 	f := ri.Form
 	r := ruleOf(ri)
-	r.PostsArrived = t.heard(ctx)(f.Channel)
+	t.arrived(ctx)(&r)
 	return nil, RuleDetail{
 		Rule: r, Instructions: f.Instructions, AllowWeb: f.AllowWeb, AllowEdit: f.AllowEdit,
 		AllowedCommands: f.Commands, OtherTools: f.OtherTools, Model: f.Model, PromptFile: f.PromptFile, TimeoutSec: f.TimeoutSec,
@@ -470,9 +490,10 @@ func (t *tools) findUsers(ctx context.Context, _ *mcp.CallToolRequest, in FindIn
 type SaveIn struct {
 	Name            string    `json:"name,omitempty" jsonschema:"the rule to change; omit to add a rule"`
 	Channel         *string   `json:"channel,omitempty" jsonschema:"channel name (#dev-help or dev-help) or ID; must be in sockdock_list_channels. dm for DMs to the Slack app"`
-	ConditionType   *string   `json:"condition_type,omitempty" jsonschema:"starts_with (default for a new rule), contains, match or all_posts"`
-	Keyword         *string   `json:"keyword,omitempty" jsonschema:"the keyword, or the regular expression (RE2) for match; not used for all_posts"`
-	MentionOnly     *bool     `json:"mention_only,omitempty" jsonschema:"true to run only for posts that mention the Slack app (@app); not used for dm"`
+	ConditionType   *string   `json:"condition_type,omitempty" jsonschema:"starts_with (default for a new rule), contains, match, all_posts or reaction"`
+	Keyword         *string   `json:"keyword,omitempty" jsonschema:"the keyword, the regular expression (RE2) for match, or the emoji name for reaction (eyes or :eyes:); not used for all_posts"`
+	MentionOnly     *bool     `json:"mention_only,omitempty" jsonschema:"true to run only for posts that mention the Slack app (@app); not used for dm or reaction"`
+	ReactionRemoved *bool     `json:"reaction_removed,omitempty" jsonschema:"reaction only: true to run the rule again, in the same thread, when the reaction is gone from the post (and again when it is added back)"`
 	Runs            *string   `json:"runs,omitempty" jsonschema:"agent (default for a new rule) or program"`
 	Agent           *string   `json:"agent,omitempty" jsonschema:"for runs agent: claude_code (default) or codex"`
 	Folder          *string   `json:"folder,omitempty" jsonschema:"working folder (absolute or ~/...); for a program, defaults to the program's folder"`
@@ -540,6 +561,20 @@ func (t *tools) saveRule(ctx context.Context, _ *mcp.CallToolRequest, in SaveIn)
 	set(&f.Keyword, in.Keyword)
 	if in.MentionOnly != nil {
 		f.MentionOnly = *in.MentionOnly
+	}
+	if in.ReactionRemoved != nil {
+		f.ReactionRemoved = *in.ReactionRemoved
+	}
+	if f.Trigger != config.KindReaction {
+		if f.ReactionRemoved && in.ReactionRemoved != nil {
+			return nil, SaveOut{Problems: []Problem{{Field: "reaction_removed", Message: "reaction_removed is only for condition_type reaction."}}}, nil
+		}
+		f.ReactionRemoved = false
+	} else if f.MentionOnly {
+		if in.MentionOnly != nil {
+			return nil, SaveOut{Problems: []Problem{{Field: "mention_only", Message: "mention_only is not used with condition_type reaction: adding the reaction is what asks the Slack app."}}}, nil
+		}
+		f.MentionOnly = false
 	}
 	if in.Runs != nil {
 		switch *in.Runs {

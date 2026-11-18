@@ -108,7 +108,7 @@ A route reacts to top-level posts that meet one of these conditions. Within a ch
 | `match: '^deploy (?P<env>\w+)$'` | Posts matching the regular expression (RE2) | the named groups |
 | `all_posts: true` | Every post | `text`: the whole post |
 
-Keywords ignore case, full-width vs half-width characters, repeated spaces and a leading mention of the Slack app. A keyword of letters and digits does not match inside a word (`entry` does not match `entryx`). Regular expressions are case sensitive. Add `mention_only: true` to run a route only for posts that mention the Slack app, and use `channel: dm` for DMs (see "DMs and mentions" below).
+Keywords ignore case, full-width vs half-width characters, repeated spaces and a leading mention of the Slack app. A keyword of letters and digits does not match inside a word (`entry` does not match `entryx`). Regular expressions are case sensitive. Add `mention_only: true` to run a route only for posts that mention the Slack app, and use `channel: dm` for DMs (see "DMs and mentions" below). A route can also run when someone adds an emoji reaction to a post, instead of looking at the post's text: `reaction: eyes` (see "Reactions" below).
 
 Check it:
 
@@ -268,6 +268,36 @@ routes:
 - A mention in the middle of a thread never starts a rule; only top-level posts do.
 - DMs need the App Home **Messages tab** (with sending messages allowed), the `im:history` Bot Token scope and the `message.im` event. The bundled manifest has them; the rule page and Settings say when `im:history` is missing. `im:history` reads only DMs sent to the Slack app. Mentions need nothing new.
 
+## Reactions
+
+A rule can start from an emoji reaction instead of the post's text. Whoever reads a post decides to run the rule, so the post needs no keyword and can be another app's, such as an alert:
+
+```yaml
+routes:
+  - name: look-into
+    channel: C0123456789
+    reaction: mag               # someone adds :mag: (🔍) to a post in the channel
+    handler:
+      type: claude
+      cwd: ~/projects/infra
+      instructions: Look into the alert in this post and reply with the likely cause.
+
+  - name: ticket
+    channel: C0123456789
+    reaction: ticket
+    reaction_removed: true      # also runs when the reaction is gone from the post
+    handler: { type: command, cwd: ~/bin, command: ./ticket.sh }
+```
+
+- The emoji is given by the name Slack shows for it (`mag`, `:mag:` or a custom emoji's name). Skin tones are ignored, and another name of the same emoji works too (`thumbsup` is `+1`).
+- The rule runs on **top-level posts**, anyone's, once per post. More people adding the same reaction, adding it again, or a reaction on a reply in a thread do nothing; neither does a reaction on a post a rule already ran for. After it starts, the thread works like any other: SockDock replies in it and replies continue the conversation.
+- The person who reacts runs the rule, so `allowed_users` is about them, not about who wrote the post. Reactions from people a rule does not allow are ignored and not counted.
+- The post was not written to the handler. For an agent, say what to do in `instructions`.
+- With `reaction_removed: true` the rule runs again, in the same thread, when nobody who may run it has the reaction on the post any more (with no `allowed_users`: when everyone has removed it), and again each time it is added back. The handler is told which happened: a command handler gets `"reaction": {"name": "ticket", "user": "U0123ABCD", "action": "added"}` (or `"removed"`; `user` is who added it, or who removed it last) with the reacted post in `messages`, and an agent sees the same as `<slack_reaction … action="removed" />` before the post. A program that ignores `action` does the same thing twice.
+- SockDock's own reactions and posts never start a rule, so using `eyes` (the 👀 SockDock adds while it works) as a rule's emoji is safe: the count goes to 2 while the rule runs and back to 1.
+- Removing a reaction does not stop a run. A failed run is not retried by reacting again.
+- Reactions need the `reactions:read` Bot Token scope and the `reaction_added` and `reaction_removed` events. The bundled manifest has them; the rule page says when the scope is missing. `reactions:read` lets the Slack app see reactions in the channels and DMs it is in; SockDock reads a post only when a rule runs for it (with the history scopes it already has).
+
 ## Notifications by DM
 
 SockDock can also send its notices to you as Slack DMs, not only as Mac notifications. Register who you are in Slack once:
@@ -300,6 +330,7 @@ settings:
   secrets_file: secrets.env
   messages:                 # override canned replies; placeholders {route} {timeout_sec}
     timeout: "Timed out after {timeout_sec}s."
+    # timeout_reaction, interrupted_reaction: the same for a run a reaction started
   owner: U0123ABCD          # you, registered with a code (sockdock owner register)
   notify_dm: true           # notices by Slack DM to the owner
   notify_dm_failures: false # also a DM for every failed run
@@ -361,7 +392,7 @@ mise run gui-preview  # the GUI in a browser at http://localhost:8080 (no tray)
 mise run preview      # the same against a fake Slack, with sample rules; real data untouched
 ```
 
-`mise run preview` (`scripts/preview.sh`) keeps its data in `~/.cache/sockdock-preview`. `PREVIEW_RESET=1` starts over, `PREVIEW_NO_IM=1` plays a Slack app without `im:history`, `PREVIEW_NO_UPDATE=1` hides the fake newer version (v0.2.0) it otherwise offers, and `curl 'http://127.0.0.1:8766/dm?text=…'` sends a DM from the fake person.
+`mise run preview` (`scripts/preview.sh`) keeps its data in `~/.cache/sockdock-preview`. `PREVIEW_RESET=1` starts over, `PREVIEW_NO_IM=1` plays a Slack app without `im:history` (`PREVIEW_NO_REACTIONS=1`: without `reactions:read`), `PREVIEW_NO_UPDATE=1` hides the fake newer version (v0.2.0) it otherwise offers, `curl 'http://127.0.0.1:8766/dm?text=…'` sends a DM from the fake person, and `curl 'http://127.0.0.1:8766/react?name=mag'` adds their reaction to a post (`&removed=1` takes it off).
 
 To keep development away from your real config, set `SOCKDOCK_DATA_DIR` and `SOCKDOCK_CONFIG` (see the `[env]` section of `mise.toml`).
 

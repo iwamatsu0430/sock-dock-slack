@@ -27,6 +27,12 @@ export class Turn {
     "file_problem"?: string;
 
     /**
+     * Reaction is "added" or "removed" when a reaction, not a post or a
+     * reply, started the turn.
+     */
+    "reaction"?: string;
+
+    /**
      * Permalink is the thread's link (from the threads table).
      */
     "permalink"?: string;

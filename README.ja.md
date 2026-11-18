@@ -108,7 +108,7 @@ routes:
 | `match: '^deploy (?P<env>\w+)$'` | 正規表現（RE2）に一致する投稿 | 名前付きグループ |
 | `all_posts: true` | すべての投稿 | `text`: 投稿全体 |
 
-キーワードは、大文字と小文字、全角と半角、空白の数、先頭の Slack アプリへのメンションを区別しません。英数字のキーワードは単語の途中では一致しません（`entry` は `entryx` に一致しません）。正規表現は大文字と小文字を区別します。Slack アプリをメンションした投稿だけで動かすには `mention_only: true` を、DM で動かすには `channel: dm` を書きます（下の「DM とメンション」）。
+キーワードは、大文字と小文字、全角と半角、空白の数、先頭の Slack アプリへのメンションを区別しません。英数字のキーワードは単語の途中では一致しません（`entry` は `entryx` に一致しません）。正規表現は大文字と小文字を区別します。Slack アプリをメンションした投稿だけで動かすには `mention_only: true` を、DM で動かすには `channel: dm` を書きます（下の「DM とメンション」）。投稿の本文ではなく、投稿に付いたリアクションで動かすには `reaction: eyes` を書きます（下の「リアクション」）。
 
 確認します。
 
@@ -249,6 +249,36 @@ routes:
 - スレッドの途中のメンションでは、ルールは始まりません。始められるのはトップレベルの投稿だけです。
 - DM には、App Home の **Messages タブ**（メッセージを送れるようにする）、Bot Token のスコープ `im:history`、イベント `message.im` が要ります。同梱のマニフェストには入っています。`im:history` がないときは、ルールの画面と「設定」でそう表示します。`im:history` で読めるのは、Slack アプリへの DM だけです。メンションには何も足す必要はありません。
 
+## リアクション
+
+ルールは、投稿の本文の代わりに、投稿に付いたリアクション（絵文字）で始めることもできます。動かすかどうかを決めるのは、投稿を読んだ人です。投稿にキーワードは要らず、アラートのような、ほかのアプリの投稿でも動きます。
+
+```yaml
+routes:
+  - name: look-into
+    channel: C0123456789
+    reaction: mag               # チャンネルの投稿に :mag:（🔍）が付いたら動く
+    handler:
+      type: claude
+      cwd: ~/projects/infra
+      instructions: この投稿のアラートを調べて、原因の見当を返信する
+
+  - name: ticket
+    channel: C0123456789
+    reaction: ticket
+    reaction_removed: true      # リアクションが外れたときも動く
+    handler: { type: command, cwd: ~/bin, command: ./ticket.sh }
+```
+
+- 絵文字は、Slack に出る名前で書きます（`mag`、`:mag:`、カスタム絵文字の名前）。肌の色は区別せず、同じ絵文字の別の名前でも動きます（`thumbsup` は `+1` と同じ）。
+- 動くのは**トップレベルの投稿**で、誰の投稿でもよく、1 つの投稿につき 1 回です。ほかの人が同じリアクションを重ねても、付け直しても、スレッドの返信に付けても、何も起きません。すでにルールが動いた投稿でも同じです。始まったあとのスレッドは、ほかのルールと同じです。返信はそのスレッドに付き、続きはスレッドで話せます。
+- ルールを動かすのは、リアクションを付けた人です。`allowed_users` で決めるのも、投稿を書いた人ではなく、付けた人です。選ばれていない人のリアクションは無視し、数にも入れません。
+- 投稿は、ハンドラに宛てて書かれたものではありません。AI エージェントに何をさせるかは、`instructions` に書いてください。
+- `reaction_removed: true` を書くと、実行できる人のリアクションが投稿に 1 つも残っていないとき（`allowed_users` がなければ、全員が外したとき）に、同じスレッドでもう一度動きます。外れたあとに付け直すと、また動きます。どちらで動いたかは、ハンドラに伝わります。command 型には `"reaction": {"name": "ticket", "user": "U0123ABCD", "action": "added"}`（外れたときは `"removed"`。`user` は付けた人、または最後に外した人）が渡り、`messages` にはリアクションの付いていた投稿が入ります。AI エージェントには、同じ内容が投稿の前の `<slack_reaction … action="removed" />` で伝わります。`action` を見ないプログラムは、同じことを 2 回します。
+- SockDock 自身のリアクションと投稿では、ルールは始まりません。処理中に SockDock が付ける 👀（`eyes`）をルールの絵文字にしても大丈夫です。処理のあいだ 👀 の数が 2 になり、終わると 1 に戻ります。
+- リアクションを外しても、処理は止まりません。失敗した処理を、リアクションの付け直しでやり直すことはできません。
+- リアクションには、Bot Token のスコープ `reactions:read` と、イベント `reaction_added`・`reaction_removed` が要ります。同梱のマニフェストには入っています。スコープがないときは、ルールの画面でそう表示します。`reactions:read` で見えるのは、Slack アプリが参加しているチャンネルと DM のリアクションです。SockDock が投稿を読むのは、その投稿でルールが動くときだけです（今ある履歴のスコープで読みます）。
+
 ## DM での通知
 
 SockDock からのお知らせを、Mac の通知だけでなく、Slack の DM でも受け取れます。最初に一度、Slack での自分（本人）を登録します。
@@ -280,6 +310,7 @@ settings:
   secrets_file: secrets.env
   messages:                 # 定型文の上書き。{route} と {timeout_sec} が使える
     timeout: "{timeout_sec} 秒で打ち切りました。"
+    # timeout_reaction、interrupted_reaction: リアクションで始まった処理のときの文
   owner: U0123ABCD          # 本人。コードで登録する（sockdock owner register）
   notify_dm: true           # 本人への Slack の DM でも知らせる
   notify_dm_failures: false # 処理の失敗も DM で知らせる
@@ -341,7 +372,7 @@ mise run gui-preview  # GUI を http://localhost:8080 でブラウザに表示�
 mise run preview      # 同じ画面を、偽の Slack とサンプルのルールで表示する（本物のデータは触らない）
 ```
 
-`mise run preview`（`scripts/preview.sh`）のデータは `~/.cache/sockdock-preview` に置きます。`PREVIEW_RESET=1` でやり直し、`PREVIEW_NO_IM=1` で `im:history` のない Slack アプリになり、`PREVIEW_NO_UPDATE=1` で偽の新しい版（v0.2.0）を出さなくなります。`curl 'http://127.0.0.1:8766/dm?text=…'` で、偽の人からの DM を送れます。
+`mise run preview`（`scripts/preview.sh`）のデータは `~/.cache/sockdock-preview` に置きます。`PREVIEW_RESET=1` でやり直し、`PREVIEW_NO_IM=1` で `im:history` のない Slack アプリになり（`PREVIEW_NO_REACTIONS=1` は `reactions:read` がない場合）、`PREVIEW_NO_UPDATE=1` で偽の新しい版（v0.2.0）を出さなくなります。`curl 'http://127.0.0.1:8766/dm?text=…'` で、偽の人からの DM を送れます。`curl 'http://127.0.0.1:8766/react?name=mag'` で、その人が投稿にリアクションを付けます（`&removed=1` で外します）。
 
 開発中に本物の設定を触らないよう、`SOCKDOCK_DATA_DIR` と `SOCKDOCK_CONFIG` を設定できます（`mise.toml` の `[env]` を参照）。
 

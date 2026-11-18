@@ -19,12 +19,16 @@ import (
 type fake struct {
 	claude *bool
 	heard  []string
-	turns  []store.Turn
-	down   bool
-	rules  []control.RuleInfo
-	saved  *rules.Form
-	order  *control.OrderRequest
-	paused map[string]bool
+	// heardReactions are the channels whose reactions arrived; noReactions
+	// simulates a Slack app without reactions:read.
+	heardReactions []string
+	noReactions    bool
+	turns          []store.Turn
+	down           bool
+	rules          []control.RuleInfo
+	saved          *rules.Form
+	order          *control.OrderRequest
+	paused         map[string]bool
 	// noUsers simulates a Slack app without users:read.
 	noUsers bool
 	// owner is the registered owner's member ID ("" for none).
@@ -45,7 +49,11 @@ func (f *fake) err() error {
 	return nil
 }
 func (f *fake) Status(context.Context) (gateway.Status, error) {
-	return gateway.Status{Connected: true, Identity: slackio.Identity{Team: "acme"}, Heard: f.heard}, f.err()
+	st := gateway.Status{Connected: true, Identity: slackio.Identity{Team: "acme"}, Heard: f.heard, HeardReactions: f.heardReactions}
+	if f.noReactions {
+		st.Scopes = []string{"chat:write"}
+	}
+	return st, f.err()
 }
 func (f *fake) Rules(context.Context) ([]control.RuleInfo, error) { return f.rules, f.err() }
 func (f *fake) CheckClaude(context.Context, bool) (*bool, error)  { return f.claude, f.err() }
@@ -426,5 +434,70 @@ func TestDMRuleAndMention(t *testing.T) {
 	call(t, cs, "sockdock_get_status", nil, &st)
 	if st.Owner == nil || st.Owner.ID != "U01TARO" || !st.DMNotices {
 		t.Errorf("status owner = %+v", st)
+	}
+}
+
+func TestReactionRule(t *testing.T) {
+	f := sample()
+	cs := connect(t, f)
+
+	var out SaveOut
+	call(t, cs, "sockdock_save_rule", map[string]any{"channel": "C0123ASK", "condition_type": "reaction", "keyword": "mag", "reaction_removed": true, "runs": "agent", "folder": "~/app"}, &out)
+	if !out.OK || f.saved == nil || f.saved.Trigger != "reaction" || f.saved.Keyword != "mag" || !f.saved.ReactionRemoved {
+		t.Fatalf("save: %+v %+v", out, f.saved)
+	}
+	// What only one kind of condition has is refused on the other.
+	f.saved = nil
+	call(t, cs, "sockdock_save_rule", map[string]any{"channel": "C0123ASK", "keyword": "go", "reaction_removed": true, "runs": "agent", "folder": "~/app"}, &out)
+	if out.OK || f.saved != nil || len(out.Problems) != 1 || out.Problems[0].Field != "reaction_removed" {
+		t.Errorf("reaction_removed on a keyword rule: %+v", out)
+	}
+	call(t, cs, "sockdock_save_rule", map[string]any{"channel": "C0123ASK", "condition_type": "reaction", "keyword": "mag", "mention_only": true, "runs": "agent", "folder": "~/app"}, &out)
+	if out.OK || f.saved != nil || len(out.Problems) != 1 || out.Problems[0].Field != "mention_only" {
+		t.Errorf("mention_only on a reaction rule: %+v", out)
+	}
+
+	f.rules = append(f.rules, control.RuleInfo{Row: rules.Row{Form: rules.Form{Name: "r", OriginalName: "r", Channel: "C0123ASK", Trigger: "reaction",
+		Keyword: ":mag:", ReactionRemoved: true, Type: "command", Folder: "~/app", Program: "/bin/echo"}}, ChannelName: "#ask"})
+	finding := func(check string) *Finding {
+		var c CheckOut
+		call(t, cs, "sockdock_check_rule", map[string]any{"name": "r"}, &c)
+		for _, x := range c.Findings {
+			if x.Check == check {
+				return &x
+			}
+		}
+		return nil
+	}
+	// Posts arriving say nothing about a reaction rule; reactions do.
+	f.heard = []string{"C0123ASK"}
+	if x := finding("reactions arrive"); x == nil || x.OK || !strings.Contains(x.Message, "reaction_added") {
+		t.Errorf("no reactions yet: %+v", x)
+	}
+	if x := finding("posts arrive"); x != nil {
+		t.Errorf("a reaction rule was checked for posts: %+v", x)
+	}
+	f.heardReactions = []string{"C0123ASK"}
+	if x := finding("reactions arrive"); x == nil || !x.OK {
+		t.Errorf("reactions arrived: %+v", x)
+	}
+	if x := finding("reaction"); x == nil || !strings.Contains(x.Message, ":mag:") || !strings.Contains(x.Message, "removed") {
+		t.Errorf("what the rule does: %+v", x)
+	}
+	f.noReactions = true
+	if x := finding("reaction scope"); x == nil || x.OK || !strings.Contains(x.Message, "reactions:read") {
+		t.Errorf("without reactions:read: %+v", x)
+	}
+
+	f.noReactions = false
+	var list RulesOut
+	call(t, cs, "sockdock_list_rules", nil, &list)
+	for _, r := range list.Rules {
+		switch {
+		case r.Name == "r" && (r.ReactionsArrived == nil || !*r.ReactionsArrived || !r.ReactionRemoved || r.Condition.Keyword != ":mag:"):
+			t.Errorf("reaction rule in the list: %+v", r)
+		case r.Name != "r" && r.ReactionsArrived != nil:
+			t.Errorf("%s: reactions_arrived on a keyword rule", r.Name)
+		}
 	}
 }

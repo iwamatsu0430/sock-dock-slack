@@ -27,12 +27,15 @@ oauth_config:
       - users:read      # lets you choose who can run a rule by name
       - im:history      # receives DMs sent to the app (DM rules, registering yourself)
       - files:read      # hands files attached to a post to the rule that runs
+      - reactions:read  # receives reactions people add to posts (rules that run on a reaction)
 settings:
   event_subscriptions:
     bot_events:
       - message.channels
       - message.groups
       - message.im
+      - reaction_added
+      - reaction_removed
   interactivity:
     is_enabled: false
   org_deploy_enabled: false

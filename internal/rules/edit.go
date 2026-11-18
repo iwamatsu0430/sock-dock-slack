@@ -216,7 +216,7 @@ func List(raw *config.Config, off func(name string) bool) []Row {
 		if row.Problem == nil && !row.Off {
 			for j, e := range raw.Routes[:i] {
 				if !out[j].Off && out[j].Problem == nil && config.ShadowedBy(e, r) {
-					row.ShadowedBy = &Condition{Trigger: e.Kind(), Keyword: e.Pattern()}
+					row.ShadowedBy = &Condition{Trigger: e.Kind(), Keyword: DisplayPattern(e)}
 					break
 				}
 			}
