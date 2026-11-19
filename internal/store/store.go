@@ -44,6 +44,9 @@ type Thread struct {
 	Turns        int               `json:"turns"`
 	CreatedAt    time.Time         `json:"created_at"`
 	LastActiveAt time.Time         `json:"last_active_at"`
+	// Reaction is "" for a thread started by a post's text. For one started
+	// by a reaction it is what the rule last ran for: "added" or "removed".
+	Reaction string `json:"reaction,omitempty"`
 }
 
 // Turn is one handler run.
@@ -61,6 +64,9 @@ type Turn struct {
 	// FileProblem is FileProblemMissingScope when attached files could not
 	// be handed over because the Slack app lacks files:read.
 	FileProblem string `json:"file_problem,omitempty"`
+	// Reaction is "added" or "removed" when a reaction, not a post or a
+	// reply, started the turn.
+	Reaction string `json:"reaction,omitempty"`
 	// Permalink is the thread's link (from the threads table).
 	Permalink string `json:"permalink,omitempty"`
 }
@@ -116,9 +122,11 @@ func Open(path string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
-	if err := addColumn(db, "turns", "file_problem", "TEXT NOT NULL DEFAULT ''"); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("migrate: %w", err)
+	for _, c := range [][2]string{{"turns", "file_problem"}, {"turns", "reaction"}, {"threads", "reaction"}} {
+		if err := addColumn(db, c[0], c[1], "TEXT NOT NULL DEFAULT ''"); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("migrate: %w", err)
+		}
 	}
 	return &Store{db: db, now: time.Now}, nil
 }
@@ -140,18 +148,42 @@ func (s *Store) MarkSeen(ctx context.Context, channel, ts string) (bool, error) 
 
 // BindThread stores a new thread binding. An existing binding is kept.
 func (s *Store) BindThread(ctx context.Context, t Thread) error {
+	_, err := s.BindThreadIfNew(ctx, t)
+	return err
+}
+
+// BindThreadIfNew is BindThread, and reports whether the binding is new:
+// false means the thread already belonged to a route.
+func (s *Store) BindThreadIfNew(ctx context.Context, t Thread) (bool, error) {
 	g, _ := json.Marshal(t.Groups)
 	now := s.now().Unix()
-	_, err := s.db.ExecContext(ctx,
-		`INSERT OR IGNORE INTO threads(channel, thread_ts, route, groups_json, created_at, last_active_at)
-		 VALUES (?, ?, ?, ?, ?, ?)`, t.Channel, t.ThreadTS, t.Route, string(g), now, now)
-	return err
+	res, err := s.db.ExecContext(ctx,
+		`INSERT OR IGNORE INTO threads(channel, thread_ts, route, groups_json, created_at, last_active_at, reaction)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`, t.Channel, t.ThreadTS, t.Route, string(g), now, now, t.Reaction)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	return n == 1, err
+}
+
+// SetThreadReaction moves a thread's reaction state from one value to
+// another. It reports false when the state was not from, so only one of two
+// events that arrive together gets through.
+func (s *Store) SetThreadReaction(ctx context.Context, channel, threadTS, from, to string) (bool, error) {
+	res, err := s.db.ExecContext(ctx, `UPDATE threads SET reaction = ? WHERE channel = ? AND thread_ts = ? AND reaction = ?`,
+		to, channel, threadTS, from)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	return n == 1, err
 }
 
 // GetThread returns the binding for a thread, or nil if there is none.
 func (s *Store) GetThread(ctx context.Context, channel, threadTS string) (*Thread, error) {
 	row := s.db.QueryRowContext(ctx, `SELECT channel, thread_ts, route, groups_json, session_id, permalink,
-		turns, created_at, last_active_at FROM threads WHERE channel = ? AND thread_ts = ?`, channel, threadTS)
+		turns, created_at, last_active_at, reaction FROM threads WHERE channel = ? AND thread_ts = ?`, channel, threadTS)
 	t, err := scanThread(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -172,7 +204,7 @@ func (s *Store) UpdateThreadAfterTurn(ctx context.Context, channel, threadTS, se
 // ListThreads returns the most recently active threads.
 func (s *Store) ListThreads(ctx context.Context, limit int) ([]Thread, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT channel, thread_ts, route, groups_json, session_id, permalink,
-		turns, created_at, last_active_at FROM threads ORDER BY last_active_at DESC LIMIT ?`, limit)
+		turns, created_at, last_active_at, reaction FROM threads ORDER BY last_active_at DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -191,8 +223,8 @@ func (s *Store) ListThreads(ctx context.Context, limit int) ([]Thread, error) {
 // StartTurn records a running turn and returns its id.
 func (s *Store) StartTurn(ctx context.Context, t Turn) (int64, error) {
 	ts, _ := json.Marshal(t.MessageTS)
-	res, err := s.db.ExecContext(ctx, `INSERT INTO turns(channel, thread_ts, message_ts, route, status, started_at)
-		VALUES (?, ?, ?, ?, ?, ?)`, t.Channel, t.ThreadTS, string(ts), t.Route, StatusRunning, s.now().Unix())
+	res, err := s.db.ExecContext(ctx, `INSERT INTO turns(channel, thread_ts, message_ts, route, status, started_at, reaction)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`, t.Channel, t.ThreadTS, string(ts), t.Route, StatusRunning, s.now().Unix(), t.Reaction)
 	if err != nil {
 		return 0, err
 	}
@@ -229,7 +261,7 @@ func (s *Store) ListRouteTurns(ctx context.Context, route string, limit int) ([]
 
 func (s *Store) queryTurns(ctx context.Context, tail string, args ...any) ([]Turn, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id, channel, thread_ts, message_ts, route, status, error,
-		started_at, finished_at, cost_usd, file_problem, COALESCE((SELECT permalink FROM threads th
+		started_at, finished_at, cost_usd, file_problem, reaction, COALESCE((SELECT permalink FROM threads th
 		WHERE th.channel = turns.channel AND th.thread_ts = turns.thread_ts), '') FROM turns `+tail, args...)
 	if err != nil {
 		return nil, err
@@ -244,7 +276,7 @@ func (s *Store) queryTurns(ctx context.Context, tail string, args ...any) ([]Tur
 			finished sql.NullInt64
 		)
 		if err := rows.Scan(&t.ID, &t.Channel, &t.ThreadTS, &msgTS, &t.Route, &t.Status, &t.Error,
-			&started, &finished, &t.CostUSD, &t.FileProblem, &t.Permalink); err != nil {
+			&started, &finished, &t.CostUSD, &t.FileProblem, &t.Reaction, &t.Permalink); err != nil {
 			return nil, err
 		}
 		_ = json.Unmarshal([]byte(msgTS), &t.MessageTS)
@@ -297,7 +329,7 @@ func scanThread(sc scanner) (*Thread, error) {
 		created, active int64
 	)
 	if err := sc.Scan(&t.Channel, &t.ThreadTS, &t.Route, &groups, &t.SessionID, &t.Permalink,
-		&t.Turns, &created, &active); err != nil {
+		&t.Turns, &created, &active, &t.Reaction); err != nil {
 		return nil, err
 	}
 	_ = json.Unmarshal([]byte(groups), &t.Groups)

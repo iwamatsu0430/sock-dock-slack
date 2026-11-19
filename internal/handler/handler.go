@@ -15,6 +15,19 @@ type Input struct {
 	Permalink string            `json:"permalink"`
 	Groups    map[string]string `json:"groups"`
 	Messages  []InputMessage    `json:"messages"`
+	// Reaction is set when a reaction on the post in Messages started the
+	// run, instead of a new post or reply.
+	Reaction *InputReaction `json:"reaction,omitempty"`
+}
+
+// InputReaction is the reaction that started a run.
+type InputReaction struct {
+	// Name is the emoji name without colons ("eyes").
+	Name string `json:"name"`
+	// User is who added it; for "removed", who removed it last.
+	User string `json:"user"`
+	// Action is "added" or "removed".
+	Action string `json:"action"`
 }
 
 // InputMessage is one Slack message handed to a handler.
@@ -24,6 +37,9 @@ type InputMessage struct {
 	Text string `json:"text"`
 	// Files are the files attached to the message.
 	Files []InputFile `json:"files,omitempty"`
+	// Reaction is set when the message is here because of a reaction on
+	// it. Programs read Input.Reaction; agents are told per message.
+	Reaction *InputReaction `json:"-"`
 }
 
 // InputFile is an attached file. Path is set when the file was saved for this

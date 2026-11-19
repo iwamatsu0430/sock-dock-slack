@@ -24,9 +24,13 @@ type Form struct {
 	// Channel is a channel ID or a pasted channel link.
 	Channel string `json:"channel"`
 	// Trigger is the condition kind: "starts_with", "contains", "match" (a
-	// regex) or "all_posts". Keyword is the keyword or the regex.
+	// regex), "all_posts" or "reaction". Keyword is the keyword, the regex
+	// or, for a reaction, the emoji name with its colons (":eyes:").
 	Trigger string `json:"trigger"`
 	Keyword string `json:"keyword"`
+	// ReactionRemoved also runs a reaction rule when the reaction is gone
+	// from the post ("リアクションが外れたときにも実行").
+	ReactionRemoved bool `json:"reaction_removed"`
 	// MentionOnly limits the rule to posts that mention the Slack app
 	// ("メンションされたときだけ"). Not used for DM rules.
 	MentionOnly bool `json:"mention_only"`
@@ -87,10 +91,11 @@ func ToForm(r *config.Route) Form {
 		Restricted: r.Restricted(), AllowedUsers: append([]string{}, r.AllowedUsers...),
 		MentionOnly: r.MentionOnly,
 	}
-	f.Trigger, f.Keyword = r.Kind(), r.Pattern()
+	f.Trigger, f.Keyword = r.Kind(), DisplayPattern(r)
 	if f.Trigger == "" {
 		f.Trigger = config.KindStartsWith
 	}
+	f.ReactionRemoved = r.ReactionRemoved && f.Trigger == config.KindReaction
 	if h.Type == config.TypeCommand && len(h.Command) > 0 {
 		f.Program = h.Command[0]
 		f.Args = JoinArgs(h.Command[1:])
@@ -131,7 +136,10 @@ func FromForm(f Form, base *config.Route) *config.Route {
 	r.Name = strings.TrimSpace(f.Name)
 	r.Channel = NormalizeChannel(f.Channel)
 	r.StartsWith, r.Contains, r.Match, r.AllPosts = "", "", "", false
+	r.Reaction, r.ReactionRemoved = "", false
 	switch f.Trigger {
+	case config.KindReaction:
+		r.Reaction, r.ReactionRemoved = config.NormalizeReaction(f.Keyword), f.ReactionRemoved
 	case config.KindStartsWith:
 		r.StartsWith = strings.TrimSpace(f.Keyword)
 	case config.KindContains:
@@ -141,7 +149,7 @@ func FromForm(f Form, base *config.Route) *config.Route {
 	case config.KindAllPosts:
 		r.AllPosts = true
 	}
-	r.MentionOnly = f.MentionOnly && r.Channel != config.ChannelDM
+	r.MentionOnly = f.MentionOnly && r.Channel != config.ChannelDM && f.Trigger != config.KindReaction
 	r.AllowedUsers = nil
 	if f.Restricted {
 		r.AllowedUsers = cleanUsers(f.AllowedUsers)
@@ -227,6 +235,12 @@ func Validate(f Form, raw *config.Config) []FieldProblem {
 		} else if _, err := regexp.Compile(kw); err != nil {
 			add("keyword", "bad_regex", err.Error())
 		}
+	case config.KindReaction:
+		if kw == "" {
+			add("keyword", "required", "")
+		} else if name := config.NormalizeReaction(kw); name == "" || strings.ContainsAny(name, ": \t\n") {
+			add("keyword", "bad_reaction", "")
+		}
 	case config.KindAllPosts:
 	default:
 		add("trigger", "required", "")
@@ -287,6 +301,15 @@ func Validate(f Form, raw *config.Config) []FieldProblem {
 		add("type", "required", "")
 	}
 	return ps
+}
+
+// DisplayPattern is a route's keyword, regex or emoji as forms and lists show
+// it: an emoji name gets its colons back (":eyes:").
+func DisplayPattern(r *config.Route) string {
+	if r.Kind() == config.KindReaction {
+		return ":" + r.Pattern() + ":"
+	}
+	return r.Pattern()
 }
 
 // cleanUsers trims member IDs and drops blanks and repeats, keeping the order.

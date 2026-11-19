@@ -7,9 +7,11 @@
 #   PREVIEW_RESET=1 scripts/preview.sh # start over with the sample rules
 #   PREVIEW_NO_IM=1 scripts/preview.sh # a Slack app without im:history
 #   PREVIEW_NO_FILES=1 scripts/preview.sh # a Slack app without files:read
+#   PREVIEW_NO_REACTIONS=1 scripts/preview.sh # a Slack app without reactions:read
 #   PREVIEW_UPDATE=github scripts/preview.sh # find the real latest release (after a minute)
 #   curl 'http://127.0.0.1:8766/dm?text=todo%20look&file=app.log'  # a DM with a file
 #   curl 'http://127.0.0.1:8766/dm?text=123456'   # a DM from 田中 太郎
+#   curl 'http://127.0.0.1:8766/react?name=mag'   # 田中 太郎 adds :mag: to an alert in #dev-help
 #
 # The data lives in ~/.cache/sockdock-preview (a short path: the control
 # socket's path must fit in about 100 bytes).

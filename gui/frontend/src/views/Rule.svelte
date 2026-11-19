@@ -12,7 +12,7 @@
 
   const blank = (): RouteForm =>
     ({
-      original_name: "", name: "", channel: "", trigger: "starts_with", keyword: "", mention_only: false, restricted: false, allowed_users: [],
+      original_name: "", name: "", channel: "", trigger: "starts_with", keyword: "", reaction_removed: false, mention_only: false, restricted: false, allowed_users: [],
       type: "claude", folder: "",
       instructions: "", allow_web: false, allow_edit: false, commands: [], other_tools: [], model: "", prompt_file: "",
       program: "", args: "", timeout_sec: 0,
@@ -173,10 +173,17 @@
   const problem = (field: string) => problemText(problems.find((p) => p.field === field));
   // SockDock knows which channels' posts reached it since it connected; when
   // this rule's channel has none, the problem is delivery, not the condition.
+  // A reaction rule needs the channel's reactions, not its posts.
   const notHeard = $derived(
-    !!live.snap?.status?.connected && !!saved.channel && !(live.snap?.status?.heard ?? []).includes(saved.channel),
+    !!live.snap?.status?.connected && !!saved.channel &&
+      !((saved.trigger === "reaction" ? live.snap?.status?.heard_reactions : live.snap?.status?.heard) ?? []).includes(saved.channel),
   );
-  const triggers = ["starts_with", "contains", "match", "all_posts"];
+  const triggers = ["starts_with", "contains", "match", "all_posts", "reaction"];
+  const isReaction = $derived(f.trigger === "reaction");
+  const reactionHelp = $derived(
+    t(`rule.reaction${f.reaction_removed ? "Removed" : ""}Help${isDM ? "DM" : ""}` as MessageKey) +
+      (f.reaction_removed ? (i18n.locale === "ja" ? "" : " ") + t(isAgent ? "rule.reactionToldAgent" : "rule.reactionToldProgram") : ""),
+  );
   const channelShown = $derived(
     (() => {
       if (saved.channel === "dm") return t("rule.channelDM");
@@ -204,7 +211,8 @@
     const out = { ...$state.snapshot(f) } as RouteForm;
     out.commands = commandsText.split("\n").map((x) => x.trim()).filter(Boolean);
     out.allowed_users = people.map((p) => p.id);
-    if (out.channel === "dm") out.mention_only = false;
+    if (out.channel === "dm" || out.trigger === "reaction") out.mention_only = false;
+    if (out.trigger !== "reaction") out.reaction_removed = false;
     if (out.type === "command" && (!out.folder || out.program !== loadedProgram)) {
       // A new program runs in its own folder (an existing cwd is kept).
       const p = out.program.trim();
@@ -327,12 +335,15 @@
         </select>
         {#if f.trigger !== "all_posts"}
           <input type="text" class="kw" class:mono={f.trigger === "match"} bind:value={f.keyword} class:invalid={problem("keyword")}
-            placeholder={f.trigger === "match" ? t("rule.regexPlaceholder") : t("rule.keywordPlaceholder")} />
+            placeholder={f.trigger === "match" ? t("rule.regexPlaceholder") : isReaction ? ":eyes:" : t("rule.keywordPlaceholder")} />
         {/if}
       </div>
-      {#if !isDM}<label class="check"><input type="checkbox" bind:checked={f.mention_only} /> {t("rule.mentionOnly")}</label>{/if}
+      {#if isReaction}<label class="check"><input type="checkbox" bind:checked={f.reaction_removed} /> {t("rule.reactionRemoved")}</label>
+      {:else if !isDM}<label class="check"><input type="checkbox" bind:checked={f.mention_only} /> {t("rule.mentionOnly")}</label>{/if}
+      {#if f.trigger !== "all_posts" && problem("keyword")}<p class="small bad-t">{problem("keyword")}</p>{/if}
       {#if f.trigger === "all_posts"}<p class="small muted">{isDM ? t("rule.allPostsDMHelp") : f.mention_only ? t("rule.allPostsMentionHelp") : t("rule.allPostsHelp")}</p>
-      {:else if problem("keyword")}<p class="small bad-t">{problem("keyword")}</p>{/if}
+      {:else if isReaction && !hasScope(live.snap, "reactions:read")}<p class="small bad-t"><Rich key="rule.reactionNoScope" /></p>
+      {:else if isReaction}<p class="small muted">{reactionHelp}</p>{/if}
     </div>
   </div>
 
@@ -410,13 +421,21 @@
   {#if name && saved.trigger && !turns.length}
     <div class="runs">
       <h2>{t("runs.title")}</h2>
-      <p class="small muted">{t(`${saved.channel === "dm" ? "runs.emptyDM" : saved.mention ? "runs.emptyMention" : "runs.empty"}.${saved.trigger}` as MessageKey, { channel: channelShown, keyword: saved.keyword })}</p>
+      {#if saved.trigger === "reaction"}
+        <p class="small muted">{t(saved.channel === "dm" ? "runs.emptyReactionDM" : "runs.emptyReaction", { channel: channelShown, keyword: saved.keyword })}</p>
+      {:else}
+        <p class="small muted">{t(`${saved.channel === "dm" ? "runs.emptyDM" : saved.mention ? "runs.emptyMention" : "runs.empty"}.${saved.trigger}` as MessageKey, { channel: channelShown, keyword: saved.keyword })}</p>
+      {/if}
       {#if notHeard}
-        <p class="small bad-t heard">{saved.channel === "dm" ? t("runs.notHeardDM") : t("runs.notHeard")}</p>
+        <p class="small bad-t heard">{t(`runs.notHeard${saved.trigger === "reaction" ? "Reaction" : ""}${saved.channel === "dm" ? "DM" : ""}` as MessageKey)}</p>
         <details class="hint small">
           <summary>{t("runs.notHeardHelp")}</summary>
           <ul>
-            {#if saved.channel === "dm"}
+            {#if saved.trigger === "reaction"}
+              {#if saved.channel !== "dm"}<li>{t("runs.checkInvite")}</li>{/if}
+              <li>{t("runs.checkSameApp")}</li>
+              <li><Rich key="runs.checkEventsReaction" /></li>
+            {:else if saved.channel === "dm"}
               <li>{t("runs.checkMessagesTab")}</li>
               <li>{t("runs.checkSameApp")}</li>
               <li><Rich key="runs.checkEventsDM" /></li>

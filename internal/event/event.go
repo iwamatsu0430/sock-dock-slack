@@ -14,7 +14,34 @@ type Message struct {
 	ChannelType string `json:"channel_type,omitempty"`
 	// Files are the files attached to the message.
 	Files []File `json:"files,omitempty"`
+	// Reaction is set when the message is handed over because of a
+	// reaction on it, not because it was just posted.
+	Reaction *Reaction `json:"reaction,omitempty"`
 }
+
+// Reaction is an emoji reaction someone added to or removed from a message.
+type Reaction struct {
+	// Name is the emoji name without colons or skin tone ("eyes").
+	Name string `json:"name"`
+	// User is who added it or, for Removed, who removed it.
+	User string `json:"user"`
+	// Removed is false when the reaction was added.
+	Removed bool `json:"removed,omitempty"`
+}
+
+// ReactionEvent is a reaction_added or reaction_removed event on a message.
+type ReactionEvent struct {
+	Channel string
+	// TS is the message the reaction is on.
+	TS string
+	// ItemUser wrote that message ("" for some app posts).
+	ItemUser string
+	Reaction
+}
+
+// IsIM reports whether the reaction is on a message in a DM with the Slack
+// app. Reaction events carry no channel type, so the channel ID decides.
+func (e ReactionEvent) IsIM() bool { return len(e.Channel) > 0 && e.Channel[0] == 'D' }
 
 // File is a file attached to a message, as Slack describes it in the event.
 type File struct {

@@ -209,7 +209,7 @@ func (a *AppService) channelLabel(id string) string {
 }
 
 // ruleLabel is how menus and notifications name a rule: #channel「keyword」,
-// #channel /regex/, or #channel for all posts.
+// #channel /regex/, #channel :emoji:, or #channel for all posts.
 func (a *AppService) ruleLabel(r *config.Route) string {
 	ch := a.channelLabel(r.Channel)
 	switch r.Kind() {
@@ -217,6 +217,8 @@ func (a *AppService) ruleLabel(r *config.Route) string {
 		return a.tr("label.keyword", ch, r.Pattern())
 	case config.KindMatch:
 		return a.tr("label.regex", ch, r.Match)
+	case config.KindReaction:
+		return ch + " :" + r.Pattern() + ":"
 	}
 	return ch
 }

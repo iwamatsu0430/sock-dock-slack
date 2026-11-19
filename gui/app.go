@@ -346,12 +346,15 @@ oauth_config:
       - users:read
       - im:history
       - files:read
+      - reactions:read
 settings:
   event_subscriptions:
     bot_events:
       - message.channels
       - message.groups
       - message.im
+      - reaction_added
+      - reaction_removed
   socket_mode_enabled: true
 `
 

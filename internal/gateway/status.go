@@ -29,6 +29,8 @@ type Status struct {
 	// Heard lists the channels whose posts have reached SockDock since it
 	// started.
 	Heard []string `json:"heard"`
+	// HeardReactions lists the channels whose reactions have.
+	HeardReactions []string `json:"heard_reactions"`
 	// ClaudeSignedIn is whether Claude Code is signed in, when known.
 	ClaudeSignedIn *bool `json:"claude_signed_in,omitempty"`
 	// SignedIn is whether each agent that a rule runs is signed in, by
@@ -105,6 +107,11 @@ func (g *Gateway) Status(pid int) Status {
 		s.Heard = append(s.Heard, ch)
 	}
 	sort.Strings(s.Heard)
+	s.HeardReactions = []string{}
+	for ch := range g.heardReactions {
+		s.HeardReactions = append(s.HeardReactions, ch)
+	}
+	sort.Strings(s.HeardReactions)
 	s.ClaudeSignedIn = g.claudeSignedInLocked()
 	s.SignedIn = g.signedInMapLocked()
 	s.Scopes = g.scopes

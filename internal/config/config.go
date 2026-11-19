@@ -93,6 +93,11 @@ type Messages struct {
 	RouteMissing string `yaml:"route_missing"`
 	RoutePaused  string `yaml:"route_paused"`
 	ResumeFailed string `yaml:"resume_failed"`
+	// TimeoutReaction and InterruptedReaction replace Timeout and
+	// Interrupted for a run started by a reaction: whoever reads them did
+	// not write the post, so they are not asked to send it again.
+	TimeoutReaction     string `yaml:"timeout_reaction"`
+	InterruptedReaction string `yaml:"interrupted_reaction"`
 
 	// Sent to the owner by DM.
 	WrongCode       string `yaml:"wrong_code"`
@@ -106,8 +111,8 @@ type Messages struct {
 }
 
 // Route binds a condition on top-level posts in a channel to a handler. The
-// condition is exactly one of StartsWith, Contains, Match (a regex) and
-// AllPosts (see match.go).
+// condition is exactly one of StartsWith, Contains, Match (a regex),
+// AllPosts and Reaction (see match.go).
 type Route struct {
 	Name       string `yaml:"name"`
 	Channel    string `yaml:"channel"`
@@ -115,6 +120,12 @@ type Route struct {
 	Contains   string `yaml:"contains"`
 	Match      string `yaml:"match"`
 	AllPosts   bool   `yaml:"all_posts"`
+	// Reaction is an emoji name ("eyes"): the route runs when someone adds
+	// that reaction to a top-level post, whoever wrote the post.
+	Reaction string `yaml:"reaction"`
+	// ReactionRemoved also runs the route when the reaction is gone from a
+	// post it ran for ("リアクションが外れたときにも実行").
+	ReactionRemoved bool `yaml:"reaction_removed"`
 	// MentionOnly limits the route to posts that mention the Slack app
 	// ("メンションされたときだけ").
 	MentionOnly bool `yaml:"mention_only"`
@@ -195,6 +206,9 @@ var defaultMessages = map[string]Messages{
 		RoutePaused:  "⏸ The rule for this thread is turned off.",
 		ResumeFailed: "ℹ️ Couldn't pick up the previous conversation, so this started a new one.",
 
+		TimeoutReaction:     "⏱ Stopped because it ran past the time limit ({timeout_sec} seconds).",
+		InterruptedReaction: "⚠️ Stopped because SockDock quit while this was running.",
+
 		WrongCode:       "⚠️ That code isn't right.",
 		Registered:      "✅ You're registered. Notices from SockDock will come to this DM.",
 		ClaudeSignedOut: "⚠️ Claude Code isn't signed in, so AI agent rules can't run. Sign in from SockDock on the Mac.",
@@ -211,6 +225,9 @@ var defaultMessages = map[string]Messages{
 		RouteMissing: "⚠️ このスレッドのルールは削除されています。",
 		RoutePaused:  "⏸ このスレッドのルールはオフになっています。",
 		ResumeFailed: "ℹ️ 前の会話を引き継げなかったため、新しい会話として始めました。",
+
+		TimeoutReaction:     "⏱ 上限時間（{timeout_sec} 秒）を超えたため停止しました。",
+		InterruptedReaction: "⚠️ 処理の途中で SockDock が終了したため、停止しました。",
 
 		WrongCode:       "⚠️ コードが違います。",
 		Registered:      "✅ 登録しました。SockDock からのお知らせは、この DM に届きます。",
@@ -352,6 +369,7 @@ func (c *Config) applyDefaults() {
 	}{
 		{&m.Timeout, d.Timeout}, {&m.Error, d.Error}, {&m.Stopped, d.Stopped}, {&m.Interrupted, d.Interrupted},
 		{&m.RouteMissing, d.RouteMissing}, {&m.RoutePaused, d.RoutePaused}, {&m.ResumeFailed, d.ResumeFailed},
+		{&m.TimeoutReaction, d.TimeoutReaction}, {&m.InterruptedReaction, d.InterruptedReaction},
 		{&m.WrongCode, d.WrongCode}, {&m.Registered, d.Registered}, {&m.ClaudeSignedOut, d.ClaudeSignedOut}, {&m.CodexSignedOut, d.CodexSignedOut},
 		{&m.RuleChangedMCP, d.RuleChangedMCP}, {&m.RunFailed, d.RunFailed}, {&m.UpdateAvailable, d.UpdateAvailable},
 	} {
@@ -466,6 +484,7 @@ func (c *Config) prepare(lookupEnv func(string) (string, bool)) (global []string
 		r.StartsWith = ex("starts_with", r.StartsWith)
 		r.Contains = ex("contains", r.Contains)
 		r.Match = ex("match", r.Match)
+		r.Reaction = ex("reaction", r.Reaction)
 		h.Prompt = ex("prompt", h.Prompt)
 		h.Model = ex("model", h.Model)
 		for j := range h.Command {
@@ -486,6 +505,14 @@ func (c *Config) prepare(lookupEnv func(string) (string, bool)) (global []string
 		}
 		if p := r.conditionProblem(); p != "" {
 			add("%s: %s", label, p)
+		}
+		if r.Kind() == KindReaction {
+			r.Reaction = NormalizeReaction(r.Reaction)
+			if r.MentionOnly {
+				add("%s: mention_only can't be used with reaction (adding the reaction is what asks the Slack app)", label)
+			}
+		} else if r.ReactionRemoved {
+			add("%s: reaction_removed needs reaction", label)
 		}
 		if r.AllowedUsers != nil && len(r.AllowedUsers) == 0 {
 			add("%s: allowed_users is empty; list member IDs, or remove the key to let everyone in the channel run it", label)

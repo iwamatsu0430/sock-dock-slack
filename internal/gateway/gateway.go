@@ -71,12 +71,14 @@ type Gateway struct {
 	stops   map[int64]context.CancelFunc
 	stopped map[int64]bool
 	paused  map[string]bool
-	// heard holds channels whose posts reached SockDock since it started.
-	heard   map[string]bool
-	auth    map[string]*claudeAuth // by agent type (claude.go)
-	subs    map[chan Event]struct{}
-	started time.Time
-	ident   slackio.Identity
+	// heard holds channels whose posts reached SockDock since it started;
+	// heardReactions those whose reactions did.
+	heard          map[string]bool
+	heardReactions map[string]bool
+	auth           map[string]*claudeAuth // by agent type (claude.go)
+	subs           map[chan Event]struct{}
+	started        time.Time
+	ident          slackio.Identity
 	// scopes are the Bot Token's scopes (nil when unknown).
 	scopes []string
 	// reg is the owner registration in progress; ownerDM is the owner's DM
@@ -162,7 +164,9 @@ func New(opts Options, cfg *config.Config) *Gateway {
 		paused:    map[string]bool{},
 		heard:     map[string]bool{},
 		subs:      map[chan Event]struct{}{},
-		started:   opts.Now(),
+
+		heardReactions: map[string]bool{},
+		started:        opts.Now(),
 	}
 	g.cfg.Store(cfg)
 	g.disp = dispatch.New(cfg.Settings.MaxConcurrency, g.process)
@@ -235,7 +239,11 @@ func (g *Gateway) recoverInterrupted(ctx context.Context) {
 	cfg := g.cfg.Load()
 	for _, t := range turns {
 		g.log.Info("turn was interrupted by a restart", "turn", t.ID, "route", t.Route)
-		_ = g.opts.API.PostMessage(ctx, t.Channel, t.ThreadTS, config.Render(cfg.Settings.Messages.Interrupted, t.Route, 0))
+		msg := cfg.Settings.Messages.Interrupted
+		if t.Reaction != "" {
+			msg = cfg.Settings.Messages.InterruptedReaction
+		}
+		_ = g.opts.API.PostMessage(ctx, t.Channel, t.ThreadTS, config.Render(msg, t.Route, 0))
 		for _, ts := range t.MessageTS {
 			_ = g.opts.API.RemoveReaction(ctx, t.Channel, ts, cfg.Settings.AckReaction)
 		}
@@ -352,9 +360,23 @@ func (g *Gateway) process(key string, batch []event.Message) {
 
 	var tsList []string
 	var inMsgs []handler.InputMessage
+	// reaction is the reaction that started the turn; byReaction is true
+	// when nothing else did (no reply came with it).
+	var reaction *handler.InputReaction
+	byReaction := true
 	for _, m := range batch {
 		tsList = append(tsList, m.TS)
-		inMsgs = append(inMsgs, handler.InputMessage{TS: m.TS, User: m.User, Text: m.Text})
+		im := handler.InputMessage{TS: m.TS, User: m.User, Text: m.Text}
+		if m.Reaction != nil {
+			im.Reaction = &handler.InputReaction{Name: m.Reaction.Name, User: m.Reaction.User, Action: config.ReactionAdded}
+			if m.Reaction.Removed {
+				im.Reaction.Action = config.ReactionRemoved
+			}
+			reaction = im.Reaction
+		} else {
+			byReaction = false
+		}
+		inMsgs = append(inMsgs, im)
 		if err := api.AddReaction(ctx, channel, m.TS, cfg.Settings.AckReaction); err != nil {
 			g.log.Warn("could not add reaction", "err", err)
 		}
@@ -376,7 +398,14 @@ func (g *Gateway) process(key string, batch []event.Message) {
 		}
 	}
 
-	turnID, err := g.opts.Store.StartTurn(ctx, store.Turn{Channel: channel, ThreadTS: threadTS, MessageTS: tsList, Route: r.Name})
+	turn := store.Turn{Channel: channel, ThreadTS: threadTS, MessageTS: tsList, Route: r.Name}
+	if byReaction {
+		// Whoever reads these did not write the post, so they are not asked
+		// to send it again.
+		turn.Reaction = reaction.Action
+		msgs.Timeout, msgs.Interrupted = msgs.TimeoutReaction, msgs.InterruptedReaction
+	}
+	turnID, err := g.opts.Store.StartTurn(ctx, turn)
 	if err != nil {
 		g.log.Error("could not record turn", "err", err)
 		return
@@ -421,7 +450,7 @@ func (g *Gateway) process(key string, batch []event.Message) {
 	}
 	in := handler.Input{
 		Route: r.Name, Turn: th.Turns + 1, Channel: channel, ThreadTS: threadTS,
-		Permalink: permalink, Groups: th.Groups, Messages: inMsgs,
+		Permalink: permalink, Groups: th.Groups, Messages: inMsgs, Reaction: reaction,
 	}
 	// The handler gets what is left of the time limit.
 	run := r
